@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16...3.23)
+cmake_minimum_required(VERSION 3.17...3.23)
 
 # Not ideal to use this global variable, but necessary to make sure
 # that tooling and projects use the same version
@@ -20,6 +20,9 @@ set(ENABLE_DEVELOPER_MODE
 # Change this to false if you want to disable warnings_as_errors in developer mode
 set(OPT_WARNINGS_AS_ERRORS_DEVELOPER_DEFAULT TRUE)
 
+# Generate compile_commands.json for LSP servers
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Add project_options v0.20.0
 # https://github.com/cpp-best-practices/project_options
 include(FetchContent)
@@ -33,7 +36,7 @@ include(${_project_options_SOURCE_DIR}/Index.cmake)
 
 # Set the project name and language
 project(
-  myproject
+  tx-lang
   VERSION 0.0.1
   DESCRIPTION ""
   HOMEPAGE_URL "%%myurl%%"
@@ -123,8 +126,8 @@ dynamic_project_options(
 
 target_compile_features(project_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 # TODO: The INTERFACE library NAMESPACE ALIAS are missing! CK
-add_library(myproject::project_options INTERFACE IMPORTED)
-add_library(myproject::project_warnings INTERFACE IMPORTED)
+add_library(tx-lang::project_options INTERFACE IMPORTED)
+add_library(tx-lang::project_warnings INTERFACE IMPORTED)
 
 # configure files based on CMake configuration options
 add_subdirectory(configured_files)
@@ -155,7 +158,7 @@ if(MSVC)
 endif()
 
 # set the startup project for the "play" button in MSVC
-set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT intro)
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT tx)
 
 if(CMAKE_SKIP_INSTALL_RULES)
   return()
@@ -165,7 +168,7 @@ endif()
 
 # Add other targets that you want installed here, be default we just package the one executable
 # we know we want to ship
-package_project(TARGETS intro project_options project_warnings
+package_project(TARGETS tx project_options project_warnings
   # FIXME: this does not work! CK
   # PRIVATE_DEPENDENCIES_CONFIGURED project_options project_warnings
 )

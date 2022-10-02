@@ -2,8 +2,12 @@
 
 [requires]
 catch2/2.13.9
+fmt/9.1.0
 cli11/2.2.0
-spdlog/1.10.0
 
 [generators]
 cmake_find_package_multi
+
+[options]
+fmt:header_only=True
+
