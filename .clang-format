@@ -14,6 +14,9 @@ AllowShortLoopsOnASingleLine: true
 BinPackArguments: false
 BitFieldColonSpacing: Before
 BreakBeforeBinaryOperators: NonAssignment
+BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
+ConstructorInitializerIndentWidth: 8
 IncludeBlocks: Regroup
 IncludeCategories:
   - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
@@ -28,5 +31,7 @@ IncludeCategories:
     Priority:        1
     SortPriority:    0
 IndentWidth: 4
-PenaltyBreakBeforeFirstCallParameter: 0
+InsertBraces: true
+PackConstructorInitializers: CurrentLine
+PenaltyBreakAssignment: 200
 SpacesInContainerLiterals: false

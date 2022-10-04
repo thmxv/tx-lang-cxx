@@ -4,7 +4,7 @@
 
 find_package(fmt)
 
-add_executable(fuzz_tester fuzz_tester.cpp)
+add_executable(fuzz_tester fuzz_tester.cxx)
 target_link_libraries(
   fuzz_tester
   PRIVATE

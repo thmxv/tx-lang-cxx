@@ -21,7 +21,7 @@ find_package(Catch2 CONFIG REQUIRED)
 
 include(Catch)
 
-add_library(catch_main OBJECT catch_main.cpp)
+add_library(catch_main OBJECT catch_main.cxx)
 target_link_libraries(catch_main PUBLIC Catch2::Catch2)
 target_link_libraries(catch_main PRIVATE tx-lang::project_options)
 
@@ -40,7 +40,7 @@ set_tests_properties(
     PASS_REGULAR_EXPRESSION "${PROJECT_VERSION}"
 )
 
-add_executable(tests tests.cpp)
+add_executable(tests tests.cxx)
 target_link_libraries(
   tests
   PRIVATE tx-lang::project_warnings tx-lang::project_options catch_main
@@ -58,7 +58,7 @@ catch_discover_tests(
 )
 
 # Add a file containing a set of constexpr tests
-add_executable(constexpr_tests constexpr_tests.cpp)
+add_executable(constexpr_tests constexpr_tests.cxx)
 target_link_libraries(
   constexpr_tests
   PRIVATE tx-lang::project_options tx-lang::project_warnings catch_main
@@ -76,7 +76,7 @@ catch_discover_tests(
 # Disable the constexpr portion of the test, and build again this allows
 # us to have an executable that we can debug when
 # things go wrong with the constexpr testing
-add_executable(relaxed_constexpr_tests constexpr_tests.cpp)
+add_executable(relaxed_constexpr_tests constexpr_tests.cxx)
 target_link_libraries(
   relaxed_constexpr_tests
   PRIVATE tx-lang::project_options tx-lang::project_warnings catch_main

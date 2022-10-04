@@ -1,15 +1,15 @@
 find_package(fmt CONFIG REQUIRED)
-find_package(CLI11 CONFIG REQUIRED)
 
 # Generic test that uses conan libs
-add_executable(tx main.cpp)
+add_executable(tx-cli src/main.cxx)
+set_target_properties(tx-cli PROPERTIES OUTPUT_NAME "tx")
 target_link_libraries(
-  tx
+  tx-cli
   PUBLIC project_options project_warnings
-  PRIVATE fmt::fmt-header-only CLI11::CLI11
+  PRIVATE fmt::fmt-header-only
 )
 
 target_include_directories(
-  tx
+  tx-cli
   PRIVATE "${CMAKE_BINARY_DIR}/configured_files/include"
 )
