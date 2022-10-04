@@ -4,6 +4,10 @@ out/
 cmake-build-*/
 conan-cache/
 
+# clangd cache and compile_commands link
+.cache/
+compile_commands.json
+
 # User spesific settings
 CMakeUserPresets.json
 
