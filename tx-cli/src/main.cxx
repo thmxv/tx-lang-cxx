@@ -1,13 +1,24 @@
+#include <tx/tx.hxx>
+
 #include <fmt/format.h>
-#include <string_view>
 
 #include <cstdlib>
 #include <span>
+#include <string_view>
 
-// This file will be generated automatically when you run the CMake
-// configuration step. It creates a namespace called `tx::cmake`.
-// You can modify the source template at `configured_files/config.hpp.in`.
-#include <internal_use_only/config.hxx>
+namespace tx {
+
+void run_repl() {
+    Chunk chunk;
+    const size_t line = 123;
+    const double constant = 1.2;
+    chunk.write_constant(constant, line);
+    chunk.write(OpCode::RETURN, line);
+    disassemble_chunk(chunk, "test chunk");
+    chunk.destroy();
+}
+
+}  // namespace tx
 
 void print_usage() noexcept {
     fmt::print(
@@ -18,7 +29,7 @@ void print_usage() noexcept {
         "Options:\n"
         "  --help     Show this message and exit.\n"
         "  --version  Show version and exit.\n",
-        tx::cmake::project_version
+        tx::version
     );
 }
 
@@ -30,14 +41,13 @@ int main(int argc, const char** argv) noexcept {
         print_usage();
         return EXIT_SUCCESS;
     }
-
     if (argc >= 2 && args[1] == std::string_view{"--version"}) {
-        fmt::print("{}", tx::cmake::project_version);
+        fmt::print("{}", tx::version);
         return EXIT_SUCCESS;
     }
 
     if (argc == 1) {
-        // run_repl
+        tx::run_repl();
     } else {
         const std::string_view file_path{args[1]};
         (void)file_path;

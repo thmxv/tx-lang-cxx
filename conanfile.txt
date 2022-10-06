@@ -3,6 +3,7 @@
 [requires]
 catch2/2.13.9
 fmt/9.1.0
+ms-gsl/4.0.0
 
 [generators]
 cmake_find_package_multi

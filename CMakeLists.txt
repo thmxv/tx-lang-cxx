@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17...3.23)
+cmake_minimum_required(VERSION 3.23...3.24)
 
 # Not ideal to use this global variable, but necessary to make sure
 # that tooling and projects use the same version
@@ -137,8 +137,7 @@ add_library(tx-lang::project_options INTERFACE IMPORTED)
 add_library(tx-lang::project_warnings INTERFACE IMPORTED)
 
 # configure files based on CMake configuration options
-add_subdirectory(configured_files)
-
+# add_subdirectory(configured_files)
 add_subdirectory(tx-runtime)
 add_subdirectory(tx-cli)
 
@@ -164,7 +163,11 @@ endif()
 if(MSVC)
   get_all_installable_targets(all_targets)
   message("all_targets=${all_targets}")
-  set_target_properties(${all_targets} PROPERTIES VS_DEBUGGER_ENVIRONMENT "PATH=$(VC_ExecutablePath_x64);%PATH%")
+  set_target_properties(
+    ${all_targets}
+    PROPERTIES
+      VS_DEBUGGER_ENVIRONMENT "PATH=$(VC_ExecutablePath_x64);%PATH%"
+  )
 endif()
 
 # set the startup project for the "play" button in MSVC

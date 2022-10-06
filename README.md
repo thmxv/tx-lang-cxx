@@ -9,9 +9,34 @@
 
 Tx is inspired by Lua. The code base and implementation is inspired by the 
 book "Crafting Interpreters" by Robert Nystrom. The syntax and feature set
-are inspired by language such as Rust, Swift among others.
+are inspired by languages such as Rust, Swift among others.
 
 ## Disclaimer
 
 Tx is still verry much a work in progress.
+
+## Roadmap/TODO lists
+
+- [X] Bytecode array
+- [ ] Interpret bytecode
+- [ ] Scanning tokens
+- [ ] Parsing/compiling expressions
+- [ ] Value types
+- [ ] String
+- [ ] Hash table
+- [ ] Global variables
+- [ ] Local variables
+- [ ] Jumping
+- [ ] Functions and call
+- [ ] Closure
+- [ ] Garbage collection
+- [ ] Struct and instances
+- [ ] Methods and Initializer
+- [ ] Inheritance
+- [ ] Optimization
+- [ ] Traits
+- [ ] Patterm matching
+- [ ] Fiber
+- [ ] Thread
+- [ ] Assyn/await
 

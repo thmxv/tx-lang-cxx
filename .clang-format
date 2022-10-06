@@ -17,7 +17,8 @@ BreakBeforeBinaryOperators: NonAssignment
 BreakConstructorInitializers: BeforeComma
 BreakInheritanceList: BeforeComma
 ConstructorInitializerIndentWidth: 8
-IncludeBlocks: Regroup
+# IncludeBlocks: Regroup
+SortIncludes: Never
 IncludeCategories:
   - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
     Priority:        2
