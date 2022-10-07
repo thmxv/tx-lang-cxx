@@ -9,13 +9,26 @@
 
 Tx is inspired by Lua. The code base and implementation is inspired by the 
 book "Crafting Interpreters" by Robert Nystrom. The syntax and feature set
-are inspired by languages such as Rust, Swift among others.
+are inspired by languages such as Python, Rust and Swift among others.
+
+Tx design desitions are supposed to be oriented towards safety, speed, power 
+and minimalism.
+
+The code base is written, as much as possible, in moder C++. Trying to be 
+allmost completely constexpr.
 
 ## Disclaimer
 
 Tx is still verry much a work in progress.
 
-## Roadmap/TODO lists
+## Backlog
+
+- constexpr
+- parse debug cmd-line arguments
+- Local allocator
+- Ensure enough stack space
+
+## Roadmap/TODO list
 
 - [X] Bytecode array
 - [X] Interpret bytecode
@@ -31,12 +44,13 @@ Tx is still verry much a work in progress.
 - [ ] Closure
 - [ ] Garbage collection
 - [ ] Struct and instances
-- [ ] Methods and Initializer
+- [ ] Methods and initializer
 - [ ] Inheritance
 - [ ] Optimization
+- [ ] Array and Map values
 - [ ] Traits
-- [ ] Patterm matching
+- [ ] Pattern matching
 - [ ] Fiber
 - [ ] Thread
-- [ ] Assyn/await
+- [ ] Async await
 

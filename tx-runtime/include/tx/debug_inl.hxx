@@ -53,22 +53,27 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
     }
     const OpCode instruction = chunk.code[offset].as_opcode();
     switch (instruction) {
-        case OpCode::CONSTANT:
+        using enum OpCode;
+        case CONSTANT:
             return constant_instruction("CONSTANT", chunk, offset, false);
-        case OpCode::CONSTANT_LONG:
+        case CONSTANT_LONG:
             return constant_instruction("CONSTANT", chunk, offset, true);
-        case OpCode::ADD: return simple_instruction("ADD", offset);
-        case OpCode::SUBSTRACT: return simple_instruction("SUBSTRACT", offset);
-        case OpCode::MULTIPLY: return simple_instruction("MULTIPLY", offset);
-        case OpCode::DIVIDE: return simple_instruction("DIVIDE", offset);
-        case OpCode::NEGATE: return simple_instruction("NEGATE", offset);
-        case OpCode::RETURN: return simple_instruction("RETURN", offset);
+        case ADD: return simple_instruction("ADD", offset);
+        case SUBSTRACT: return simple_instruction("SUBSTRACT", offset);
+        case MULTIPLY: return simple_instruction("MULTIPLY", offset);
+        case DIVIDE: return simple_instruction("DIVIDE", offset);
+        case NEGATE: return simple_instruction("NEGATE", offset);
+        case RETURN: return simple_instruction("RETURN", offset);
+        case END: return simple_instruction("END", offset);
     }
     fmt::print(
         FMT_STRING("Unknown opcode {:d}\n"),
         static_cast<u8>(instruction)
     );
-    return offset + 1;
+    // Techically we already invoked UB, even before print.
+    // No point in trying to continue
+    std::abort();
+    // return offset + 1;
 }
 
 }  // namespace tx

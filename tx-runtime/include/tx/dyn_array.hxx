@@ -109,6 +109,11 @@ class DynArray {
         data_ptr[count++] = value;
     }
 
+    void push_back_unsafe(T value) noexcept {
+        assert(count < capacity);
+        data_ptr[count++] = value;
+    }
+
     void pop_back() noexcept { std::destroy_at(data_ptr[--count]); }
 
     [[nodiscard]] constexpr T& operator[](SizeT idx) noexcept {

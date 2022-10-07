@@ -27,14 +27,18 @@ class VM {
     constexpr ByteCode read_byte() noexcept;
     constexpr Value read_constant(bool is_long) noexcept;
 
-    constexpr InterpretResult interpret(const Chunk& chunk) noexcept;
+    TX_VM_CONSTEXPR InterpretResult interpret(const Chunk& chunk) noexcept;
 
-    template<typename T, template<typename> typename Op>
+    template <typename T, template <typename> typename Op>
     [[nodiscard]] constexpr bool binary_op() noexcept;
 
-    constexpr InterpretResult run() noexcept;
+    void print_stack() const noexcept;
+    void print_instruction() const noexcept;
+    constexpr void debug_trace() const noexcept;
 
-    constexpr void push(Value value) noexcept { stack.push_back(value); }
+    TX_VM_CONSTEXPR InterpretResult run(const Chunk& chunk) noexcept;
+
+    constexpr void push(Value value) noexcept { stack.push_back_unsafe(value); }
     constexpr Value pop() noexcept {
         auto value = stack.back();
         stack.pop_back();

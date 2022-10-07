@@ -24,7 +24,7 @@ inline gsl::owner<void*> reallocate_impl(
         static_cast<std::size_t>(new_size)
     );
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    if (result == nullptr) { std::exit(1); }
+    if (result == nullptr) { std::abort(); }
     return result;
 }
 

@@ -10,16 +10,13 @@
 
 namespace tx {
 
+// clang-format off
 enum class OpCode : u8 {
-    CONSTANT,
-    CONSTANT_LONG,
-    ADD,
-    SUBSTRACT,
-    MULTIPLY,
-    DIVIDE,
-    NEGATE,
-    RETURN,
+    #define TX_OPCODE(name, _) name,
+    #include "tx/opcodes.inc"
+    #undef TX_OPCODE
 };
+// clang-format on
 
 struct ByteCode {
     union {

@@ -1,7 +1,8 @@
 #pragma once
 
-#include <type_traits>
 #include <array>
+#include <cstdlib>
+#include <type_traits>
 
 namespace tx {
 
@@ -72,6 +73,13 @@ class FixedCapacityArray {
     }
 
     constexpr void push_back(T value
+    ) noexcept(std::is_nothrow_copy_constructible_v<T>) {
+        if (count == C) { std::abort(); }
+        // NOTE: Do not launder
+        std::construct_at(reinterpret_cast<T*>(&data_buff[count++]), value);
+    }
+
+    constexpr void push_back_unsafe(T value
     ) noexcept(std::is_nothrow_copy_constructible_v<T>) {
         assert(count < C);
         // NOTE: Do not launder

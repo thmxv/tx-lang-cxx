@@ -26,10 +26,10 @@ inline constexpr Value VM::read_constant(bool is_long) noexcept {
     return chunk_ptr->constants[constant_idx];
 }
 
-constexpr inline InterpretResult VM::interpret(const Chunk& chunk) noexcept {
-    chunk_ptr = &chunk;
-    instruction_ptr = chunk_ptr->code.data();
-    return run();
+TX_VM_CONSTEXPR inline InterpretResult VM::interpret(
+    const Chunk& chunk
+) noexcept {
+    return run(chunk);
 }
 
 template<typename T, template<typename> typename Op>
@@ -46,67 +46,118 @@ bool VM::binary_op() noexcept {
     return false;
 }
 
-constexpr inline InterpretResult VM::run() noexcept {
-    while (true) {
-        if constexpr (HAS_DEBUG_FEATURES) {
-            if (trace_execution) {
-                fmt::print(FMT_STRING("          "));
-                for (const auto& slot : stack) {
-                    fmt::print(FMT_STRING("[ {} ]"), slot);
-                }
-                fmt::print(FMT_STRING("\n"));
-                disassemble_instruction(
-                    *chunk_ptr,
-                    static_cast<size_t>(
-                        std::distance(chunk_ptr->code.data(), instruction_ptr)
-                    )
-                );
-            }
+void VM::print_stack() const noexcept {
+    fmt::print(FMT_STRING("          "));
+    for (const auto& slot : stack) {
+        fmt::print(FMT_STRING("[ {} ]"), slot);
+    }
+    fmt::print(FMT_STRING("\n"));
+}
+
+void VM::print_instruction() const noexcept {
+    disassemble_instruction(
+        *chunk_ptr,
+        static_cast<size_t>(
+            std::distance(chunk_ptr->code.data(), instruction_ptr)
+        )
+    );
+}
+
+constexpr void VM::debug_trace() const noexcept {
+    if constexpr (HAS_DEBUG_FEATURES) {
+        if (trace_execution) {
+            print_stack();
+            print_instruction();
         }
-        const OpCode instruction = read_byte().as_opcode();
-        switch (instruction) {
-            case OpCode::CONSTANT: {
+    }
+}
+
+TX_VM_CONSTEXPR inline InterpretResult VM::run(const Chunk& chunk) noexcept {
+    // clang-format off
+    #ifdef TX_ENABLE_COMPUTED_GOTO
+        __extension__
+        static void* dispatch_table[] = {
+            #define TX_OPCODE(name, _) &&L_opcode_##name,
+            #include "tx/opcodes.inc"
+            #undef TX_OPCODE
+        };
+        #define TX_VM_DISPATCH TX_VM_BREAK();
+        #define TX_VM_CASE(name) L_opcode_##name
+        #define TX_VM_BREAK() \
+            do { \
+                debug_trace(); \
+                instruction = read_byte().as_opcode(); \
+                (__extension__( \
+                    {goto *dispatch_table[to_underlying(instruction)];} \
+                )); \
+            } while (false)
+    #else
+        #define TX_VM_DISPATCH  \
+            debug_trace(); \
+            instruction = read_byte().as_opcode(); \
+            switch (instruction)
+        #define TX_VM_CASE(name) case name
+        #define TX_VM_BREAK() break
+    #endif
+    // clang-format on
+    chunk_ptr = &chunk;
+    instruction_ptr = chunk_ptr->code.data();
+    for (;;) {
+        OpCode instruction; 
+        TX_VM_DISPATCH {
+            using enum OpCode;
+            TX_VM_CASE(CONSTANT): {
                 push(read_constant(false));
-                break;
+                TX_VM_BREAK();
             }
-            case OpCode::CONSTANT_LONG: {
+            TX_VM_CASE(CONSTANT_LONG): {
                 push(read_constant(true));
-                break;
+                TX_VM_BREAK();
             }
-            case OpCode::ADD: {
+            TX_VM_CASE(ADD): {
                 if (binary_op<double, std::plus>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
-                break;
+                TX_VM_BREAK();
             }
-            case OpCode::SUBSTRACT: {
+            TX_VM_CASE(SUBSTRACT): {
                 if (binary_op<double, std::minus>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
-                break;
+                TX_VM_BREAK();
             }
-            case OpCode::MULTIPLY: {
+            TX_VM_CASE(MULTIPLY): {
                 if (binary_op<double, std::multiplies>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
-                break;
+                TX_VM_BREAK();
             }
-            case OpCode::DIVIDE: {
+            TX_VM_CASE(DIVIDE): {
                 if (binary_op<double, std::divides>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
-                break;
+                TX_VM_BREAK();
             }
-            case OpCode::NEGATE: {
+            TX_VM_CASE(NEGATE): {
                 push(-pop());
-                break;
+                TX_VM_BREAK();
             }
-            case OpCode::RETURN: {
+            TX_VM_CASE(RETURN): {
                 fmt::print(FMT_STRING("{}\n"), pop());
                 return InterpretResult::OK;
             }
+            TX_VM_CASE(END): {
+                unreachable();
+            }
         }
     }
+    unreachable();
+    return InterpretResult::RUNTIME_ERROR;
+    // clang-format off
+    #undef TX_VM_LOOP
+    #undef TX_VM_CASE
+    #undef TX_VM_CONTINUE
+    // clang-format on
 }
 
 }  // namespace tx

@@ -18,16 +18,17 @@ namespace tx {
 //     template <typename FormatContext>
 //     auto format(const tx::Value value, FormatContext& ctx) {
 //         // switch (value.type) {
-//         //     case tx::ValueType::NIL:
+//         //     using enum tx::ValueType;
+//         //     case NIL:
 //         //         return fmt::format_to(ctx.out(), "nil");
-//         //     case tx::ValueType::BOOL:
+//         //     case BOOL:
 //         //         return fmt::format_to(ctx.out(), "{}", value.as_bool());
-//         //     case tx::ValueType::NUMBER:
+//         //     case NUMBER:
 //         //         return fmt::format_to(ctx.out(), "{}", value.as_number());
-//         //     case tx::ValueType::OBJECT:
+//         //     case OBJECT:
 //         //         return fmt::format_to(ctx.out(), "{}", value.as_object());
 //         // }
-//         // __builtin_unreachable();
+//         // unreachable();
 //         return fmt::format_to(ctx.out(), "{}", value);
 //     }
 // };
