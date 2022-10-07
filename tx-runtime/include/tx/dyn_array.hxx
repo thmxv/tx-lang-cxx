@@ -28,19 +28,14 @@ class DynArray {
 
     constexpr DynArray() noexcept = default;
 
-    DynArray(SizeT size, T value) noexcept
+    DynArray(VM& tvm, SizeT size, T value) noexcept
             : count(size)
             , capacity(size)
-            , data_ptr(allocate<T>(size)) {
+            , data_ptr(allocate<T>(tvm, size)) {
         std::uninitialized_fill_n(data_ptr, count, value);
     }
 
-    constexpr DynArray(const DynArray& other) noexcept
-            : count(other.count)
-            , capacity(other.count)
-            , data_ptr(allocate<T>(capacity)) {
-        std::uninitialized_copy_n(other.data(), other.count, data_ptr);
-    }
+    constexpr DynArray(const DynArray& other) noexcept = delete;
 
     constexpr DynArray(DynArray&& other) noexcept
             : count(other.count)
@@ -51,13 +46,7 @@ class DynArray {
         other.data_ptr = nullptr;
     }
 
-    constexpr DynArray& operator=(const DynArray& other) noexcept {
-        if (&other == this) { return *this; }
-        if (capacity < other.count) { reserve(other.count); }
-        std::destroy_n(begin(), count);
-        std::uninitialized_copy_n(other.data(), other.count, data_ptr);
-        return *this;
-    }
+    constexpr DynArray& operator=(const DynArray& other) noexcept = delete;
 
     constexpr DynArray& operator=(DynArray&& other) noexcept {
         count = other.count;
@@ -75,9 +64,9 @@ class DynArray {
         assert(capacity == 0);
     }
 
-    void destroy() noexcept {
+    void destroy(VM& tvm) noexcept {
         std::destroy_n(data_ptr, count);
-        free_array(data_ptr, capacity);
+        free_array(tvm, data_ptr, capacity);
         count = 0;
         capacity = 0;
         data_ptr = gsl::owner<T*>{nullptr};
@@ -85,9 +74,9 @@ class DynArray {
 
     [[nodiscard]] constexpr SizeT size() const noexcept { return count; }
 
-    void resize(SizeT new_size) noexcept {
+    void resize(VM& tvm, SizeT new_size) noexcept {
         if (new_size > count) {
-            reserve(new_size);
+            reserve(tvm, new_size);
             std::uninitialized_default_construct_n(
                 &data_ptr[count],
                 new_size - count
@@ -99,13 +88,13 @@ class DynArray {
         }
     }
 
-    void reserve(SizeT new_cap) noexcept {
-        data_ptr = gsl::owner<T*>{grow_array(data_ptr, capacity, new_cap)};
+    void reserve(VM& tvm, SizeT new_cap) noexcept {
+        data_ptr = gsl::owner<T*>{grow_array(tvm, data_ptr, capacity, new_cap)};
         capacity = new_cap;
     }
 
-    void push_back(T value) noexcept {
-        if (capacity == count) { reserve(grow_capacity(capacity)); }
+    void push_back(VM& tvm, T value) noexcept {
+        if (capacity == count) { reserve(tvm, grow_capacity(capacity)); }
         data_ptr[count++] = value;
     }
 

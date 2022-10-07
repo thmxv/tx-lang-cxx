@@ -1,6 +1,7 @@
 #pragma once
 
 #include "memory.hxx"
+#include "vm.hxx"
 
 #include <gsl/gsl>
 
@@ -9,10 +10,12 @@
 namespace tx {
 
 inline gsl::owner<void*> reallocate_impl(
+    VM& tvm,
     gsl::owner<void*> pointer,  //
     size_t /*old_size*/,
     size_t new_size
 ) {
+    (void) tvm;
     if (new_size == 0) {
         // NOLINTNEXTLINE(TODO)
         std::free(pointer);

@@ -45,39 +45,39 @@ struct Chunk {
     LineStartArray lines;
     ValueArray constants;
 
-    void destroy() noexcept {
-        code.destroy();
-        lines.destroy();
-        constants.destroy();
+    void destroy(VM& tvm) noexcept {
+        code.destroy(tvm);
+        lines.destroy(tvm);
+        constants.destroy(tvm);
     }
 
     template <typename T>
         requires std::is_nothrow_constructible_v<ByteCode, T>
-    void write(T byte, size_t line) noexcept {
-        code.push_back(ByteCode(byte));
+    void write(VM& tvm, T byte, size_t line) noexcept {
+        code.push_back(tvm, ByteCode(byte));
         if (lines.size() > 0 && lines[lines.size() - 1].line == line) {
             return;
         }
-        lines.push_back(LineStart{.offset = code.size() - 1, .line = line});
+        lines.push_back(tvm, LineStart{.offset = code.size() - 1, .line = line});
     }
 
-    [[nodiscard]] size_t add_constant(Value value) noexcept {
-        constants.push_back(value);
+    [[nodiscard]] size_t add_constant(VM& tvm, Value value) noexcept {
+        constants.push_back(tvm, value);
         return constants.size() - 1;
     }
 
-    void write_constant(Value value, size_t line) noexcept {
-        const u64 index = static_cast<u64>(add_constant(value));
+    void write_constant(VM& tvm, Value value, size_t line) noexcept {
+        const u64 index = static_cast<u64>(add_constant(tvm, value));
         if (index < (1 << 8)) {
-            write(OpCode::CONSTANT, line);
-            write(static_cast<u8>(index), line);
+            write(tvm, OpCode::CONSTANT, line);
+            write(tvm, static_cast<u8>(index), line);
             return;
         }
         if (index < (1 << 24)) {
-            write(OpCode::CONSTANT_LONG, line);
-            write(static_cast<u8>(index & 0xffU), line);
-            write(static_cast<u8>((index >> 8U) & 0xffU), line);
-            write(static_cast<u8>((index >> 16U) & 0xffU), line);
+            write(tvm, OpCode::CONSTANT_LONG, line);
+            write(tvm, static_cast<u8>(index & 0xffU), line);
+            write(tvm, static_cast<u8>((index >> 8U) & 0xffU), line);
+            write(tvm, static_cast<u8>((index >> 16U) & 0xffU), line);
             return;
         }
         assert(false);

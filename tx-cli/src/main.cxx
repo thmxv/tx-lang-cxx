@@ -9,22 +9,22 @@
 namespace tx {
 
 void run_repl() {
-    VM vm_{};
+    VM tvm{};
     Chunk chunk;
     const size_t line = 123;
     const double constant = 1.2;
     const double constant2 = 3.4;
     const double constant3 = 5.6;
-    chunk.write_constant(constant, line);
-    chunk.write_constant(constant2, line);
-    chunk.write(OpCode::ADD, line);
-    chunk.write_constant(constant3, line);
-    chunk.write(OpCode::DIVIDE, line);
-    chunk.write(OpCode::NEGATE, line);
-    chunk.write(OpCode::RETURN, line);
+    chunk.write_constant(tvm, constant, line);
+    chunk.write_constant(tvm, constant2, line);
+    chunk.write(tvm, OpCode::ADD, line);
+    chunk.write_constant(tvm, constant3, line);
+    chunk.write(tvm, OpCode::DIVIDE, line);
+    chunk.write(tvm, OpCode::NEGATE, line);
+    chunk.write(tvm, OpCode::RETURN, line);
     disassemble_chunk(chunk, "test chunk");
-    vm_.interpret(chunk);
-    chunk.destroy();
+    tvm.interpret(chunk);
+    chunk.destroy(tvm);
 }
 
 }  // namespace tx
