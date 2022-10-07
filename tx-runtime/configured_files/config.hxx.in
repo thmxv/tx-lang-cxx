@@ -6,6 +6,7 @@
 // in this particular case, we are using it to set the version number
 // of our executable
 namespace tx::cmake {
+
 inline constexpr std::string_view project_name = "@PROJECT_NAME@";
 inline constexpr std::string_view project_version = "@PROJECT_VERSION@";
 inline constexpr int project_version_major { @PROJECT_VERSION_MAJOR@ };
@@ -13,5 +14,8 @@ inline constexpr int project_version_minor { @PROJECT_VERSION_MINOR@ };
 inline constexpr int project_version_patch { @PROJECT_VERSION_PATCH@ };
 inline constexpr int project_version_tweak { @PROJECT_VERSION_TWEAK@ };
 inline constexpr std::string_view git_sha = "@GIT_SHA@";
-} // namespace tx::cmake
 
+inline constexpr bool has_debug_features =
+    std::string_view{"@TX_ENABLE_DEBUG_FEATURES@"} == std::string_view{"ON"};
+
+}  // namespace tx::cmake

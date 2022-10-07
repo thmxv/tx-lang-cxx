@@ -1,5 +1,6 @@
 #pragma once
 
+#include "chunk.hxx"
 #include "debug.hxx"
 #include "value.hxx"
 
@@ -16,43 +17,32 @@ disassemble_chunk(const Chunk& chunk, std::string_view name) noexcept {
     }
 }
 
-[[nodiscard]] inline size_t
-constant_instruction(std::string_view name, const Chunk& chunk, size_t offset) {
-    const u8 constant_idx = chunk.code[offset + 1].as_u8();
+[[nodiscard]] inline size_t constant_instruction(
+    std::string_view name,
+    const Chunk& chunk,
+    size_t offset,
+    bool is_long
+) noexcept {
+    const auto [constant_idx, new_ptr] = read_constant_index(
+        &chunk.code[offset + 1],
+        is_long
+    );
     fmt::print(
-        "{:16s} {:4d} '{}'\n",
+        "{:8s} {:4d} '{}'\n",
         name,
         constant_idx,
         chunk.constants[constant_idx]
     );
-    return offset + 2;
-}
-
-[[nodiscard]] inline size_t long_constant_instruction(
-    std::string_view name,
-    const Chunk& chunk,
-    size_t offset
-) {
-    const auto constant_idx =
-        static_cast<u32>(chunk.code[offset + 1].as_u8())
-        | (static_cast<u32>(chunk.code[offset + 2].as_u8()) << 8U)
-        | (static_cast<u32>(chunk.code[offset + 3].as_u8()) << 16U);
-    fmt::print(
-        "{:16s} {:4d} '{}'\n",
-        name,
-        constant_idx,
-        chunk.constants[static_cast<size_t>(constant_idx)]
-    );
-    return offset + 4;
+    return static_cast<size_t>(std::distance(chunk.code.data(), new_ptr));
 }
 
 [[nodiscard]] inline size_t
 simple_instruction(std::string_view name, size_t offset) noexcept {
-    fmt::print(FMT_STRING("{:s}\n"), name);
+    fmt::print(FMT_STRING("{:8s}\n"), name);
     return offset + 1;
 }
 
-[[nodiscard]] inline size_t
+inline size_t
 disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
     fmt::print(FMT_STRING("{:04d} "), offset);
     const auto line = chunk.get_line(offset);
@@ -64,9 +54,14 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
     const OpCode instruction = chunk.code[offset].as_opcode();
     switch (instruction) {
         case OpCode::CONSTANT:
-            return constant_instruction("CONSTANT", chunk, offset);
+            return constant_instruction("CONSTANT", chunk, offset, false);
         case OpCode::CONSTANT_LONG:
-            return long_constant_instruction("CONSTANT", chunk, offset);
+            return constant_instruction("CONSTANT", chunk, offset, true);
+        case OpCode::ADD: return simple_instruction("ADD", offset);
+        case OpCode::SUBSTRACT: return simple_instruction("SUBSTRACT", offset);
+        case OpCode::MULTIPLY: return simple_instruction("MULTIPLY", offset);
+        case OpCode::DIVIDE: return simple_instruction("DIVIDE", offset);
+        case OpCode::NEGATE: return simple_instruction("NEGATE", offset);
         case OpCode::RETURN: return simple_instruction("RETURN", offset);
     }
     fmt::print(

@@ -9,12 +9,21 @@
 namespace tx {
 
 void run_repl() {
+    VM vm_{};
     Chunk chunk;
     const size_t line = 123;
     const double constant = 1.2;
+    const double constant2 = 3.4;
+    const double constant3 = 5.6;
     chunk.write_constant(constant, line);
+    chunk.write_constant(constant2, line);
+    chunk.write(OpCode::ADD, line);
+    chunk.write_constant(constant3, line);
+    chunk.write(OpCode::DIVIDE, line);
+    chunk.write(OpCode::NEGATE, line);
     chunk.write(OpCode::RETURN, line);
     disassemble_chunk(chunk, "test chunk");
+    vm_.interpret(chunk);
     chunk.destroy();
 }
 
@@ -24,12 +33,18 @@ void print_usage() noexcept {
     fmt::print(
         "Tx version {}\n"
         "Usage:\n"
-        "  tx [file] [arguments...]\n"
+        "  tx [options] [file] [arguments...]\n"
         "  tx --help | --version\n"
         "Options:\n"
         "  --help     Show this message and exit.\n"
-        "  --version  Show version and exit.\n",
-        tx::version
+        "  --version  Show version and exit.\n"
+        "  -X opt     Set inplementation-specific option. The following"
+        "             options are available:"
+        "             -X trace-execution  Trace bytecode execution"
+        "             -X print-bytecode   Print bytecode after compilation"
+        "             -X trace-gc         Print bytecode after compilation"
+        "             -X stress-gc        Print bytecode after compilation",
+        tx::VERSION
     );
 }
 
@@ -42,7 +57,7 @@ int main(int argc, const char** argv) noexcept {
         return EXIT_SUCCESS;
     }
     if (argc >= 2 && args[1] == std::string_view{"--version"}) {
-        fmt::print("{}", tx::version);
+        fmt::print("{}", tx::VERSION);
         return EXIT_SUCCESS;
     }
 

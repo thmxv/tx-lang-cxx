@@ -4,14 +4,20 @@
 #include "dyn_array.hxx"
 #include "value.hxx"
 
-#include <type_traits>
 #include <numeric>
+#include <utility>
+#include <type_traits>
 
 namespace tx {
 
 enum class OpCode : u8 {
     CONSTANT,
     CONSTANT_LONG,
+    ADD,
+    SUBSTRACT,
+    MULTIPLY,
+    DIVIDE,
+    NEGATE,
     RETURN,
 };
 
@@ -100,5 +106,15 @@ struct Chunk {
         }
     }
 };
+
+constexpr inline std::pair<size_t, const ByteCode*>
+read_constant_index(const ByteCode* ptr, bool is_long) noexcept {
+    if (!is_long) { return std::make_pair(ptr->as_u8(), ptr + 1); }
+    const auto constant_idx =  //
+        static_cast<u32>((ptr)->as_u8())
+        | (static_cast<u32>((ptr + 1)->as_u8()) << 8U)
+        | (static_cast<u32>((ptr + 2)->as_u8()) << 16U);
+    return std::make_pair(static_cast<size_t>(constant_idx), ptr + 3);
+}
 
 }  // namespace tx

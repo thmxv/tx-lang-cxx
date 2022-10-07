@@ -18,7 +18,7 @@ Tx is still verry much a work in progress.
 ## Roadmap/TODO lists
 
 - [X] Bytecode array
-- [ ] Interpret bytecode
+- [X] Interpret bytecode
 - [ ] Scanning tokens
 - [ ] Parsing/compiling expressions
 - [ ] Value types

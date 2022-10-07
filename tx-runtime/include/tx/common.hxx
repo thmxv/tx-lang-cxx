@@ -10,12 +10,16 @@
 
 namespace tx {
 
-    inline constexpr std::string_view version = cmake::project_version;
-    inline constexpr int version_major = cmake::project_version_major;
-    inline constexpr int version_minor = cmake::project_version_minor;
-    inline constexpr int version_patch = cmake::project_version_patch;
-    inline constexpr int version_tweak = cmake::project_version_tweak;
-    inline constexpr std::string_view git_sha = cmake::git_sha;
+    inline constexpr std::string_view VERSION = cmake::project_version;
+    inline constexpr int VERSION_MAJOR = cmake::project_version_major;
+    inline constexpr int VERSION_MINOR = cmake::project_version_minor;
+    inline constexpr int VERSION_PATCH = cmake::project_version_patch;
+    inline constexpr int VERSION_TWEAK = cmake::project_version_tweak;
+    inline constexpr std::string_view GIT_SHA = cmake::git_sha;
+
+    inline constexpr bool HAS_DEBUG_FEATURES = cmake::has_debug_features;
+
+    inline constexpr size_t STACK_MAX = 256;
 
     // Usefull short type aliases
     using i8 = std::int8_t;
@@ -31,5 +35,6 @@ namespace tx {
 
     // NOTE: Configurable size type used in all the code
     using size_t = i32;
+    // using size_t = u64;
 
 }

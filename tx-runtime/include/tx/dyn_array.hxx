@@ -125,6 +125,9 @@ class DynArray {
         return data_ptr[count - 1];
     }
 
+    [[nodiscard]] constexpr T* data() noexcept {
+        return static_cast<T*>(data_ptr);
+    }
     [[nodiscard]] constexpr const T* data() const noexcept {
         return static_cast<T*>(data_ptr);
     }
