@@ -3,6 +3,7 @@
 #include <fmt/format.h>
 
 #include <cstdlib>
+#include <memory_resource>
 #include <ranges>
 #include <span>
 #include <string_view>
@@ -27,7 +28,7 @@ Options:
   file TXT          Read script to ececute from file.
   -                 Read script to execute from the standard input.
   --                Stop parsing the following arguments as options.
-  arguments TXT     Argument to pass to executed script/command.)";
+  arguments TXT...  Argument to pass to executed script/command.)";
 
 void run_repl(VM& tvm) {
     Chunk chunk;
@@ -153,7 +154,8 @@ int main(int argc, const char** argv) noexcept {
     // }
     // fmt::print("\n");
 
-    tx::VM tvm(args_options);
+    std::pmr::unsynchronized_pool_resource mem_res;
+    tx::VM tvm(args_options, &mem_res);
     if (args_file_path.empty()) {
         tx::run_repl(tvm);
     } else {

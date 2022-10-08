@@ -15,7 +15,7 @@ Tx design desitions are supposed to be oriented towards safety, speed, power
 and minimalism.
 
 The code base is written, as much as possible, in moder C++. Trying to be 
-allmost completely constexpr.
+almost completely constexpr.
 
 ## Disclaimer
 
@@ -23,9 +23,7 @@ Tx is still verry much a work in progress.
 
 ## Backlog
 
-- constexpr
-- parse debug cmd-line arguments
-- Local allocator
+- constexpr allocation
 - Ensure enough stack space
 
 ## Roadmap/TODO list
