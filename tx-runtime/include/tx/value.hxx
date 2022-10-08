@@ -9,6 +9,7 @@ namespace tx {
 
     using Value = double;
     using ValueArray = DynArray<Value, size_t>;
+    using ConstValueArray = DynArray<const Value, size_t>;
 
 }
 

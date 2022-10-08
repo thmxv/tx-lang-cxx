@@ -43,7 +43,7 @@ using LineStartArray = DynArray<LineStart, size_t>;
 struct Chunk {
     ByteCodeArray code;
     LineStartArray lines;
-    ValueArray constants;
+    ConstValueArray constants;
 
     void destroy(VM& tvm) noexcept {
         code.destroy(tvm);

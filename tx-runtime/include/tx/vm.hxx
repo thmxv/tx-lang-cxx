@@ -12,17 +12,24 @@ enum class InterpretResult {
     RUNTIME_ERROR,
 };
 
+struct VMOptions {
+    bool trace_execution = false;
+    bool print_bytecode = false;
+    bool trace_gc = false;
+    bool stress_gc = false;
+};
+
 using Stack = FixedCapacityArray<Value, size_t, STACK_MAX>;
 
 class VM {
-    bool trace_execution = true;
+    VMOptions options{};
     const Chunk* chunk_ptr = nullptr;
     const ByteCode* instruction_ptr = nullptr;
     Stack stack;
 
   public:
-    // VM();
-    // ~VM();
+    VM();
+    VM(VMOptions opts) noexcept : options(opts) {}
 
     constexpr ByteCode read_byte() noexcept;
     constexpr Value read_constant(bool is_long) noexcept;

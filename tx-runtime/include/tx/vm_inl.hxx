@@ -65,7 +65,7 @@ void VM::print_instruction() const noexcept {
 
 constexpr void VM::debug_trace() const noexcept {
     if constexpr (HAS_DEBUG_FEATURES) {
-        if (trace_execution) {
+        if (options.trace_execution) {
             print_stack();
             print_instruction();
         }

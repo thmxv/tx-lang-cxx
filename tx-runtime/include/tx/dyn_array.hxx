@@ -51,7 +51,7 @@ class DynArray {
     constexpr DynArray& operator=(DynArray&& other) noexcept {
         count = other.count;
         capacity = other.capacity;
-        data_ptr = gsl::owner<T*>{other.data_ptr};
+        data_ptr = other.data_ptr;
         other.count = 0;
         other.capacity = 0;
         other.data_ptr = nullptr;
@@ -69,7 +69,7 @@ class DynArray {
         free_array(tvm, data_ptr, capacity);
         count = 0;
         capacity = 0;
-        data_ptr = gsl::owner<T*>{nullptr};
+        data_ptr = nullptr;
     }
 
     [[nodiscard]] constexpr SizeT size() const noexcept { return count; }
@@ -89,18 +89,18 @@ class DynArray {
     }
 
     void reserve(VM& tvm, SizeT new_cap) noexcept {
-        data_ptr = gsl::owner<T*>{grow_array(tvm, data_ptr, capacity, new_cap)};
+        data_ptr = grow_array(tvm, data_ptr, capacity, new_cap);
         capacity = new_cap;
     }
 
     void push_back(VM& tvm, T value) noexcept {
         if (capacity == count) { reserve(tvm, grow_capacity(capacity)); }
-        data_ptr[count++] = value;
+        push_back_unsafe(value);
     }
 
     void push_back_unsafe(T value) noexcept {
         assert(count < capacity);
-        data_ptr[count++] = value;
+        std::construct_at(&data_ptr[count++], value);
     }
 
     void pop_back() noexcept { std::destroy_at(data_ptr[--count]); }
@@ -119,12 +119,8 @@ class DynArray {
         return data_ptr[count - 1];
     }
 
-    [[nodiscard]] constexpr T* data() noexcept {
-        return static_cast<T*>(data_ptr);
-    }
-    [[nodiscard]] constexpr const T* data() const noexcept {
-        return static_cast<T*>(data_ptr);
-    }
+    [[nodiscard]] constexpr T* data() noexcept { return data_ptr; }
+    [[nodiscard]] constexpr const T* data() const noexcept { return data_ptr; }
 
     [[nodiscard]] constexpr T* begin() noexcept { return &data_ptr[0]; }
 
@@ -139,11 +135,11 @@ class DynArray {
     [[nodiscard]] constexpr T* end() noexcept { return &data_ptr[count]; }
 
     [[nodiscard]] constexpr const T* end() const noexcept {
-        return &data_ptr[count];
+        return &static_cast<T*>(data_ptr[count]);
     }
 
     [[nodiscard]] constexpr const T* cend() const noexcept {
-        return &data_ptr[count];
+        return &static_cast<T*>(data_ptr[count]);
     }
 };
 }  // namespace tx

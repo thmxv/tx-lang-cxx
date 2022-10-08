@@ -29,7 +29,8 @@ template <typename T>
 reallocate(VM& tvm, gsl::owner<T*> pointer, size_t old_size, size_t new_size) {
     return static_cast<gsl::owner<T*>>(reallocate_impl(
         tvm,
-        pointer,
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+        const_cast<gsl::owner<std::remove_cv_t<T>*>>(pointer),
         static_cast<size_t>(sizeof(T)) * old_size,
         static_cast<size_t>(sizeof(T)) * new_size
     ));
