@@ -2,6 +2,7 @@
 
 #include "tx/chunk.hxx"
 #include "tx/common.hxx"
+#include "tx/compiler.hxx"
 #include "tx/debug.hxx"
 #include "tx/vm.hxx"
 
@@ -27,9 +28,11 @@ inline constexpr Value VM::read_constant(bool is_long) noexcept {
 }
 
 TX_VM_CONSTEXPR inline InterpretResult VM::interpret(
-    const Chunk& chunk
+    std::string_view source
 ) noexcept {
-    return run(chunk);
+    compile(*this, source);
+    // return run(chunk);
+    return InterpretResult::OK;
 }
 
 template<typename T, template<typename> typename Op>

@@ -14,7 +14,7 @@ are inspired by languages such as Python, Rust and Swift among others.
 Tx design desitions are supposed to be oriented towards safety, speed, power 
 and minimalism.
 
-The code base is written, as much as possible, in moder C++. Trying to be 
+The code base is written, as much as possible, in modern C++. Trying to be 
 almost completely constexpr.
 
 ## Disclaimer
@@ -23,14 +23,20 @@ Tx is still verry much a work in progress.
 
 ## Backlog
 
+- '_' separator in numeric literals.
+- escaping in string literals \0 \" \\ \{ \xFF \u0041
+- utf8 parser by default (possibility to turn off)
+- pass int and float lexed value in token to compiler to avoid going over them twice
+- string interpolation
+- raw strings
 - constexpr allocation
-- Ensure enough stack space
+- Ensure enough stack space (grow or crash?)
 
 ## Roadmap/TODO list
 
 - [X] Bytecode array
 - [X] Interpret bytecode
-- [ ] Scanning tokens
+- [X] Scanning tokens
 - [ ] Parsing/compiling expressions
 - [ ] Value types
 - [ ] String
@@ -46,6 +52,8 @@ Tx is still verry much a work in progress.
 - [ ] Inheritance
 - [ ] Optimization
 - [ ] Array and Map values
+
+## Later versions
 - [ ] Traits
 - [ ] Pattern matching
 - [ ] Fiber

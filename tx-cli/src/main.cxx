@@ -1,7 +1,9 @@
+#include "tx/exit_codes.hxx"
 #include <tx/tx.hxx>
 
 #include <fmt/format.h>
 
+#include <cerrno>
 #include <cstdlib>
 #include <memory_resource>
 #include <ranges>
@@ -10,8 +12,10 @@
 
 namespace tx {
 
+static constexpr std::size_t REPL_LINE_MAX_LEN = 1024;
+
 constexpr std::string_view usage_str =
-R"(Usage:
+    R"(Usage:
   tx [OPTIONS] [-c cmd | file | -] [--] [arguments...]
   tx --help | --version
 Options:
@@ -30,30 +34,97 @@ Options:
   --                Stop parsing the following arguments as options.
   arguments TXT...  Argument to pass to executed script/command.)";
 
-void run_repl(VM& tvm) {
-    Chunk chunk;
-    const size_t line = 123;
-    const double constant = 1.2;
-    const double constant2 = 3.4;
-    const double constant3 = 5.6;
-    chunk.write_constant(tvm, constant, line);
-    chunk.write_constant(tvm, constant2, line);
-    chunk.write(tvm, OpCode::ADD, line);
-    chunk.write_constant(tvm, constant3, line);
-    chunk.write(tvm, OpCode::DIVIDE, line);
-    chunk.write(tvm, OpCode::NEGATE, line);
-    chunk.write(tvm, OpCode::RETURN, line);
-    disassemble_chunk(chunk, "test chunk");
-    tvm.interpret(chunk);
-    chunk.destroy(tvm);
-}
-
 void print_title() noexcept {
     fmt::print(FMT_STRING("Tx version {}\n"), tx::VERSION);
 }
 
-void print_usage() noexcept {
-    fmt::print(usage_str);
+void print_usage() noexcept { fmt::print(usage_str); }
+
+[[nodiscard]] std::string read_file(const char* path) noexcept {
+    gsl::owner<std::FILE*> file = std::fopen(path, "rb");
+    if (file == nullptr) {
+        fmt::print(
+            stderr,
+            FMT_STRING("Could not open file \"{:s}\":{}\n"),
+            path,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            std::strerror(errno)
+        );
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        std::exit(EXT_IO_ERROR);
+    }
+    auto is_error = std::fseek(file, 0L, SEEK_END);
+    if (is_error != 0) {
+        fmt::print(
+            stderr,
+            FMT_STRING("Could not seek in file \"{:s}\":{}\n"),
+            path,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            std::strerror(errno)
+        );
+        (void)std::fclose(file);
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        std::exit(EXT_IO_ERROR);
+    }
+    const auto file_size = static_cast<std::size_t>(std::ftell(file));
+    std::rewind(file);
+    std::string result;
+    result.resize(static_cast<std::size_t>(file_size));
+    const auto bytes_read = std::fread(
+        result.data(),
+        sizeof(char),
+        static_cast<std::size_t>(file_size),
+        file
+    );
+    is_error = std::fclose(file);
+    if (is_error != 0) {
+        fmt::print(
+            stderr,
+            FMT_STRING("Could not close file \"{:s}\": {}\n"),
+            path,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            std::strerror(errno)
+        );
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        std::exit(EXT_IO_ERROR);
+    }
+    if (bytes_read < file_size) {
+        fmt::print(
+            stderr,
+            FMT_STRING("Could not read file \"{:s}\": {}\n"),
+            path,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            std::strerror(errno)
+        );
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        std::exit(EXT_IO_ERROR);
+    }
+    return result;
+}
+
+void run_repl(VM& tvm) {
+    std::array<char, REPL_LINE_MAX_LEN> line{};
+    while (true) {
+        fmt::print("> ");
+        if (std::fgets(line.begin(), line.size(), stdin) == nullptr) {
+            fmt::print("\n");
+            break;
+        }
+        (void)tvm.interpret({line.data()});
+    }
+}
+
+void run_file(VM& tvm, const char* path) {
+    const auto source = read_file(path);
+    const InterpretResult result = tvm.interpret(source);
+    if (result == InterpretResult::COMPILE_ERROR) {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        std::exit(EXT_DATA_ERROR);
+    }
+    if (result == InterpretResult::RUNTIME_ERROR) {
+        // NOLINTNEXTLINE
+        std::exit(EXT_SOFTWARE_INTERNAL_ERROR);
+    }
 }
 
 }  // namespace tx
@@ -73,9 +144,11 @@ int main(int argc, const char** argv) noexcept {
         std::size_t idx = 1;
         for (; idx < args.size(); ++idx) {
             const auto arg = std::string_view{args[idx]};
-            if (arg == "--help") { args_help = true; }
-            else if (arg == "--version") { args_version = true; }
-            else if (arg == "-D") {
+            if (arg == "--help") {
+                args_help = true;
+            } else if (arg == "--version") {
+                args_version = true;
+            } else if (arg == "-D") {
                 ++idx;
                 if (idx >= args.size()) {
                     fmt::print(
@@ -88,7 +161,7 @@ int main(int argc, const char** argv) noexcept {
                         "'stress-gc'.\n"
                     );
                     tx::print_usage();
-                    return EXIT_SUCCESS;
+                    return tx::EXT_USAGE_ERROR;
                 }
                 const auto opt = std::string_view{args[++idx]};
                 if (opt == "trace-execution") {
@@ -111,10 +184,9 @@ int main(int argc, const char** argv) noexcept {
                         opt
                     );
                     tx::print_usage();
-                    return EXIT_SUCCESS;
+                    return tx::EXT_USAGE_ERROR;
                 }
-            }
-            else if (arg == "-c" or arg == "--command") {
+            } else if (arg == "-c" or arg == "--command") {
                 args_command = std::string_view{args[++idx]};
                 ++idx;
                 break;
@@ -143,27 +215,15 @@ int main(int argc, const char** argv) noexcept {
         fmt::print(FMT_STRING("{}"), tx::VERSION);
         return EXIT_SUCCESS;
     }
-    // fmt::print("file: {}\n", args_file_path);
-    // fmt::print("cmd: {}\n", args_command);
-    // fmt::print("use_stdin: {}\n", args_use_stdin);
-    // fmt::print("args: ");
-    // std::string_view sep;
-    // for(const auto* arg: args_rest_of_args) {
-    //     fmt::print("{}'{}'", sep, arg);
-    //     sep = ", ";
-    // }
-    // fmt::print("\n");
 
     std::pmr::unsynchronized_pool_resource mem_res;
     tx::VM tvm(args_options, &mem_res);
     if (args_file_path.empty()) {
         tx::run_repl(tvm);
     } else {
-        (void) args_use_stdin;
+        (void)args_use_stdin;
         fmt::print(
-            FMT_STRING(
-                "UNIMPLEMENTED: shoud execute '{}'\n"
-            ),
+            FMT_STRING("UNIMPLEMENTED: shoud execute '{}'\n"),
             args_file_path
         );
         // tx::run_file(tvm, file_path);

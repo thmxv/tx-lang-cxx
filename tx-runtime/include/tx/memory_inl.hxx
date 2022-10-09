@@ -63,7 +63,6 @@ inline gsl::owner<void*> reallocate_impl(
         new_size,
         alignment
     );
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     if (result == nullptr) { std::abort(); }
     return result;
 }

@@ -41,7 +41,7 @@ class VM {
 
     Allocator get_allocator() { return allocator; }
 
-    TX_VM_CONSTEXPR InterpretResult interpret(const Chunk& chunk) noexcept;
+    TX_VM_CONSTEXPR InterpretResult interpret(std::string_view source) noexcept;
     TX_VM_CONSTEXPR InterpretResult run(const Chunk& chunk) noexcept;
 
   private:
