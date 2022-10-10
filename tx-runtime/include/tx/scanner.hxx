@@ -37,6 +37,13 @@ enum class TokenType {
     INTEGER_LITERAL,
     FLOAT_LITERAL,
     STRING_LITERAL,
+    // "a {b} c {d} e" is tokenized to:
+    // STRING_INTERPOLATION "a "
+    // INDENTIFIER          "b"
+    // STRING_INTERPOLATION " c "
+    // INDENTIFIER          "d"
+    // STRING_LITERAL       " e"
+    STRING_INTERPOLATION,
     // keywords
     AND,
     AS,
