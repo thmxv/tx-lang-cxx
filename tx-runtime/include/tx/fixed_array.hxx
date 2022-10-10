@@ -1,7 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
+#include <memory>
 #include <type_traits>
 
 namespace tx {
@@ -28,24 +30,32 @@ class FixedCapacityArray {
     using const_iterator = const T*;
     using difference_type = std::ptrdiff_t;
 
+    constexpr FixedCapacityArray() noexcept = default;
+    constexpr FixedCapacityArray(const FixedCapacityArray& other) noexcept
+            : count(other.count) {
+        std::uninitialized_value_construct_n(data(), count, other.data());
+    }
+
     constexpr ~FixedCapacityArray() noexcept
         requires(std::is_trivially_destructible_v<T>)
-    = default;
+        = default;
 
     constexpr ~FixedCapacityArray() noexcept(std::is_nothrow_destructible_v<T>)
         requires(!std::is_trivially_destructible_v<T>)
     {
-        // TODO: make sure destroyed was called
         clear();
     }
 
     [[nodiscard]] constexpr FixedCapacityArray& operator=(
-        FixedCapacityArray&& other
-    ) noexcept = delete;
-
-    // void destroy() noexcept {
-    //     // TODO
-    // }
+        const FixedCapacityArray& rhs
+    ) noexcept {
+        if (this != &rhs) {
+            clear();
+            count = rhs.count;
+            std::uninitialized_value_construct_n(data(), count, rhs.data());
+        }
+        return *this;
+    }
 
     [[nodiscard]] constexpr SizeT size() const noexcept { return count; }
 

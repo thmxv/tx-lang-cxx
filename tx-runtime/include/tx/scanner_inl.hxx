@@ -292,7 +292,7 @@ constexpr void Scanner::skip_whitespace() noexcept {
 }
 
 [[nodiscard]] constexpr Token Scanner::string() noexcept {
-    TokenType type = TokenType::STRING_LITERAL;
+    FixedCapacityArray<char, size_t, 1024> string;
     while (peek() != '"' && !is_at_end()) {
         if (peek() == '$') {
             if (str_interp_braces.size() < MAX_INTERP_DEPTH) {
@@ -303,20 +303,51 @@ constexpr void Scanner::skip_whitespace() noexcept {
                 auto token = make_token(TokenType::STRING_INTERPOLATION);
                 advance();
                 advance();
+                fmt::print(
+                    "'{}'\n",
+                    std::string_view{
+                        string.data(),
+                        static_cast<std::size_t>(string.size())}
+                );
                 return token;
             }
             return error_token("Nested string interpolation too deep.");
         }
         if (peek() == '\n') { ++line; }
-        advance();
-
-        // TODO: escape
-        // For that we actually need to pass an allocated buffer
-        // as a string value with the token
+        if (peek() == '\\') {
+            advance();
+            switch (peek()) {
+                case '"': string.push_back('"'); break;
+                case '\\': string.push_back('\\'); break;
+                case '$': string.push_back('$'); break;
+                case '0': string.push_back('\0'); break;
+                case 'a': string.push_back('\a'); break;
+                case 'b': string.push_back('\b'); break;
+                case 'e': string.push_back('\33'); break;
+                case 'f': string.push_back('\f'); break;
+                case 'n': string.push_back('\n'); break;
+                case 'r': string.push_back('\r'); break;
+                case 't': string.push_back('\t'); break;
+                // case 'u': readUnicodeEscape(parser, &string, 4); break;
+                // case 'U': readUnicodeEscape(parser, &string, 8); break;
+                case 'v': string.push_back('\v'); break;
+                // case 'x': string.push_back(
+                //   (uint8_t)readHexEscape(parser, 2, "byte")
+                // ); break;
+                default: return error_token("Invalid escape character.");
+            }
+            advance();
+        } else {
+            string.push_back(advance());
+        }
     }
     if (is_at_end()) { return error_token("Unterminated string."); }
     advance();
-    return make_token(type);
+    fmt::print(
+        "'{}'\n",
+        std::string_view{string.data(), static_cast<std::size_t>(string.size())}
+    );
+    return make_token(TokenType::STRING_LITERAL);
 }
 
 [[nodiscard]] constexpr Token Scanner::scan_token() noexcept {

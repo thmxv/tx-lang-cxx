@@ -24,7 +24,6 @@ Tx is still verry much a work in progress.
 ## Backlog
 
 - escaping in string literals \n \" \\ \xFF \u0041
-- string interpolation
 - utf8 parser by default (possibility to turn off)
 - constexpr allocation and from_char (requires C++23 and support in stdlib)
 - Ensure enough stack space (grow or crash?)
