@@ -98,7 +98,7 @@ struct Token {
 };
 
 class Scanner {
-    static constexpr std::size_t MAX_CHARS_IN_NUMERIC_LITERAL = 256;
+    static constexpr std::size_t MAX_CHARS_IN_NUMERIC_LITERAL = 64;
 
     const std::string_view source;
     const char* start;

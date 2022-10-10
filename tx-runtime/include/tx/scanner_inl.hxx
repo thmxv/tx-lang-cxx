@@ -223,6 +223,9 @@ constexpr void Scanner::skip_whitespace() noexcept {
                 value
             );
             assert(fcr.ptr == no_space.cend());
+            if (fcr.ec == std::errc::result_out_of_range) {
+                return error_token("Numeric literal out of range.");
+            }
             auto token = make_token(type);
             token.value.as_int = value;
             return token;
@@ -235,6 +238,9 @@ constexpr void Scanner::skip_whitespace() noexcept {
                 value
             );
             assert(fcr.ptr == no_space.cend());
+            if (fcr.ec == std::errc::result_out_of_range) {
+                return error_token("Numeric literal out of range.");
+            }
             auto token = make_token(type);
             token.value.as_float = value;
             return token;
@@ -262,6 +268,9 @@ constexpr void Scanner::skip_whitespace() noexcept {
         16
     );
     assert(fcr.ptr == no_space.cend());
+    if (fcr.ec == std::errc::result_out_of_range) {
+        return error_token("Hexadecimal integer literal out of range.");
+    }
     auto token = make_token(TokenType::INTEGER_LITERAL);
     token.value.as_int = value;
     return token;
@@ -287,6 +296,8 @@ constexpr void Scanner::skip_whitespace() noexcept {
         if (peek() == '\n') { ++line; }
         advance();
         // TODO: escape, interpolation
+        // For that we actually need to pass an allocated buffer
+        // as a string value with the token
     }
     if (is_at_end()) { return error_token("Unterminated string."); }
     advance();
