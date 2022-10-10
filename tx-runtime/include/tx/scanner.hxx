@@ -113,7 +113,7 @@ class Scanner {
     constexpr char advance() noexcept;
 
     [[nodiscard]] constexpr char peek() const noexcept;
-    [[nodiscard]] constexpr char peek_next() const noexcept;
+    [[nodiscard]] constexpr char peek_next(size_t offset = 1) const noexcept;
     [[nodiscard]] constexpr bool match(char expected) noexcept;
     [[nodiscard]] constexpr Token make_token(TokenType type) const noexcept;
 
@@ -132,6 +132,7 @@ class Scanner {
     [[nodiscard]] constexpr Token identifier() noexcept;
     [[nodiscard]] Token number() noexcept;
     [[nodiscard]] Token hex_number() noexcept;
+    [[nodiscard]] constexpr Token raw_string() noexcept;
     [[nodiscard]] constexpr Token string() noexcept;
 };
 

@@ -42,11 +42,9 @@ constexpr char Scanner::advance() noexcept {
     return *current;
 }
 
-[[nodiscard]] constexpr char Scanner::peek_next() const noexcept {
-    // commented 'if' would be enough for null terminated strings
-    // if (is_at_end()) { return '\0'; }
-    if (std::distance(current, source.end()) < 2) { return '\0'; }
-    return *std::next(current);
+[[nodiscard]] constexpr char Scanner::peek_next(size_t offset) const noexcept {
+    if (std::distance(current, source.end()) <= offset) { return '\0'; }
+    return *std::next(current, offset);
 }
 
 [[nodiscard]] constexpr bool Scanner::match(char expected) noexcept {
@@ -269,10 +267,26 @@ constexpr void Scanner::skip_whitespace() noexcept {
     return token;
 }
 
+[[nodiscard]] constexpr Token Scanner::raw_string() noexcept {
+    advance();
+    advance();
+    while ((peek() != '"' || peek_next() != '"' || peek_next(2) != '"')
+           && !is_at_end()) {
+        if (peek() == '\n') { ++line; }
+        advance();
+    }
+    if (is_at_end()) { return error_token("Unterminated raw string."); }
+    advance();
+    advance();
+    advance();
+    return make_token(TokenType::STRING_LITERAL);
+}
+
 [[nodiscard]] constexpr Token Scanner::string() noexcept {
     while (peek() != '"' && !is_at_end()) {
         if (peek() == '\n') { ++line; }
         advance();
+        // TODO: escape, interpolation
     }
     if (is_at_end()) { return error_token("Unterminated string."); }
     advance();
@@ -305,7 +319,10 @@ constexpr void Scanner::skip_whitespace() noexcept {
         case '=': return make_token(match('=') ? EQUAL_EQUAL : EQUAL);
         case '<': return make_token(match('=') ? LESS_EQUAL : LEFT_CHEVRON);
         case '>': return make_token(match('=') ? GREATER_EQUAL : RIGHT_CHEVRON);
-        case '"': return string();
+        case '"': {
+            if (peek() == '"' && peek_next() == '"') { return raw_string(); }
+            return string();
+        }
         case '0':
             if (peek() == 'x' || peek() == 'X') { return hex_number(); }
             return number();

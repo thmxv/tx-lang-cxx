@@ -23,10 +23,9 @@ Tx is still verry much a work in progress.
 
 ## Backlog
 
-- escaping in string literals \0 \" \\ \{ \xFF \u0041
-- utf8 parser by default (possibility to turn off)
+- escaping in string literals \n \" \\ \xFF \u0041
 - string interpolation
-- raw string literals
+- utf8 parser by default (possibility to turn off)
 - constexpr allocation and from_char (requires C++23 and support in stdlib)
 - Ensure enough stack space (grow or crash?)
 
@@ -51,9 +50,14 @@ Tx is still verry much a work in progress.
 - [ ] Optimization
 - [ ] Array and Map values
 
-## Later versions
+## Minimum target for realease candidate
+
 - [ ] Traits
 - [ ] Pattern matching
+- [ ] Final syntax/grammar
+- [ ] Resereve all future keywords
+
+## Later versions
 - [ ] Fiber
 - [ ] Thread
 - [ ] Async await
