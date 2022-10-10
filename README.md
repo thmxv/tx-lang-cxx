@@ -23,13 +23,11 @@ Tx is still verry much a work in progress.
 
 ## Backlog
 
-- '_' separator in numeric literals.
 - escaping in string literals \0 \" \\ \{ \xFF \u0041
 - utf8 parser by default (possibility to turn off)
-- pass int and float lexed value in token to compiler to avoid going over them twice
 - string interpolation
-- raw strings
-- constexpr allocation
+- raw string literals
+- constexpr allocation and from_char (requires C++23 and support in stdlib)
 - Ensure enough stack space (grow or crash?)
 
 ## Roadmap/TODO list

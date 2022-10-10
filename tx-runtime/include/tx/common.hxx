@@ -57,10 +57,18 @@ using u16 = std::uint16_t;
 using u32 = std::uint32_t;
 using u64 = std::uint64_t;
 using usize = std::size_t;
+using f32 = float;
+using f64 = double;
 
 // NOTE: Configurable size type used in all the code
 using size_t = i32;
 // using size_t = u64;
+
+using int_t = i64;
+using float_t = f64;
+// TODO: if pointer size == 4 and building a minimalized 32 bit version of Tx
+// using int_t = i32;
+// using float_t = f32;
 
 template <typename Enum>
 [[nodiscard]] constexpr std::underlying_type_t<Enum> to_underlying(

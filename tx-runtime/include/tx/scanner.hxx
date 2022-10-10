@@ -77,12 +77,22 @@ enum class TokenType {
 };
 
 struct Token {
+    struct Value {
+        union {
+            int_t as_int;
+            float_t as_float;
+        };
+    };
+
     TokenType type;
     std::string_view lexeme;
     size_t line;
+    Value value{};
 };
 
 class Scanner {
+    static constexpr std::size_t MAX_CHARS_IN_NUMERIC_LITERAL = 256;
+
     const std::string_view source;
     const char* start;
     const char* current;
@@ -120,8 +130,8 @@ class Scanner {
 
     [[nodiscard]] constexpr TokenType identifier_type() const noexcept;
     [[nodiscard]] constexpr Token identifier() noexcept;
-    [[nodiscard]] constexpr Token number() noexcept;
-    [[nodiscard]] constexpr Token hex_number() noexcept;
+    [[nodiscard]] Token number() noexcept;
+    [[nodiscard]] Token hex_number() noexcept;
     [[nodiscard]] constexpr Token string() noexcept;
 };
 

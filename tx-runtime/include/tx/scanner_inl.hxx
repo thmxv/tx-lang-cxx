@@ -1,7 +1,11 @@
 #pragma once
 
+#include "tx/fixed_array.hxx"
 #include "tx/scanner.hxx"
 
+#include <cassert>
+#include <charconv>
+#include <cstddef>
 #include <iterator>
 
 namespace tx {
@@ -187,29 +191,82 @@ constexpr void Scanner::skip_whitespace() noexcept {
     return make_token(identifier_type());
 }
 
-[[nodiscard]] constexpr Token Scanner::number() noexcept {
+[[nodiscard]] Token Scanner::number() noexcept {
     TokenType type = TokenType::INTEGER_LITERAL;
-    while (is_digit(peek())) { advance(); }
-    if (peek() == '.' && is_digit(peek_next())) {
+    while (is_digit(peek()) || peek() == '_') { advance(); }
+    if (peek() == '.' && (is_digit(peek_next()) || peek_next() == '_')) {
         advance();
-        while (is_digit(peek())) { advance(); }
+        while (is_digit(peek()) || peek() == '_') { advance(); }
         type = TokenType::FLOAT_LITERAL;
     }
     if (match('e') || match('E')) {
         if (!match('+')) { (void)match('-'); }
-        if (!is_digit(peek())) {
+        if (!is_digit(peek()) && peek() != '_') {
             return error_token("Unterminated scientific notation.");
         }
-        while (is_digit(peek())) { advance(); }
+        while (is_digit(peek()) || peek() == '_') { advance(); }
         type = TokenType::FLOAT_LITERAL;
     }
-    return make_token(type);
+    if (std::distance(start, current)
+        > static_cast<std::ptrdiff_t>(MAX_CHARS_IN_NUMERIC_LITERAL)) {
+        return error_token("Numeric literal too long.");
+    }
+    FixedCapacityArray<char, size_t, MAX_CHARS_IN_NUMERIC_LITERAL> no_space{};
+    std::copy_if(start, current, std::back_inserter(no_space), [](char chr) {
+        return chr != '_';
+    });
+    switch (type) {
+        using enum TokenType;
+        case INTEGER_LITERAL: {
+            int_t value = 0;
+            [[maybe_unused]] auto fcr = std::from_chars(
+                no_space.cbegin(),
+                no_space.cend(),
+                value
+            );
+            assert(fcr.ptr == no_space.cend());
+            auto token = make_token(type);
+            token.value.as_int = value;
+            return token;
+        }
+        case FLOAT_LITERAL: {
+            float_t value = 0.0;
+            [[maybe_unused]] auto fcr = std::from_chars(
+                no_space.cbegin(),
+                no_space.cend(),
+                value
+            );
+            assert(fcr.ptr == no_space.cend());
+            auto token = make_token(type);
+            token.value.as_float = value;
+            return token;
+        }
+        default: unreachable();
+    }
 }
 
-[[nodiscard]] constexpr Token Scanner::hex_number() noexcept {
+[[nodiscard]] inline Token Scanner::hex_number() noexcept {
     advance();
-    while (is_hex_digit(peek())) { advance(); }
-    return make_token(TokenType::INTEGER_LITERAL);
+    while (is_hex_digit(peek()) || peek() == '_') { advance(); }
+    if (std::distance(start, current)
+        > static_cast<std::ptrdiff_t>(MAX_CHARS_IN_NUMERIC_LITERAL)) {
+        return error_token("Hexadecimal integer literal too long.");
+    }
+    FixedCapacityArray<char, size_t, MAX_CHARS_IN_NUMERIC_LITERAL> no_space{};
+    std::copy_if(start, current, std::back_inserter(no_space), [](char chr) {
+        return chr != '_';
+    });
+    int_t value = 0;
+    [[maybe_unused]] auto fcr = std::from_chars(
+        std::next(no_space.cbegin(), 2),
+        no_space.cend(),
+        value,
+        16
+    );
+    assert(fcr.ptr == no_space.cend());
+    auto token = make_token(TokenType::INTEGER_LITERAL);
+    token.value.as_int = value;
+    return token;
 }
 
 [[nodiscard]] constexpr Token Scanner::string() noexcept {
