@@ -303,12 +303,6 @@ constexpr void Scanner::skip_whitespace() noexcept {
                 auto token = make_token(TokenType::STRING_INTERPOLATION);
                 advance();
                 advance();
-                fmt::print(
-                    "'{}'\n",
-                    std::string_view{
-                        string.data(),
-                        static_cast<std::size_t>(string.size())}
-                );
                 return token;
             }
             return error_token("Nested string interpolation too deep.");
@@ -343,10 +337,6 @@ constexpr void Scanner::skip_whitespace() noexcept {
     }
     if (is_at_end()) { return error_token("Unterminated string."); }
     advance();
-    fmt::print(
-        "'{}'\n",
-        std::string_view{string.data(), static_cast<std::size_t>(string.size())}
-    );
     return make_token(TokenType::STRING_LITERAL);
 }
 
