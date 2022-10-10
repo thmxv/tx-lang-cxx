@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tx/fixed_array.hxx"
 #include "tx/value.hxx"
 
 #include <string_view>
@@ -99,11 +100,13 @@ struct Token {
 
 class Scanner {
     static constexpr std::size_t MAX_CHARS_IN_NUMERIC_LITERAL = 64;
+    static constexpr size_t MAX_INTERP_DEPTH = 8;
 
     const std::string_view source;
     const char* start;
     const char* current;
     size_t line{};
+    FixedCapacityArray<isize, size_t, MAX_INTERP_DEPTH> str_interp_braces;
 
   public:
     explicit constexpr Scanner(std::string_view src) noexcept

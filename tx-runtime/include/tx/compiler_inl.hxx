@@ -15,7 +15,7 @@ inline void compile(VM& /*tvm*/, std::string_view source) {
             fmt::print(FMT_STRING("{:4d} "), token.line);
             line = token.line;
         } else {
-            fmt::print("   |");
+            fmt::print("   | ");
         }
         if (token.type == TokenType::INTEGER_LITERAL) {
             fmt::print(

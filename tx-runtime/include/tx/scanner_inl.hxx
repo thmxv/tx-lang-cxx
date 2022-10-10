@@ -292,16 +292,31 @@ constexpr void Scanner::skip_whitespace() noexcept {
 }
 
 [[nodiscard]] constexpr Token Scanner::string() noexcept {
+    TokenType type = TokenType::STRING_LITERAL;
     while (peek() != '"' && !is_at_end()) {
+        if (peek() == '$') {
+            if (str_interp_braces.size() < MAX_INTERP_DEPTH) {
+                if (peek_next() != '{') {
+                    return error_token("Expect '{' after '$'.");
+                }
+                str_interp_braces.push_back(1);
+                auto token = make_token(TokenType::STRING_INTERPOLATION);
+                advance();
+                advance();
+                return token;
+            }
+            return error_token("Nested string interpolation too deep.");
+        }
         if (peek() == '\n') { ++line; }
         advance();
-        // TODO: escape, interpolation
+
+        // TODO: escape
         // For that we actually need to pass an allocated buffer
         // as a string value with the token
     }
     if (is_at_end()) { return error_token("Unterminated string."); }
     advance();
-    return make_token(TokenType::STRING_LITERAL);
+    return make_token(type);
 }
 
 [[nodiscard]] constexpr Token Scanner::scan_token() noexcept {
@@ -313,8 +328,17 @@ constexpr void Scanner::skip_whitespace() noexcept {
     switch (chr) {
         case '(': return make_token(LEFT_PAREN);
         case ')': return make_token(RIGHT_PAREN);
-        case '{': return make_token(LEFT_BRACE);
-        case '}': return make_token(RIGHT_BRACE);
+        case '{':
+            // If we are inside an interpolated expression, count the "{"
+            if (!str_interp_braces.empty()) { str_interp_braces.back()++; }
+            return make_token(LEFT_BRACE);
+        case '}':
+            // If we are inside an interpolated expression, count the "}"
+            if (!str_interp_braces.empty() && --str_interp_braces.back() == 0) {
+                str_interp_braces.pop_back();
+                return string();
+            }
+            return make_token(RIGHT_BRACE);
         case '[': return make_token(LEFT_BRACKET);
         case ']': return make_token(RIGHT_BRACKET);
         case ':': return make_token(COLON);
