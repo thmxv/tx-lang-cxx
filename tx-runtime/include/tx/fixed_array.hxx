@@ -21,7 +21,7 @@ class FixedCapacityArray {
     using StorageType = DataType[static_cast<std::size_t>(C)];
 
     SizeT count = 0;
-    alignas(T) StorageType data_buff;
+    alignas(T) StorageType data_buff{};
 
   public:
     using value_type = T;

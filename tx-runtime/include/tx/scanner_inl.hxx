@@ -2,6 +2,7 @@
 
 #include "tx/fixed_array.hxx"
 #include "tx/scanner.hxx"
+#include "tx/utils.hxx"
 
 #include <cassert>
 #include <charconv>
@@ -291,52 +292,147 @@ constexpr void Scanner::skip_whitespace() noexcept {
     return make_token(TokenType::STRING_LITERAL);
 }
 
+[[nodiscard]] constexpr std::optional<i32> Scanner::hex_escape(size_t digits) {
+    assert(digits > 0);
+    assert(digits <= 8);
+    const auto* const escape_start = current;
+    for (int i = 0; i < digits; ++i) {
+        if (!is_hex_digit(peek())) { return std::nullopt; }
+        advance();
+    }
+    i32 value = 0;
+    [[maybe_unused]] auto fcr =
+        std::from_chars(escape_start, current, value, 16);
+    assert(fcr.ptr == current);
+    assert(fcr.ec != std::errc::result_out_of_range);
+    fmt::print("{}\n", value);
+    return value;
+}
+
+template <typename OutputIt>
+void insert_utf8(char32_t value, OutputIt dst) {
+    std::array<char8_t, 4> tmp_buf{};
+    auto* end = utf8_encode_n(&value, 1, tmp_buf.data(), tmp_buf.end());
+    std::copy(tmp_buf.data(), end, dst);
+}
+
 [[nodiscard]] constexpr Token Scanner::string() noexcept {
-    FixedCapacityArray<char, size_t, 1024> string;
+    FixedCapacityArray<const char, size_t, 1024> string;
     while (peek() != '"' && !is_at_end()) {
+        if (peek() == '\n') { ++line; }
         if (peek() == '$') {
+            advance();
             if (str_interp_braces.size() < MAX_INTERP_DEPTH) {
-                if (peek_next() != '{') {
+                if (peek() != '{') {
                     return error_token("Expect '{' after '$'.");
                 }
                 str_interp_braces.push_back(1);
                 auto token = make_token(TokenType::STRING_INTERPOLATION);
                 advance();
-                advance();
                 return token;
             }
             return error_token("Nested string interpolation too deep.");
         }
-        if (peek() == '\n') { ++line; }
         if (peek() == '\\') {
             advance();
             switch (peek()) {
-                case '"': string.push_back('"'); break;
-                case '\\': string.push_back('\\'); break;
-                case '$': string.push_back('$'); break;
-                case '0': string.push_back('\0'); break;
-                case 'a': string.push_back('\a'); break;
-                case 'b': string.push_back('\b'); break;
-                case 'e': string.push_back('\33'); break;
-                case 'f': string.push_back('\f'); break;
-                case 'n': string.push_back('\n'); break;
-                case 'r': string.push_back('\r'); break;
-                case 't': string.push_back('\t'); break;
-                // case 'u': readUnicodeEscape(parser, &string, 4); break;
-                // case 'U': readUnicodeEscape(parser, &string, 8); break;
-                case 'v': string.push_back('\v'); break;
-                // case 'x': string.push_back(
-                //   (uint8_t)readHexEscape(parser, 2, "byte")
-                // ); break;
+                case '\\':
+                    advance();
+                    string.push_back('\\');
+                    break;
+                case '"':
+                    advance();
+                    string.push_back('"');
+                    break;
+                case '$':
+                    advance();
+                    string.push_back('$');
+                    break;
+                case '0':
+                    advance();
+                    string.push_back('\0');
+                    break;
+                case 'a':
+                    advance();
+                    string.push_back('\a');
+                    break;
+                case 'b':
+                    advance();
+                    string.push_back('\b');
+                    break;
+                case 'e':
+                    advance();
+                    string.push_back('\33');
+                    break;
+                case 'f':
+                    advance();
+                    string.push_back('\f');
+                    break;
+                case 'n':
+                    advance();
+                    string.push_back('\n');
+                    break;
+                case 'r':
+                    advance();
+                    string.push_back('\r');
+                    break;
+                case 't':
+                    advance();
+                    string.push_back('\t');
+                    break;
+                case 'v':
+                    advance();
+                    string.push_back('\v');
+                    break;
+                case 'x': {
+                    advance();
+                    auto value_opt = hex_escape(2);
+                    if (!value_opt.has_value()) {
+                        return error_token("Invalid byte escape sequence.");
+                    }
+                    string.push_back(static_cast<char>(*value_opt));
+                    break;
+                }
+                case 'u': {
+                    advance();
+                    auto value_opt = hex_escape(4);
+                    if (!value_opt.has_value()) {
+                        return error_token(
+                            "Invalid 16-bits Unicode escape sequence."
+                        );
+                    }
+                    insert_utf8(
+                        static_cast<char32_t>(*value_opt),
+                        std::back_inserter(string)
+                    );
+                    break;
+                }
+                case 'U': {
+                    advance();
+                    auto value_opt = hex_escape(8);
+                    if (!value_opt.has_value()) {
+                        return error_token(
+                            "Invalid 32-bits Unicode escape sequence."
+                        );
+                    }
+                    insert_utf8(
+                        static_cast<char32_t>(*value_opt),
+                        std::back_inserter(string)
+                    );
+                    break;
+                }
                 default: return error_token("Invalid escape character.");
             }
-            advance();
         } else {
             string.push_back(advance());
         }
     }
     if (is_at_end()) { return error_token("Unterminated string."); }
     advance();
+    fmt::print(
+        "{}\n",
+        std::string_view{string.data(), static_cast<std::size_t>(string.size())}
+    );
     return make_token(TokenType::STRING_LITERAL);
 }
 

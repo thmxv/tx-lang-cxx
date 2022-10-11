@@ -9,6 +9,7 @@
 #include "tx/memory.hxx"
 #include "tx/scanner.hxx"
 #include "tx/type_traits.hxx"
+#include "tx/utils.hxx"
 #include "tx/value.hxx"
 #include "tx/vm.hxx"
 

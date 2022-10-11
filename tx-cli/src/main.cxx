@@ -103,6 +103,7 @@ void print_usage() noexcept { fmt::print(usage_str); }
 }
 
 void run_repl(VM& tvm) {
+    print_title();
     std::array<char, REPL_LINE_MAX_LEN> line{};
     while (true) {
         fmt::print("> ");

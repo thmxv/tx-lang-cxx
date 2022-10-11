@@ -23,8 +23,6 @@ Tx is still verry much a work in progress.
 
 ## Backlog
 
-- escaping in string literals \n \" \\ \xFF \u0041
-- utf8 parser by default (possibility to turn off)
 - constexpr allocation and from_char (requires C++23 and support in stdlib)
 - Ensure enough stack space (grow or crash?)
 
@@ -47,17 +45,20 @@ Tx is still verry much a work in progress.
 - [ ] Methods and initializer
 - [ ] Inheritance
 - [ ] Optimization
-- [ ] Array and Map values
 
 ## Minimum target for realease candidate
 
+- [ ] Array and Map values (generic types)
+- [ ] Tuples (need variadic generic types)
 - [ ] Traits
 - [ ] Pattern matching
+- [ ] Type checker
+- [ ] Modules
 - [ ] Final syntax/grammar
 - [ ] Resereve all future keywords
 
 ## Later versions
-- [ ] Fiber
-- [ ] Thread
-- [ ] Async await
+- [ ] Fibers
+- [ ] Threads
+- [ ] Async and await
 

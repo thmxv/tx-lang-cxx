@@ -10,15 +10,6 @@
 #include <cstddef>
 #include <cstdint>
 
-// TODO remove and force clang 15
-#ifdef __clang__
-#include <experimental/source_location>
-using source_location = std::experimental::source_location;
-#else
-#include <source_location>
-using source_location = std::source_location;
-#endif
-
 #define TX_ENABLE_COMPUTED_GOTO
 
 #ifdef TX_ENABLE_COMPUTED_GOTO
@@ -69,30 +60,5 @@ using float_t = f64;
 // TODO: if pointer size == 4 and building a minimalized 32 bit version of Tx
 // using int_t = i32;
 // using float_t = f32;
-
-template <typename Enum>
-[[nodiscard]] constexpr std::underlying_type_t<Enum> to_underlying(
-    Enum enumeration
-) noexcept {
-    return static_cast<std::underlying_type_t<Enum>>(enumeration);
-}
-
-[[noreturn]] inline void unreachable(
-    const source_location location = source_location::current()
-) {
-    if constexpr (IS_DEBUG_BUILD) {
-        fmt::print(
-            stderr,
-            FMT_STRING("[{:s}:{:d}:{:d}] Error in {:s}():"
-                       "This code should have been unreachable\n"),
-            location.file_name(),
-            location.line(),
-            location.column(),
-            location.function_name()
-        );
-        std::abort();
-    }
-    __builtin_unreachable();
-}
 
 }  // namespace tx

@@ -4,6 +4,7 @@
 #include "tx/value.hxx"
 
 #include <string_view>
+#include <optional>
 
 namespace tx {
 
@@ -143,6 +144,7 @@ class Scanner {
     [[nodiscard]] Token number() noexcept;
     [[nodiscard]] Token hex_number() noexcept;
     [[nodiscard]] constexpr Token raw_string() noexcept;
+    [[nodiscard]] constexpr std::optional<i32> hex_escape(size_t digits);
     [[nodiscard]] constexpr Token string() noexcept;
 };
 

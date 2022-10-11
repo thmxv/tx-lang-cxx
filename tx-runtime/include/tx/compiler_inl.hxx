@@ -2,6 +2,7 @@
 
 #include "tx/compiler.hxx"
 #include "tx/scanner.hxx"
+#include "tx/utils.hxx"
 
 namespace tx {
 
