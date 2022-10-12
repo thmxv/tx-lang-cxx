@@ -1,8 +1,8 @@
 #pragma once
 
-#include "common.hxx"
-#include "dyn_array.hxx"
-#include "value.hxx"
+#include "tx/common.hxx"
+#include "tx/dyn_array.hxx"
+#include "tx/value.hxx"
 
 #include <numeric>
 #include <utility>
@@ -43,48 +43,54 @@ using LineStartArray = DynArray<LineStart, size_t>;
 struct Chunk {
     ByteCodeArray code;
     LineStartArray lines;
-    ConstValueArray constants;
+    // ConstValueArray constants;
+    ValueArray constants;
 
-    void destroy(VM& tvm) noexcept {
+    constexpr void destroy(VM& tvm) noexcept {
         code.destroy(tvm);
         lines.destroy(tvm);
         constants.destroy(tvm);
     }
 
-    template <typename T>
-        requires std::is_nothrow_constructible_v<ByteCode, T>
-    void write(VM& tvm, T byte, size_t line) noexcept {
-        code.push_back(tvm, ByteCode(byte));
-        if (lines.size() > 0 && lines[lines.size() - 1].line == line) {
-            return;
-        }
-        lines.push_back(tvm, LineStart{.offset = code.size() - 1, .line = line});
+    constexpr void write_line(VM& tvm, size_t line) {
+        if (lines.size() > 0 && lines[lines.size()].line == line) { return; }
+        lines.push_back(tvm, LineStart{.offset = code.size(), .line = line});
     }
 
-    [[nodiscard]] size_t add_constant(VM& tvm, Value value) noexcept {
+    template <typename... Ts>
+        requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)
+    constexpr void write(VM& tvm, size_t line, Ts... bytes) noexcept {
+        write_line(tvm, line);
+        (code.push_back(tvm, ByteCode(bytes)), ...);
+    }
+
+    [[nodiscard]] constexpr size_t add_constant(VM& tvm, Value value) noexcept {
         constants.push_back(tvm, value);
         return constants.size() - 1;
     }
 
-    void write_constant(VM& tvm, Value value, size_t line) noexcept {
+    constexpr void write_constant(VM& tvm, size_t line, Value value) noexcept {
         const u64 index = static_cast<u64>(add_constant(tvm, value));
         if (index < (1 << 8)) {
-            write(tvm, OpCode::CONSTANT, line);
-            write(tvm, static_cast<u8>(index), line);
+            write(tvm, line, OpCode::CONSTANT, static_cast<u8>(index));
             return;
         }
         if (index < (1 << 24)) {
-            write(tvm, OpCode::CONSTANT_LONG, line);
-            write(tvm, static_cast<u8>(index & 0xffU), line);
-            write(tvm, static_cast<u8>((index >> 8U) & 0xffU), line);
-            write(tvm, static_cast<u8>((index >> 16U) & 0xffU), line);
+            write(
+                tvm,
+                line,
+                OpCode::CONSTANT_LONG,
+                static_cast<u8>(index & 0xffU),
+                static_cast<u8>((index >> 8U) & 0xffU),
+                static_cast<u8>((index >> 16U) & 0xffU)
+            );
             return;
         }
         assert(false);
         __builtin_unreachable();
     }
 
-    [[nodiscard]] size_t get_line(size_t instruction) const noexcept {
+    [[nodiscard]] constexpr size_t get_line(size_t instruction) const noexcept {
         size_t start = 0;
         size_t end = lines.size() - 1;
         while (true) {

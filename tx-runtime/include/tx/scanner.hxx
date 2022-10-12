@@ -3,8 +3,8 @@
 #include "tx/fixed_array.hxx"
 #include "tx/value.hxx"
 
-#include <string_view>
 #include <optional>
+#include <string_view>
 
 namespace tx {
 
@@ -66,9 +66,9 @@ enum class TokenType {
     MATCH,
     OR,
     RETURN,
+    SELF,
     STRUCT,
     SUPER,
-    THIS,
     TRUE,
     VAR,
     WHILE,
@@ -86,13 +86,6 @@ enum class TokenType {
 };
 
 struct Token {
-    struct Value {
-        union {
-            int_t as_int;
-            float_t as_float;
-        };
-    };
-
     TokenType type;
     std::string_view lexeme;
     size_t line;
@@ -141,10 +134,11 @@ class Scanner {
 
     [[nodiscard]] constexpr TokenType identifier_type() const noexcept;
     [[nodiscard]] constexpr Token identifier() noexcept;
-    [[nodiscard]] Token number() noexcept;
-    [[nodiscard]] Token hex_number() noexcept;
+    [[nodiscard]] constexpr Token number() noexcept;
+    [[nodiscard]] constexpr Token hex_number() noexcept;
     [[nodiscard]] constexpr Token raw_string() noexcept;
-    [[nodiscard]] constexpr std::optional<i32> hex_escape(size_t digits);
+    [[nodiscard]] constexpr std::optional<i32> hex_escape(size_t digits
+    ) noexcept;
     [[nodiscard]] constexpr Token string() noexcept;
 };
 

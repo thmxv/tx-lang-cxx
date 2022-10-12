@@ -28,7 +28,7 @@ class DynArray {
 
     constexpr DynArray() noexcept = default;
 
-    DynArray(VM& tvm, SizeT size, T value) noexcept
+    constexpr DynArray(VM& tvm, SizeT size, T value) noexcept
             : count(size)
             , capacity(size)
             , data_ptr(allocate<T>(tvm, size)) {
@@ -64,7 +64,7 @@ class DynArray {
         assert(capacity == 0);
     }
 
-    void destroy(VM& tvm) noexcept {
+    constexpr void destroy(VM& tvm) noexcept {
         std::destroy_n(data_ptr, count);
         free_array(tvm, data_ptr, capacity);
         count = 0;
@@ -74,7 +74,7 @@ class DynArray {
 
     [[nodiscard]] constexpr SizeT size() const noexcept { return count; }
 
-    void resize(VM& tvm, SizeT new_size) noexcept {
+    constexpr void resize(VM& tvm, SizeT new_size) noexcept {
         if (new_size > count) {
             reserve(tvm, new_size);
             std::uninitialized_default_construct_n(
@@ -88,22 +88,22 @@ class DynArray {
         }
     }
 
-    void reserve(VM& tvm, SizeT new_cap) noexcept {
+    constexpr void reserve(VM& tvm, SizeT new_cap) noexcept {
         data_ptr = grow_array(tvm, data_ptr, capacity, new_cap);
         capacity = new_cap;
     }
 
-    void push_back(VM& tvm, T value) noexcept {
+    constexpr void push_back(VM& tvm, T value) noexcept {
         if (capacity == count) { reserve(tvm, grow_capacity(capacity)); }
         push_back_unsafe(value);
     }
 
-    void push_back_unsafe(T value) noexcept {
+    constexpr void push_back_unsafe(T value) noexcept {
         assert(count < capacity);
         std::construct_at(&data_ptr[count++], value);
     }
 
-    void pop_back() noexcept { std::destroy_at(data_ptr[--count]); }
+    constexpr void pop_back() noexcept { std::destroy_at(data_ptr[--count]); }
 
     [[nodiscard]] constexpr T& operator[](SizeT idx) noexcept {
         return data_ptr[idx];

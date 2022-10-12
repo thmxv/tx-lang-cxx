@@ -4,6 +4,7 @@
 #include "tx/common.hxx"
 #include "tx/compiler.hxx"
 #include "tx/debug.hxx"
+#include "tx/utils.hxx"
 #include "tx/vm.hxx"
 
 #include <fmt/format.h>
@@ -14,11 +15,9 @@
 
 namespace tx {
 
-inline constexpr ByteCode VM::read_byte() noexcept {
-    return *instruction_ptr++;
-}
+constexpr ByteCode VM::read_byte() noexcept { return *instruction_ptr++; }
 
-inline constexpr Value VM::read_constant(bool is_long) noexcept {
+constexpr Value VM::read_constant(bool is_long) noexcept {
     const auto [constant_idx, new_ptr] = read_constant_index(
         instruction_ptr,
         is_long
@@ -27,33 +26,51 @@ inline constexpr Value VM::read_constant(bool is_long) noexcept {
     return chunk_ptr->constants[constant_idx];
 }
 
-TX_VM_CONSTEXPR inline InterpretResult VM::interpret(
-    std::string_view source
+TX_VM_CONSTEXPR InterpretResult VM::interpret(std::string_view source
 ) noexcept {
-    compile(*this, source);
-    // return run(chunk);
-    return InterpretResult::OK;
+    if constexpr (HAS_DEBUG_FEATURES) {
+        if (options.print_tokens) { print_tokens(source); }
+    }
+    Chunk chunk;
+    Parser current_parser(*this, source, chunk);
+    parser = &current_parser;
+    if (!parser->compile()) {
+        chunk.destroy(*this);
+        return InterpretResult::COMPILE_ERROR;
+    }
+    auto result = run(chunk);
+    chunk.destroy(*this);
+    parser = nullptr;
+    return result;
 }
 
-template<typename T, template<typename> typename Op>
-[[nodiscard]] constexpr
-bool VM::binary_op() noexcept {
-    // if (!peek(0).is_number() || !peek(1).is_number()) {
+template <template <typename> typename Op>
+[[nodiscard]] constexpr bool VM::binary_op() noexcept {
+    // if (!peek(0).is_float() || !peek(1).is_float()) {
     //     runtime_error("Operands must be numbers.");
     //     return true;
     // }
-    const double rhs = pop(); //.as_number();
-    const double lhs = pop(); //.as_number();
-    const Op<double> op;
-    push(Value{T{op(lhs, rhs)}});
+    const auto rhs = pop();
+    const auto lhs = pop();
+    Value result;
+    if (lhs.is_int() && rhs.is_int()) {
+        Op<int_t> bop;
+        result = Value(bop(lhs.as_int(), rhs.as_int()));
+    } else {
+        float_t left = lhs.is_int() ? static_cast<float_t>(lhs.as_int())
+                                    : lhs.as_float();
+        float_t rght = rhs.is_int() ? static_cast<float_t>(rhs.as_int())
+                                    : rhs.as_float();
+        Op<float_t> bop;
+        result = Value(bop(left, rght));
+    }
+    push(result);
     return false;
 }
 
 void VM::print_stack() const noexcept {
     fmt::print(FMT_STRING("          "));
-    for (const auto& slot : stack) {
-        fmt::print(FMT_STRING("[ {} ]"), slot);
-    }
+    for (const auto& slot : stack) { fmt::print(FMT_STRING("[ {} ]"), slot); }
     fmt::print(FMT_STRING("\n"));
 }
 
@@ -75,7 +92,7 @@ constexpr void VM::debug_trace() const noexcept {
     }
 }
 
-TX_VM_CONSTEXPR inline InterpretResult VM::run(const Chunk& chunk) noexcept {
+TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
     // clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
@@ -106,52 +123,51 @@ TX_VM_CONSTEXPR inline InterpretResult VM::run(const Chunk& chunk) noexcept {
     chunk_ptr = &chunk;
     instruction_ptr = chunk_ptr->code.data();
     for (;;) {
-        OpCode instruction; 
+        OpCode instruction;
         TX_VM_DISPATCH {
             using enum OpCode;
-            TX_VM_CASE(CONSTANT): {
+            TX_VM_CASE(CONSTANT) : {
                 push(read_constant(false));
                 TX_VM_BREAK();
             }
-            TX_VM_CASE(CONSTANT_LONG): {
+            TX_VM_CASE(CONSTANT_LONG) : {
                 push(read_constant(true));
                 TX_VM_BREAK();
             }
-            TX_VM_CASE(ADD): {
-                if (binary_op<double, std::plus>()) {
+            TX_VM_CASE(ADD) : {
+                if (binary_op<std::plus>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
-            TX_VM_CASE(SUBSTRACT): {
-                if (binary_op<double, std::minus>()) {
+            TX_VM_CASE(SUBSTRACT) : {
+                if (binary_op<std::minus>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
-            TX_VM_CASE(MULTIPLY): {
-                if (binary_op<double, std::multiplies>()) {
+            TX_VM_CASE(MULTIPLY) : {
+                if (binary_op<std::multiplies>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
-            TX_VM_CASE(DIVIDE): {
-                if (binary_op<double, std::divides>()) {
+            TX_VM_CASE(DIVIDE) : {
+                if (binary_op<std::divides>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
-            TX_VM_CASE(NEGATE): {
-                push(-pop());
+            TX_VM_CASE(NEGATE) : {
+                // push(-pop());
+                push(Value(-pop().as_float()));
                 TX_VM_BREAK();
             }
-            TX_VM_CASE(RETURN): {
+            TX_VM_CASE(RETURN) : {
                 fmt::print(FMT_STRING("{}\n"), pop());
                 return InterpretResult::OK;
             }
-            TX_VM_CASE(END): {
-                unreachable();
-            }
+            TX_VM_CASE(END) : { unreachable(); }
         }
     }
     unreachable();

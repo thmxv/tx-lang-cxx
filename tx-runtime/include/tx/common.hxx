@@ -10,7 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#define TX_ENABLE_COMPUTED_GOTO
+// #define TX_ENABLE_COMPUTED_GOTO
 
 #ifdef TX_ENABLE_COMPUTED_GOTO
 #define TX_VM_CONSTEXPR

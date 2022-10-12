@@ -1,8 +1,9 @@
 #pragma once
 
-#include "chunk.hxx"
-#include "debug.hxx"
-#include "value.hxx"
+#include "tx/chunk.hxx"
+#include "tx/debug.hxx"
+#include "tx/scanner.hxx"
+#include "tx/value.hxx"
 
 #include <fmt/core.h>
 #include <fmt/format.h>
@@ -74,6 +75,27 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
     // No point in trying to continue
     std::abort();
     // return offset + 1;
+}
+
+inline void print_tokens(std::string_view source) noexcept {
+    Scanner scanner(source);
+    int line = -1;
+    for (;;) {
+        Token token = scanner.scan_token();
+        if (token.line != line) {
+            fmt::print(FMT_STRING("{:4d} "), token.line);
+            line = token.line;
+        } else {
+            fmt::print("   | ");
+        }
+        fmt::print(
+            FMT_STRING("{:2d} '{:s}' {}\n"),
+            to_underlying(token.type),
+            token.lexeme,
+            token.value
+        );
+        if (token.type == TokenType::END_OF_FILE) { break; }
+    }
 }
 
 }  // namespace tx

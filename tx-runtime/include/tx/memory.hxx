@@ -12,13 +12,12 @@ class VM;
 inline constexpr size_t MIN_CAPACIY = 8;
 inline constexpr size_t CAPACITY_SCALE_FACTOR = 2;
 
-[[nodiscard]] constexpr inline size_t grow_capacity(size_t capacity) noexcept {
-    return (capacity < MIN_CAPACIY)  //
-               ? MIN_CAPACIY
-               : (capacity * CAPACITY_SCALE_FACTOR);
-}
+[[nodiscard]] constexpr size_t grow_capacity(size_t capacity) noexcept;
 
-gsl::owner<void*> reallocate_impl(
+[[nodiscard]]
+// constexpr
+gsl::owner<void*>
+reallocate_impl(
     VM& tvm,
     gsl::owner<void*> pointer,
     size_t old_size,
@@ -28,7 +27,7 @@ gsl::owner<void*> reallocate_impl(
 
 template <typename T>
     requires is_trivially_relocatable_v<T>
-[[nodiscard]] constexpr inline gsl::owner<T*>
+[[nodiscard]] constexpr gsl::owner<T*>
 reallocate(VM& tvm, gsl::owner<T*> pointer, size_t old_size, size_t new_size) {
     return static_cast<gsl::owner<T*>>(reallocate_impl(
         tvm,

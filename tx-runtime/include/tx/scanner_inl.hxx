@@ -60,14 +60,15 @@ constexpr char Scanner::advance() noexcept {
     return Token{
         .type = type,
         .lexeme{start, static_cast<std::size_t>(std::distance(start, current))},
-        .line = line
+        .line = line,
+        .value{}
     };
 }
 
 [[nodiscard]] constexpr Token Scanner::error_token(std::string_view message
 ) const noexcept {
     using enum TokenType;
-    return Token{.type = ERROR, .lexeme = message, .line = line};
+    return Token{.type = ERROR, .lexeme = message, .line = line, .value{}};
 }
 
 constexpr void Scanner::skip_whitespace() noexcept {
@@ -112,13 +113,12 @@ constexpr void Scanner::skip_whitespace() noexcept {
                 switch (start[1]) {
                     case 'n': return check_keyword(2, "d", AND);
                     case 's':
-                        return check_keyword(2, "", AS);
                         if (std::distance(start, current) > 2) {
                             switch (start[2]) {
                                 case 'y': return check_keyword(3, "nc", ASYNC);
                             }
                         }
-                        break;
+                        return check_keyword(2, "", AS);
                     case 'w': return check_keyword(2, "ait", AWAIT);
                 }
             }
@@ -159,19 +159,13 @@ constexpr void Scanner::skip_whitespace() noexcept {
         case 's':
             if (std::distance(start, current) > 1) {
                 switch (start[1]) {
+                    case 'e': return check_keyword(2, "lf", STRUCT);
                     case 't': return check_keyword(2, "ruct", STRUCT);
                     case 'u': return check_keyword(2, "per", SUPER);
                 }
             }
             break;
-        case 't':
-            if (std::distance(start, current) > 1) {
-                switch (start[1]) {
-                    case 'h': return check_keyword(2, "is", THIS);
-                    case 'r': return check_keyword(2, "ue", TRUE);
-                }
-            }
-            break;
+        case 't': return check_keyword(1, "rue", TRUE);
         case 'v': return check_keyword(1, "ar", VAR);
         case 'w': return check_keyword(1, "hile", WHILE);
         case 'A': return check_keyword(1, "ny", ANY);
@@ -190,7 +184,7 @@ constexpr void Scanner::skip_whitespace() noexcept {
     return make_token(identifier_type());
 }
 
-[[nodiscard]] Token Scanner::number() noexcept {
+[[nodiscard]] constexpr Token Scanner::number() noexcept {
     TokenType type = TokenType::INTEGER_LITERAL;
     while (is_digit(peek()) || peek() == '_') { advance(); }
     if (peek() == '.' && (is_digit(peek_next()) || peek_next() == '_')) {
@@ -228,7 +222,7 @@ constexpr void Scanner::skip_whitespace() noexcept {
                 return error_token("Numeric literal out of range.");
             }
             auto token = make_token(type);
-            token.value.as_int = value;
+            token.value = Value(value);
             return token;
         }
         case FLOAT_LITERAL: {
@@ -243,14 +237,14 @@ constexpr void Scanner::skip_whitespace() noexcept {
                 return error_token("Numeric literal out of range.");
             }
             auto token = make_token(type);
-            token.value.as_float = value;
+            token.value = Value(value);
             return token;
         }
         default: unreachable();
     }
 }
 
-[[nodiscard]] inline Token Scanner::hex_number() noexcept {
+[[nodiscard]] constexpr Token Scanner::hex_number() noexcept {
     advance();
     while (is_hex_digit(peek()) || peek() == '_') { advance(); }
     if (std::distance(start, current)
@@ -273,7 +267,7 @@ constexpr void Scanner::skip_whitespace() noexcept {
         return error_token("Hexadecimal integer literal out of range.");
     }
     auto token = make_token(TokenType::INTEGER_LITERAL);
-    token.value.as_int = value;
+    token.value = Value(value);
     return token;
 }
 
@@ -292,7 +286,8 @@ constexpr void Scanner::skip_whitespace() noexcept {
     return make_token(TokenType::STRING_LITERAL);
 }
 
-[[nodiscard]] constexpr std::optional<i32> Scanner::hex_escape(size_t digits) {
+[[nodiscard]] constexpr std::optional<i32> Scanner::hex_escape(size_t digits
+) noexcept {
     assert(digits > 0);
     assert(digits <= 8);
     const auto* const escape_start = current;
@@ -305,7 +300,6 @@ constexpr void Scanner::skip_whitespace() noexcept {
         std::from_chars(escape_start, current, value, 16);
     assert(fcr.ptr == current);
     assert(fcr.ec != std::errc::result_out_of_range);
-    fmt::print("{}\n", value);
     return value;
 }
 
@@ -317,7 +311,8 @@ void insert_utf8(char32_t value, OutputIt dst) {
 }
 
 [[nodiscard]] constexpr Token Scanner::string() noexcept {
-    FixedCapacityArray<const char, size_t, 1024> string;
+    // FixedCapacityArray<const char, size_t, 1024> string;
+    FixedCapacityArray<char, size_t, 1024> string;
     while (peek() != '"' && !is_at_end()) {
         if (peek() == '\n') { ++line; }
         if (peek() == '$') {
@@ -429,10 +424,6 @@ void insert_utf8(char32_t value, OutputIt dst) {
     }
     if (is_at_end()) { return error_token("Unterminated string."); }
     advance();
-    fmt::print(
-        "{}\n",
-        std::string_view{string.data(), static_cast<std::size_t>(string.size())}
-    );
     return make_token(TokenType::STRING_LITERAL);
 }
 

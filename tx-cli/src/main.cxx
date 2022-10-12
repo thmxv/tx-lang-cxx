@@ -1,5 +1,6 @@
+#include "tx/debug.hxx"
 #include "tx/exit_codes.hxx"
-#include <tx/tx.hxx>
+#include "tx/tx.hxx"
 
 #include <fmt/format.h>
 
@@ -22,12 +23,12 @@ Options:
   --help            Show this message and exit.
   --version         Show version and exit.
   -D TXT            Set debug specific option(s). (only works on debug builds)
-                    The following options are available:
-                      -D trace-execution  Trace bytecode execution
-                      -D print-bytecode   Print bytecode after compilation
-                      -D trace-gc         Trace garbage collection
-                      -D stress-gc        Run garbage collector on every 
-                                            allocation
+    The following options are available:
+      -D trace-execution  Trace bytecode execution
+      -D print-tokens     Print tokens before compilation
+      -D print-bytecode   Print bytecode after compilation
+      -D trace-gc         Trace garbage collection
+      -D stress-gc        Run garbage collector on every allocation
   -c,--command TXT  Execute command passed as argument.
   file TXT          Read script to ececute from file.
   -                 Read script to execute from the standard input.
@@ -51,7 +52,7 @@ void print_usage() noexcept { fmt::print(usage_str); }
             std::strerror(errno)
         );
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(EXT_IO_ERROR);
+        std::exit(ExitCode::IO_ERROR);
     }
     auto is_error = std::fseek(file, 0L, SEEK_END);
     if (is_error != 0) {
@@ -64,7 +65,7 @@ void print_usage() noexcept { fmt::print(usage_str); }
         );
         (void)std::fclose(file);
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(EXT_IO_ERROR);
+        std::exit(ExitCode::IO_ERROR);
     }
     const auto file_size = static_cast<std::size_t>(std::ftell(file));
     std::rewind(file);
@@ -86,7 +87,7 @@ void print_usage() noexcept { fmt::print(usage_str); }
             std::strerror(errno)
         );
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(EXT_IO_ERROR);
+        std::exit(ExitCode::IO_ERROR);
     }
     if (bytes_read < file_size) {
         fmt::print(
@@ -97,7 +98,7 @@ void print_usage() noexcept { fmt::print(usage_str); }
             std::strerror(errno)
         );
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(EXT_IO_ERROR);
+        std::exit(ExitCode::IO_ERROR);
     }
     return result;
 }
@@ -111,7 +112,8 @@ void run_repl(VM& tvm) {
             fmt::print("\n");
             break;
         }
-        (void)tvm.interpret({line.data()});
+        const std::string_view source{line.data()};
+        (void)tvm.interpret(source);
     }
 }
 
@@ -120,19 +122,15 @@ void run_file(VM& tvm, const char* path) {
     const InterpretResult result = tvm.interpret(source);
     if (result == InterpretResult::COMPILE_ERROR) {
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(EXT_DATA_ERROR);
+        std::exit(ExitCode::DATA_ERROR);
     }
     if (result == InterpretResult::RUNTIME_ERROR) {
         // NOLINTNEXTLINE
-        std::exit(EXT_SOFTWARE_INTERNAL_ERROR);
+        std::exit(ExitCode::SOFTWARE_INTERNAL_ERROR);
     }
 }
 
-}  // namespace tx
-
-// NOLINTNEXTLINE(bugprone-exception-escape)
-int main(int argc, const char** argv) noexcept {
-    const std::span<const char*> args{argv, static_cast<std::size_t>(argc)};
+struct ArgsOptions{
     bool args_help = false;
     bool args_version = false;
     bool args_use_stdin = false;
@@ -140,94 +138,117 @@ int main(int argc, const char** argv) noexcept {
     std::string_view args_command;
     std::span<const char*> args_rest_of_args;
     tx::VMOptions args_options;
+};
 
-    {
-        std::size_t idx = 1;
-        for (; idx < args.size(); ++idx) {
-            const auto arg = std::string_view{args[idx]};
-            if (arg == "--help") {
-                args_help = true;
-            } else if (arg == "--version") {
-                args_version = true;
-            } else if (arg == "-D") {
-                ++idx;
-                if (idx >= args.size()) {
-                    fmt::print(
-                        stderr,
-                        "Expecting debug option argument after '-D'. "
-                        "Allowed debug options: "
-                        "'trace-execution', "
-                        "'print-bytecode', "
-                        "'trace-gc', "
-                        "'stress-gc'.\n"
-                    );
-                    tx::print_usage();
-                    return tx::EXT_USAGE_ERROR;
-                }
-                const auto opt = std::string_view{args[++idx]};
-                if (opt == "trace-execution") {
-                    args_options.trace_execution = true;
-                } else if (opt == "print-bytecode") {
-                    args_options.print_bytecode = true;
-                } else if (opt == "trace-gc") {
-                    args_options.trace_gc = true;
-                } else if (opt == "stress-gc") {
-                    args_options.stress_gc = true;
-                } else {
-                    fmt::print(
-                        stderr,
-                        FMT_STRING("Unexpected debug option argument '{}'. "
-                                   "Allowed debug options: "
-                                   "'trace-execution', "
-                                   "'print-bytecode', "
-                                   "'trace-gc', "
-                                   "'stress-gc'.\n"),
-                        opt
-                    );
-                    tx::print_usage();
-                    return tx::EXT_USAGE_ERROR;
-                }
-            } else if (arg == "-c" or arg == "--command") {
-                args_command = std::string_view{args[++idx]};
-                ++idx;
-                break;
-            } else if (arg == "-") {
-                args_use_stdin = true;
-                ++idx;
-                break;
-            } else if (arg == "--") {
-                ++idx;
-                break;
-            } else {
-                args_file_path = arg;
-                ++idx;
-                break;
+constexpr std::optional<ArgsOptions> parse_arguments(int argc, const char** argv) {
+    const std::span<const char*> args{argv, static_cast<std::size_t>(argc)};
+    ArgsOptions options;
+    std::size_t idx = 1;
+    for (; idx < args.size(); ++idx) {
+        const auto arg = std::string_view{args[idx]};
+        if (arg == "--help") {
+            options.args_help = true;
+        } else if (arg == "--version") {
+            options.args_version = true;
+        } else if (arg == "-D") {
+            ++idx;
+            if (idx >= args.size()) {
+                fmt::print(
+                    stderr,
+                    "Expecting debug option argument after '-D'. "
+                    "Allowed debug options: "
+                    "'trace-execution', "
+                    "'print-bytecode', "
+                    "'trace-gc', "
+                    "'stress-gc'.\n"
+                );
+                tx::print_usage();
+                return std::nullopt;
             }
+            const auto opt = std::string_view{args[idx]};
+            if (opt == "trace-execution") {
+                options.args_options.trace_execution = true;
+            } else if (opt == "print-tokens") {
+                options.args_options.print_tokens = true;
+            } else if (opt == "print-bytecode") {
+                options.args_options.print_bytecode = true;
+            } else if (opt == "trace-gc") {
+                options.args_options.trace_gc = true;
+            } else if (opt == "stress-gc") {
+                options.args_options.stress_gc = true;
+            } else {
+                fmt::print(
+                    stderr,
+                    FMT_STRING("Unexpected debug option argument '{}'. "
+                               "Allowed debug options: "
+                               "'trace-execution', "
+                               "'print-bytecode', "
+                               "'trace-gc', "
+                               "'stress-gc'.\n"),
+                    opt
+                );
+                tx::print_usage();
+                return std::nullopt;
+            }
+        } else if (arg == "-c" or arg == "--command") {
+            ++idx;
+            if (idx >= args.size()) {
+                fmt::print(
+                    stderr,
+                    "Expecting command argument after '-c'.\n"
+                );
+                tx::print_usage();
+                return std::nullopt;
+            }
+            options.args_command = std::string_view{args[idx++]};
+            break;
+        } else if (arg == "-") {
+            options.args_use_stdin = true;
+            ++idx;
+            break;
+        } else if (arg == "--") {
+            ++idx;
+            break;
+        } else {
+            options.args_file_path = arg;
+            ++idx;
+            break;
         }
-        args_rest_of_args = args.subspan(idx);
     }
+    options.args_rest_of_args = args.subspan(idx);
+    return options;
+}
 
-    if (args_help) {
+}  // namespace tx
+
+// NOLINTNEXTLINE(bugprone-exception-escape)
+int main(int argc, const char** argv) noexcept {
+    auto options_opt = tx::parse_arguments(argc, argv);
+    if (!options_opt.has_value()) {
+        return tx::ExitCode::USAGE_ERROR;
+    }
+    auto options = *options_opt;
+    if (options.args_help) {
         tx::print_title();
         tx::print_usage();
-        return EXIT_SUCCESS;
+        return tx::ExitCode::SUCCESS;
     }
-    if (args_version) {
+    if (options.args_version) {
         fmt::print(FMT_STRING("{}"), tx::VERSION);
-        return EXIT_SUCCESS;
+        return tx::ExitCode::SUCCESS;
     }
 
     std::pmr::unsynchronized_pool_resource mem_res;
-    tx::VM tvm(args_options, &mem_res);
-    if (args_file_path.empty()) {
+    tx::VM tvm(options.args_options, &mem_res);
+    if (options.args_file_path.empty()) {
         tx::run_repl(tvm);
     } else {
-        (void)args_use_stdin;
+        (void)options.args_use_stdin;
         fmt::print(
             FMT_STRING("UNIMPLEMENTED: shoud execute '{}'\n"),
-            args_file_path
+            options.args_file_path
         );
         // tx::run_file(tvm, file_path);
     }
-    return EXIT_SUCCESS;
+    return tx::ExitCode::SUCCESS;
 }

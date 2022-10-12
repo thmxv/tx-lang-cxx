@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <codecvt>
+
 // TODO remove and force clang 15
 #ifdef __clang__
 #include <experimental/source_location>
@@ -14,7 +15,6 @@ using source_location = std::experimental::source_location;
 #include <source_location>
 using source_location = std::source_location;
 #endif
-
 
 namespace tx {
 
@@ -54,7 +54,9 @@ struct DeletableFacet : F {
     DeletableFacet* operator=(DeletableFacet&& other) = delete;
 };
 
-inline char8_t*
+inline
+// constexpr
+char8_t*
 utf8_encode(char32_t* src, char32_t* src_end, char8_t* dst, char8_t* dst_end) {
     using Facet = std::codecvt<char32_t, char8_t, std::mbstate_t>;
     std::mbstate_t mb_state{};
@@ -67,9 +69,11 @@ utf8_encode(char32_t* src, char32_t* src_end, char8_t* dst, char8_t* dst_end) {
     return dst_next;
 }
 
-inline char8_t*
-utf8_encode_n(char32_t* src, size_t n, char8_t* dst, char8_t* dst_end){
-    return utf8_encode(src, src+n, dst, dst_end);
+inline
+// constexpr
+char8_t*
+utf8_encode_n(char32_t* src, size_t n, char8_t* dst, char8_t* dst_end) {
+    return utf8_encode(src, src + n, dst, dst_end);
 }
 
 }  // namespace tx

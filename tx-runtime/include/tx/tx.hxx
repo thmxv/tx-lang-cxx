@@ -6,6 +6,7 @@
 #include "tx/debug.hxx"
 #include "tx/dyn_array.hxx"
 #include "tx/exit_codes.hxx"
+#include "tx/fixed_array.hxx"
 #include "tx/memory.hxx"
 #include "tx/scanner.hxx"
 #include "tx/type_traits.hxx"

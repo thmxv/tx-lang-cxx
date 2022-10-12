@@ -2,6 +2,7 @@
 
 #include "tx/chunk.hxx"
 #include "tx/common.hxx"
+#include "tx/compiler.hxx"
 #include "tx/fixed_array.hxx"
 
 #include <memory_resource>
@@ -16,30 +17,42 @@ enum class InterpretResult {
 
 struct VMOptions {
     bool trace_execution = false;
+    bool print_tokens = false;
     bool print_bytecode = false;
     bool trace_gc = false;
     bool stress_gc = false;
 };
+
+class Parser;
 
 using Stack = FixedCapacityArray<Value, size_t, STACK_MAX>;
 using Allocator = std::pmr::polymorphic_allocator<std::byte>;
 
 class VM {
     VMOptions options{};
-    Allocator allocator;
+    Allocator allocator{};
+    Parser* parser = nullptr;
     const Chunk* chunk_ptr = nullptr;
     const ByteCode* instruction_ptr = nullptr;
-    Stack stack;
+    Stack stack{};
 
   public:
-    VM() noexcept = default;
-    VM(VMOptions opts) noexcept : options(opts) {}
-    VM(const Allocator& alloc)
-        noexcept : allocator(alloc) {}
-    VM(VMOptions opts, const Allocator& alloc)
-        noexcept : options(opts) , allocator(alloc) {}
+    // constexpr
+    VM() noexcept {}
 
-    Allocator get_allocator() { return allocator; }
+    // constexpr
+    explicit VM(VMOptions opts) noexcept : options(opts) {}
+
+    constexpr explicit VM(const Allocator& alloc) noexcept : allocator(alloc) {}
+    constexpr VM(VMOptions opts, const Allocator& alloc) noexcept
+            : options(opts)
+            , allocator(alloc) {}
+
+    // constexpr
+    [[nodiscard]] Allocator get_allocator() const { return allocator; }
+    [[nodiscard]] constexpr const VMOptions& get_options() const noexcept {
+        return options;
+    }
 
     TX_VM_CONSTEXPR InterpretResult interpret(std::string_view source) noexcept;
     TX_VM_CONSTEXPR InterpretResult run(const Chunk& chunk) noexcept;
@@ -48,7 +61,7 @@ class VM {
     constexpr ByteCode read_byte() noexcept;
     constexpr Value read_constant(bool is_long) noexcept;
 
-    template <typename T, template <typename> typename Op>
+    template <template <typename> typename Op>
     [[nodiscard]] constexpr bool binary_op() noexcept;
 
     void print_stack() const noexcept;

@@ -23,6 +23,7 @@ Tx is still verry much a work in progress.
 
 ## Backlog
 
+- 'could be const' warnings with containers when elements are const
 - constexpr allocation and from_char (requires C++23 and support in stdlib)
 - Ensure enough stack space (grow or crash?)
 
@@ -31,8 +32,9 @@ Tx is still verry much a work in progress.
 - [X] Bytecode array
 - [X] Interpret bytecode
 - [X] Scanning tokens
-- [ ] Parsing/compiling expressions
+- [X] Parsing/compiling expressions
 - [ ] Value types
+- [ ] Type checking
 - [ ] String
 - [ ] Hash table
 - [ ] Global variables

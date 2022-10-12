@@ -9,10 +9,17 @@
 
 namespace tx {
 
-// TODO: A lot depends on making this constexpr
-// It should be C++20/23 compatible but std libs might trail behind
+// TODO: A lot depends on making allocation constexpr
+// It should be C++23 compatible but std libs might trail behind
+
+[[nodiscard]] inline constexpr size_t grow_capacity(size_t capacity) noexcept {
+    return (capacity < MIN_CAPACIY)  //
+               ? MIN_CAPACIY
+               : (capacity * CAPACITY_SCALE_FACTOR);
+}
 
 // pmr::polymorphic_allocator does not provide a reallocate() function :(
+// constexpr
 inline gsl::owner<void*> allocator_reallocate(
     Allocator alloc,
     gsl::owner<void*> pointer,
@@ -39,6 +46,7 @@ inline gsl::owner<void*> allocator_reallocate(
     return result;
 }
 
+// constexpr
 inline gsl::owner<void*> reallocate_impl(
     VM& tvm,
     gsl::owner<void*> pointer,
@@ -56,7 +64,7 @@ inline gsl::owner<void*> reallocate_impl(
         );
         return nullptr;
     }
-    auto* result = allocator_reallocate(
+    gsl::owner<void*> result = allocator_reallocate(
         tvm.get_allocator(),
         pointer,
         old_size,

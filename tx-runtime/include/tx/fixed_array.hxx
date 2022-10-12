@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstdlib>
 #include <memory>
 #include <type_traits>
@@ -32,7 +33,7 @@ class FixedCapacityArray {
 
     constexpr FixedCapacityArray() noexcept = default;
     constexpr FixedCapacityArray(const FixedCapacityArray& other) noexcept
-            : count(other.count) {
+            : count(other.count), data_buff() {
         std::uninitialized_value_construct_n(data(), count, other.data());
     }
 
