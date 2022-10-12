@@ -44,6 +44,20 @@ TX_VM_CONSTEXPR InterpretResult VM::interpret(std::string_view source
     return result;
 }
 
+[[nodiscard]] constexpr bool VM::negate_op() noexcept {
+    const auto operand = pop();
+    Value result;
+    if (operand.is_int()) {
+        result = Value(-operand.as_int());
+    } else if (operand.is_float()) {
+        result = Value(-operand.as_float());
+    } else {
+        return true;
+    }
+    push(result);
+    return false;
+}
+
 template <template <typename> typename Op>
 [[nodiscard]] constexpr bool VM::binary_op() noexcept {
     // if (!peek(0).is_float() || !peek(1).is_float()) {
@@ -93,7 +107,7 @@ constexpr void VM::debug_trace() const noexcept {
 }
 
 TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
-    // clang-format off
+// clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -159,8 +173,7 @@ TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(NEGATE) : {
-                // push(-pop());
-                push(Value(-pop().as_float()));
+                if (negate_op()) { return InterpretResult::RUNTIME_ERROR; }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(RETURN) : {
@@ -172,7 +185,7 @@ TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-    // clang-format off
+// clang-format off
     #undef TX_VM_LOOP
     #undef TX_VM_CASE
     #undef TX_VM_CONTINUE

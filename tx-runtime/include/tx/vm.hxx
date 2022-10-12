@@ -61,6 +61,8 @@ class VM {
     constexpr ByteCode read_byte() noexcept;
     constexpr Value read_constant(bool is_long) noexcept;
 
+    [[nodiscard]] constexpr bool negate_op() noexcept;
+
     template <template <typename> typename Op>
     [[nodiscard]] constexpr bool binary_op() noexcept;
 
