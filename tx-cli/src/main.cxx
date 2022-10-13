@@ -24,29 +24,40 @@ Options:
   --version         Show version and exit.
   -D TXT            Set debug specific option(s). (only works on debug builds)
     The following options are available:
-      -D trace-execution  Trace bytecode execution
+      -D all              Enable all debug options
       -D print-tokens     Print tokens before compilation
       -D print-bytecode   Print bytecode after compilation
+      -D trace-execution  Trace bytecode execution
       -D trace-gc         Trace garbage collection
       -D stress-gc        Run garbage collector on every allocation
   -c,--command TXT  Execute command passed as argument.
   file TXT          Read script to ececute from file.
   -                 Read script to execute from the standard input.
   --                Stop parsing the following arguments as options.
-  arguments TXT...  Argument to pass to executed script/command.)";
+  arguments TXT...  Argument to pass to executed script/command.
+)";
 
+constexpr std::string_view usage_debug_str =
+R"(Allowed debug options: 'all', 'print-tokens', 'print-bytecode', 
+  'trace-execution', 'trace-gc', 'stress-gc'.
+)"
+                ;
 void print_title() noexcept {
     fmt::print(FMT_STRING("Tx version {}\n"), tx::VERSION);
 }
 
 void print_usage() noexcept { fmt::print(usage_str); }
 
+void print_debug_usage() noexcept {
+    fmt::print(stderr, usage_debug_str);
+}
+
 [[nodiscard]] std::string read_file(const char* path) noexcept {
     gsl::owner<std::FILE*> file = std::fopen(path, "rb");
     if (file == nullptr) {
         fmt::print(
             stderr,
-            FMT_STRING("Could not open file \"{:s}\":{}\n"),
+            FMT_STRING("Could not open file \"{:s}\": {}\n"),
             path,
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
             std::strerror(errno)
@@ -134,7 +145,7 @@ struct ArgsOptions{
     bool args_help = false;
     bool args_version = false;
     bool args_use_stdin = false;
-    std::string_view args_file_path;
+    const char* args_file_path = nullptr;
     std::string_view args_command;
     std::span<const char*> args_rest_of_args;
     tx::VMOptions args_options;
@@ -155,13 +166,9 @@ constexpr std::optional<ArgsOptions> parse_arguments(int argc, const char** argv
             if (idx >= args.size()) {
                 fmt::print(
                     stderr,
-                    "Expecting debug option argument after '-D'. "
-                    "Allowed debug options: "
-                    "'trace-execution', "
-                    "'print-bytecode', "
-                    "'trace-gc', "
-                    "'stress-gc'.\n"
+                    "Expecting debug option argument after '-D'.\n"
                 );
+                print_debug_usage();
                 tx::print_usage();
                 return std::nullopt;
             }
@@ -176,17 +183,19 @@ constexpr std::optional<ArgsOptions> parse_arguments(int argc, const char** argv
                 options.args_options.trace_gc = true;
             } else if (opt == "stress-gc") {
                 options.args_options.stress_gc = true;
+            } else if (opt == "all") {
+                options.args_options.print_bytecode = true;
+                options.args_options.print_tokens = true;
+                options.args_options.trace_execution = true;
+                options.args_options.trace_gc = true;
+                options.args_options.stress_gc = true;
             } else {
                 fmt::print(
                     stderr,
-                    FMT_STRING("Unexpected debug option argument '{}'. "
-                               "Allowed debug options: "
-                               "'trace-execution', "
-                               "'print-bytecode', "
-                               "'trace-gc', "
-                               "'stress-gc'.\n"),
+                    FMT_STRING("Unexpected debug option argument '{}'.\n"),
                     opt
                 );
+                print_debug_usage();
                 tx::print_usage();
                 return std::nullopt;
             }
@@ -210,7 +219,7 @@ constexpr std::optional<ArgsOptions> parse_arguments(int argc, const char** argv
             ++idx;
             break;
         } else {
-            options.args_file_path = arg;
+            options.args_file_path = args[idx];
             ++idx;
             break;
         }
@@ -240,15 +249,14 @@ int main(int argc, const char** argv) noexcept {
 
     std::pmr::unsynchronized_pool_resource mem_res;
     tx::VM tvm(options.args_options, &mem_res);
-    if (options.args_file_path.empty()) {
+    if (options.args_file_path == nullptr) {
         tx::run_repl(tvm);
     } else {
-        (void)options.args_use_stdin;
-        fmt::print(
-            FMT_STRING("UNIMPLEMENTED: shoud execute '{}'\n"),
-            options.args_file_path
-        );
-        // tx::run_file(tvm, file_path);
+        if (options.args_use_stdin){
+            fmt::print(FMT_STRING("UNIMPLEMENTED: shoud read from stdin\n"));
+        } else {
+            tx::run_file(tvm, options.args_file_path);
+        }
     }
     return tx::ExitCode::SUCCESS;
 }

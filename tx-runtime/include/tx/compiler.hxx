@@ -82,88 +82,95 @@ class Parser {
     // friend class ParseRules;
 };
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc99-designator"
+#endif
+
 class ParseRules {
-    // clang-format off
-    #ifdef __clang__
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wc99-designator"
-    #endif
+    using enum TokenType;
+    using P = Precedence;
+    using p = Parser;
 
     // NOLINTNEXTLINE(*-avoid-c-arrays)
     __extension__ static constexpr ParseRule rules[] = {
-        [to_underlying(TokenType::LEFT_PAREN)]              = {&Parser::grouping, nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::RIGHT_PAREN)]             = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::LEFT_BRACE)]              = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::RIGHT_BRACE)]             = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::LEFT_BRACKET)]            = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::RIGHT_BRACKET)]           = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::COLON)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::COMMA)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::DOT)]                     = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::MINUS)]                   = {&Parser::unary,    &Parser::binary, Precedence::TERM      },
-        [to_underlying(TokenType::PIPE)]                    = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::PLUS)]                    = {nullptr,           &Parser::binary, Precedence::TERM      },
-        [to_underlying(TokenType::SEMICOLON)]               = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::SLASH)]                   = {nullptr,           &Parser::binary, Precedence::FACTOR    },
-        [to_underlying(TokenType::STAR)]                    = {nullptr,           &Parser::binary, Precedence::FACTOR    },
-        [to_underlying(TokenType::BANG)]                    = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::BANG_EQUAL)]              = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::EQUAL)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::EQUAL_EQUAL)]             = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::LEFT_CHEVRON)]            = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::LESS_EQUAL)]              = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::RIGHT_CHEVRON)]           = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::GREATER_EQUAL)]           = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::IDENTIFIER)]              = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::INTEGER_LITERAL)]         = {&Parser::literal,   nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::FLOAT_LITERAL)]           = {&Parser::literal,   nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::STRING_LITERAL)]          = {&Parser::literal,  nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::STRING_INTERPOLATION)]    = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::AND)]                     = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::AS)]                      = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::ASYNC)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::AWAIT)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::BREAK)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::CONTINUE)]                = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::ELSE)]                    = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::FALSE)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::FOR)]                     = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::FN)]                      = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::IF)]                      = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::IMPORT)]                  = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::IS)]                      = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::LET)]                     = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::LOOP)]                    = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::NIL)]                     = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::MATCH)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::OR)]                      = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::RETURN)]                  = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::SELF)]                    = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::STRUCT)]                  = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::SUPER)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::TRUE)]                    = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::VAR)]                     = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::WHILE)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::ANY)]                     = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::BOOL)]                    = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::CHAR)]                    = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::FLOAT)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::INT)]                     = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::NIL_TYPE)]                = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::STR)]                     = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::ERROR)]                   = {nullptr,           nullptr,         Precedence::NONE      },
-        [to_underlying(TokenType::END_OF_FILE)]             = {nullptr,           nullptr,         Precedence::NONE      },
+  // clang-format off
+        [LEFT_PAREN]      = {&p::grouping, nullptr,    P::NONE},
+        [RIGHT_PAREN]     = {nullptr,      nullptr,    P::NONE},
+        [LEFT_BRACE]      = {nullptr,      nullptr,    P::NONE},
+        [RIGHT_BRACE]     = {nullptr,      nullptr,    P::NONE},
+        [LEFT_BRACKET]    = {nullptr,      nullptr,    P::NONE},
+        [RIGHT_BRACKET]   = {nullptr,      nullptr,    P::NONE},
+        [COLON]           = {nullptr,      nullptr,    P::NONE},
+        [COMMA]           = {nullptr,      nullptr,    P::NONE},
+        [DOT]             = {nullptr,      nullptr,    P::NONE},
+        [MINUS]           = {&p::unary,    &p::binary, P::TERM},
+        [PIPE]            = {nullptr,      nullptr,    P::NONE},
+        [PLUS]            = {nullptr,      &p::binary, P::TERM},
+        [SEMICOLON]       = {nullptr,      nullptr,    P::NONE},
+        [SLASH]           = {nullptr,      &p::binary, P::FACTOR},
+        [STAR]            = {nullptr,      &p::binary, P::FACTOR},
+        [BANG]            = {&p::unary,    nullptr,    P::NONE},
+        [BANG_EQUAL]      = {nullptr,      &p::binary, P::EQUALITY},
+        [EQUAL]           = {nullptr,      nullptr,    P::NONE},
+        [EQUAL_EQUAL]     = {nullptr,      &p::binary, P::EQUALITY},
+        [LEFT_CHEVRON]    = {nullptr,      &p::binary, P::COMPARISON},
+        [LESS_EQUAL]      = {nullptr,      &p::binary, P::COMPARISON},
+        [RIGHT_CHEVRON]   = {nullptr,      &p::binary, P::COMPARISON},
+        [GREATER_EQUAL]   = {nullptr,      &p::binary, P::COMPARISON},
+        [IDENTIFIER]      = {nullptr,      nullptr,    P::NONE},
+        [INTEGER_LITERAL] = {&p::literal,  nullptr,    P::NONE},
+        [FLOAT_LITERAL]   = {&p::literal,  nullptr,    P::NONE},
+        [STRING_LITERAL]  = {&p::literal,  nullptr,    P::NONE},
+        [STRING_INTERP]   = {nullptr,      nullptr,    P::NONE},
+        [AND]             = {nullptr,      nullptr,    P::NONE},
+        [AS]              = {nullptr,      nullptr,    P::NONE},
+        [ASYNC]           = {nullptr,      nullptr,    P::NONE},
+        [AWAIT]           = {nullptr,      nullptr,    P::NONE},
+        [BREAK]           = {nullptr,      nullptr,    P::NONE},
+        [CONTINUE]        = {nullptr,      nullptr,    P::NONE},
+        [ELSE]            = {nullptr,      nullptr,    P::NONE},
+        [FALSE]           = {&p::literal,  nullptr,    P::NONE},
+        [FOR]             = {nullptr,      nullptr,    P::NONE},
+        [FN]              = {nullptr,      nullptr,    P::NONE},
+        [IF]              = {nullptr,      nullptr,    P::NONE},
+        [IN]              = {nullptr,      nullptr,    P::NONE},
+        [INOUT]           = {nullptr,      nullptr,    P::NONE},
+        [IMPORT]          = {nullptr,      nullptr,    P::NONE},
+        [IS]              = {nullptr,      nullptr,    P::NONE},
+        [LET]             = {nullptr,      nullptr,    P::NONE},
+        [LOOP]            = {nullptr,      nullptr,    P::NONE},
+        [NIL]             = {&p::literal,  nullptr,    P::NONE},
+        [MATCH]           = {nullptr,      nullptr,    P::NONE},
+        [OR]              = {nullptr,      nullptr,    P::NONE},
+        [OUT]             = {nullptr,      nullptr,    P::NONE},
+        [RETURN]          = {nullptr,      nullptr,    P::NONE},
+        [SELF]            = {nullptr,      nullptr,    P::NONE},
+        [STRUCT]          = {nullptr,      nullptr,    P::NONE},
+        [SUPER]           = {nullptr,      nullptr,    P::NONE},
+        [TRUE]            = {&p::literal,  nullptr,    P::NONE},
+        [VAR]             = {nullptr,      nullptr,    P::NONE},
+        [WHILE]           = {nullptr,      nullptr,    P::NONE},
+        [ANY]             = {nullptr,      nullptr,    P::NONE},
+        [BOOL]            = {nullptr,      nullptr,    P::NONE},
+        [CHAR]            = {nullptr,      nullptr,    P::NONE},
+        [FLOAT]           = {nullptr,      nullptr,    P::NONE},
+        [INT]             = {nullptr,      nullptr,    P::NONE},
+        [NIL_TYPE]        = {nullptr,      nullptr,    P::NONE},
+        [STR]             = {nullptr,      nullptr,    P::NONE},
+        [ERROR]           = {nullptr,      nullptr,    P::NONE},
+        [END_OF_FILE]     = {nullptr,      nullptr,    P::NONE},
+  // clang-format on
     };
-
-    #ifdef __clang__
-    #pragma clang diagnostic pop
-    #endif
-    // clang-format on
 
   public:
     static constexpr const ParseRule& get_rule(TokenType token_type) noexcept {
         return gsl::at(rules, to_underlying(token_type));
     }
 };
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 }  // namespace tx

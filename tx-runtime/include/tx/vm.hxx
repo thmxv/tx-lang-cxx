@@ -61,6 +61,27 @@ class VM {
     constexpr ByteCode read_byte() noexcept;
     constexpr Value read_constant(bool is_long) noexcept;
 
+    constexpr void push(Value value) noexcept { stack.push_back_unsafe(value); }
+    constexpr Value pop() noexcept {
+        auto value = stack.back();
+        stack.pop_back();
+        return value;
+    }
+    constexpr Value peek(size_t distance) noexcept {
+        return *std::prev(stack.end(), 1 + distance);
+    }
+
+    constexpr void reset_stack() noexcept;
+
+    void runtime_error_impl() noexcept;
+
+    template <typename... Args>
+    void
+    runtime_error(fmt::format_string<Args...> fmt, Args&&... args) noexcept {
+        fmt::print(stderr, fmt, std::forward<Args>(args)...);
+        runtime_error_impl();
+    }
+
     [[nodiscard]] constexpr bool negate_op() noexcept;
 
     template <template <typename> typename Op>
@@ -69,13 +90,6 @@ class VM {
     void print_stack() const noexcept;
     void print_instruction() const noexcept;
     constexpr void debug_trace() const noexcept;
-
-    constexpr void push(Value value) noexcept { stack.push_back_unsafe(value); }
-    constexpr Value pop() noexcept {
-        auto value = stack.back();
-        stack.pop_back();
-        return value;
-    }
 };
 
 }  // namespace tx

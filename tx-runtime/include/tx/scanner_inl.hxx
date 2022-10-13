@@ -143,6 +143,13 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
                 switch (*std::next(start)) {
                     case 'f': return check_keyword(2, "", IF);
                     case 'm': return check_keyword(2, "port", IMPORT);
+                    case 'n':
+                        if (std::distance(start, current) > 2) {
+                            switch (*std::next(start, 2)) {
+                                case 'o': return check_keyword(3, "ut", INOUT);
+                            }
+                        }
+                        return check_keyword(2, "", IN);
                     case 's': return check_keyword(2, "", IS);
                 }
             }
@@ -157,12 +164,19 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
             break;
         case 'n': return check_keyword(1, "il", NIL);
         case 'm': return check_keyword(1, "atch", MATCH);
-        case 'o': return check_keyword(1, "r", OR);
+        case 'o': 
+            if (std::distance(start, current) > 1) {
+                switch (*std::next(start)) {
+                    case 'u': return check_keyword(3, "t", OUT);
+                    case 'r': return check_keyword(1, "", OR);
+                }
+            }
+            return check_keyword(2, "", IN);
         case 'r': return check_keyword(1, "eturn", RETURN);
         case 's':
             if (std::distance(start, current) > 1) {
                 switch (*std::next(start)) {
-                    case 'e': return check_keyword(2, "lf", STRUCT);
+                    case 'e': return check_keyword(2, "lf", SELF);
                     case 't': return check_keyword(2, "ruct", STRUCT);
                     case 'u': return check_keyword(2, "per", SUPER);
                 }
@@ -352,7 +366,7 @@ Scanner::utf8_escape(size_t digits, OutIt dst) noexcept {
                     return error_token("Expect '{' after '$'.");
                 }
                 str_interp_braces.push_back(1);
-                auto token = make_token(TokenType::STRING_INTERPOLATION);
+                auto token = make_token(TokenType::STRING_INTERP);
                 advance();
                 return token;
             }

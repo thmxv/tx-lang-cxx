@@ -43,6 +43,12 @@ simple_instruction(std::string_view name, size_t offset) noexcept {
     return offset + 1;
 }
 
+inline constexpr std::array name_table = {
+    #define TX_OPCODE(name, _) #name,
+    #include "tx/opcodes.inc"
+    #undef TX_OPCODE
+};
+
 inline size_t
 disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
     fmt::print(FMT_STRING("{:04d} "), offset);
@@ -53,19 +59,29 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
         fmt::print(FMT_STRING("{:4d} "), line);
     }
     const OpCode instruction = chunk.code[offset].as_opcode();
+    auto name = name_table[to_underlying(instruction)];
     switch (instruction) {
         using enum OpCode;
-        case CONSTANT:
-            return constant_instruction("CONSTANT", chunk, offset, false);
+        case CONSTANT: return constant_instruction(name, chunk, offset, false);
         case CONSTANT_LONG:
-            return constant_instruction("CONSTANT", chunk, offset, true);
-        case ADD: return simple_instruction("ADD", offset);
-        case SUBSTRACT: return simple_instruction("SUBSTRACT", offset);
-        case MULTIPLY: return simple_instruction("MULTIPLY", offset);
-        case DIVIDE: return simple_instruction("DIVIDE", offset);
-        case NEGATE: return simple_instruction("NEGATE", offset);
-        case RETURN: return simple_instruction("RETURN", offset);
-        case END: return simple_instruction("END", offset);
+            return constant_instruction(name, chunk, offset, true);
+        case NIL: return simple_instruction(name, offset);
+        case TRUE: return simple_instruction(name, offset);
+        case FALSE: return simple_instruction(name, offset);
+        case EQUAL: return simple_instruction(name, offset);
+        case NOT_EQUAL: return simple_instruction(name, offset);
+        case GREATER: return simple_instruction(name, offset);
+        case LESS: return simple_instruction(name, offset);
+        case GREATER_EQUAL: return simple_instruction(name, offset);
+        case LESS_EQUAL: return simple_instruction(name, offset);
+        case ADD: return simple_instruction(name, offset);
+        case SUBSTRACT: return simple_instruction(name, offset);
+        case MULTIPLY: return simple_instruction(name, offset);
+        case DIVIDE: return simple_instruction(name, offset);
+        case NOT: return simple_instruction(name, offset);
+        case NEGATE: return simple_instruction(name, offset);
+        case RETURN: return simple_instruction(name, offset);
+        case END: return simple_instruction(name, offset);
     }
     unreachable();
 }

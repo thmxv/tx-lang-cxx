@@ -23,11 +23,16 @@ Tx is still verry much a work in progress.
 
 ## Backlog
 
-- use gsl::at
-- use gsl::narrow_cast
-- 'could be const' warnings with containers when elements are const
-- constexpr allocation and from_char (requires C++23 and support in stdlib)
-- Ensure enough stack space (grow or crash?)
+- Tests
+- Use gsl::at where necessary
+- Use gsl::narrow_cast where necessary
+- Ensure enough stack space
+- Add OP CODES for common constant values (0,1,2,-1)
+
+### To consider
+- Fix 'could be const' warnings with containers when elements are const
+- constexpr (needs support from stdlib for allocation, codecvt and from_char)
+- use char8_t and u8string_view (needs libfmt support)
 
 ## Roadmap/TODO list
 
@@ -36,11 +41,11 @@ Tx is still verry much a work in progress.
 - [X] Scanning tokens
 - [X] Parsing/compiling expressions
 - [ ] Value types
-- [ ] Type checking
 - [ ] String
 - [ ] Hash table
 - [ ] Global variables
 - [ ] Local variables
+- [ ] Type checking
 - [ ] Jumping
 - [ ] Functions and call
 - [ ] Closure

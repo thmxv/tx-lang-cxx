@@ -20,30 +20,33 @@ enum class ValueType {
 struct Obj;
 
 struct Value {
+    using enum ValueType;
+
     ValueType type = ValueType::NIL;
     union {
         bool boolean;
         int_t integer;
         float_t scalar;
+        char32_t chr;  // TODO
         Obj* obj = nullptr;
     } as;
 
     constexpr Value() noexcept = default;
 
     constexpr explicit Value(bool val) noexcept
-            : type(ValueType::BOOL)
+            : type(BOOL)
             , as{.boolean = val} {}
 
     constexpr explicit Value(int_t val) noexcept
-            : type(ValueType::INT)
+            : type(INT)
             , as{.integer = val} {}
 
     constexpr explicit Value(float_t val) noexcept
-            : type(ValueType::FLOAT)
+            : type(FLOAT)
             , as{.scalar = val} {}
 
     constexpr explicit Value(Obj* val) noexcept
-            : type(ValueType::OBJECT)
+            : type(OBJECT)
             , as{.obj = val} {}
 
     // NOLINTNEXTLINE(*-union-access)
@@ -57,27 +60,31 @@ struct Value {
         return as.scalar;
     }
 
+    [[nodiscard]] constexpr float_t as_float_force() const noexcept {
+        return type == INT ? static_cast<float_t>(as_int()) : as_float();
+    }
+
     // NOLINTNEXTLINE(*-union-access)
     [[nodiscard]] constexpr Obj& as_object() const noexcept { return *as.obj; }
 
-    [[nodiscard]] constexpr bool is_nil() const noexcept {
-        return type == ValueType::NIL;
-    }
+    [[nodiscard]] constexpr bool is_nil() const noexcept { return type == NIL; }
 
     [[nodiscard]] constexpr bool is_bool() const noexcept {
-        return type == ValueType::BOOL;
+        return type == BOOL;
     }
 
-    [[nodiscard]] constexpr bool is_int() const noexcept {
-        return type == ValueType::INT;
-    }
+    [[nodiscard]] constexpr bool is_int() const noexcept { return type == INT; }
 
     [[nodiscard]] constexpr bool is_float() const noexcept {
-        return type == ValueType::FLOAT;
+        return type == FLOAT;
+    }
+
+    [[nodiscard]] constexpr bool is_number() const noexcept {
+        return type == FLOAT || type == INT;
     }
 
     [[nodiscard]] constexpr bool is_object() const noexcept {
-        return type == ValueType::OBJECT;
+        return type == OBJECT;
     }
 
     [[nodiscard]] constexpr bool is_falsey() const noexcept {
@@ -88,16 +95,11 @@ struct Value {
     operator<=>(const Value& lhs, const Value& rhs) noexcept {
         if (lhs.type != rhs.type) { return std::partial_ordering::unordered; }
         switch (lhs.type) {
-            case ValueType::NIL: return std::strong_ordering::equal;
-            case ValueType::BOOL:
-                return std::strong_order(
-                    lhs.as_bool(),
-                    rhs.as_bool()
-                );  //(lhs.as_bool()) <=> (rhs.as_bool());
-            case ValueType::INT: return lhs.as_int() <=> rhs.as_int();
-            case ValueType::FLOAT: return lhs.as_float() <=> rhs.as_float();
-            case ValueType::OBJECT:
-                return &lhs.as_object() <=> &rhs.as_object();
+            case NIL: return std::strong_ordering::equal;
+            case BOOL: return std::strong_order(lhs.as_bool(), rhs.as_bool());
+            case INT: return lhs.as_int() <=> rhs.as_int();
+            case FLOAT: return lhs.as_float() <=> rhs.as_float();
+            case OBJECT: return &lhs.as_object() <=> &rhs.as_object();
         }
         unreachable();
     }
@@ -113,14 +115,14 @@ struct is_trivially_relocatable<Value> : std::__is_bitwise_relocatable<Value> {
     static constexpr value_type value = true;
 };
 
-template <>
-struct is_trivially_relocatable<const Value>
-        : std::__is_bitwise_relocatable<const Value> {
-    static constexpr value_type value = true;
-};
+// template <>
+// struct is_trivially_relocatable<const Value>
+//         : std::__is_bitwise_relocatable<const Value> {
+//     static constexpr value_type value = true;
+// };
 
 using ValueArray = DynArray<Value, size_t>;
-using ConstValueArray = DynArray<const Value, size_t>;
+// using ConstValueArray = DynArray<const Value, size_t>;
 
 }  // namespace tx
 

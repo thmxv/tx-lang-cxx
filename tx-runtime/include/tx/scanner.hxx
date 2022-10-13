@@ -8,7 +8,7 @@
 
 namespace tx {
 
-enum class TokenType {
+enum TokenType {
     // single char tokens
     LEFT_PAREN,
     RIGHT_PAREN,
@@ -40,12 +40,12 @@ enum class TokenType {
     FLOAT_LITERAL,
     STRING_LITERAL,
     // "a {b} c {d} e" is tokenized to:
-    // STRING_INTERPOLATION "a "
+    // STRING_INTERP        "a "
     // INDENTIFIER          "b"
-    // STRING_INTERPOLATION " c "
+    // STRING_INTERP        " c "
     // INDENTIFIER          "d"
     // STRING_LITERAL       " e"
-    STRING_INTERPOLATION,
+    STRING_INTERP,
     // keywords
     AND,
     AS,

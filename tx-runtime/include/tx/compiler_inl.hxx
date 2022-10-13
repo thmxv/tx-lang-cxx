@@ -37,7 +37,8 @@ inline constexpr void Parser::error(std::string_view message) noexcept {
     error_at(previous, message);
 }
 
-inline constexpr void Parser::error_at_current(std::string_view message) noexcept {
+inline constexpr void Parser::error_at_current(std::string_view message
+) noexcept {
     error_at(current, message);
 }
 
@@ -99,6 +100,12 @@ inline constexpr void Parser::binary(bool /*can_assign*/) noexcept {
     );
     switch (token_type) {
         using enum TokenType;
+        case BANG_EQUAL: emit_bytes(OpCode::NOT_EQUAL); break;
+        case EQUAL_EQUAL: emit_bytes(OpCode::EQUAL); break;
+        case LEFT_CHEVRON: emit_bytes(OpCode::LESS); break;
+        case LESS_EQUAL: emit_bytes(OpCode::LESS_EQUAL); break;
+        case RIGHT_CHEVRON: emit_bytes(OpCode::GREATER); break;
+        case GREATER_EQUAL: emit_bytes(OpCode::GREATER_EQUAL); break;
         case PLUS: emit_bytes(OpCode::ADD); break;
         case MINUS: emit_bytes(OpCode::SUBSTRACT); break;
         case STAR: emit_bytes(OpCode::MULTIPLY); break;
@@ -113,15 +120,22 @@ inline constexpr void Parser::grouping(bool /*can_assign*/) noexcept {
 }
 
 // constexpr void Parser::number(bool  /*can_assign*/) noexcept {
-inline constexpr void Parser::literal(bool  /*can_assign*/) noexcept {
-    const Value value = previous.value;
-    emit_constant(value);
+inline constexpr void Parser::literal(bool /*can_assign*/) noexcept {
+    switch (previous.type) {
+        case NIL: emit_bytes(OpCode::NIL); break;
+        case FALSE: emit_bytes(OpCode::FALSE); break;
+        case TRUE: emit_bytes(OpCode::TRUE); break;
+        case FLOAT_LITERAL:
+        case INTEGER_LITERAL: emit_constant(previous.value); break;
+        default: unreachable();
+    }
 }
 
 inline constexpr void Parser::unary(bool /*can_assign*/) noexcept {
     auto token_type = previous.type;
     parse_precedence(Precedence::UNARY);
     switch (token_type) {
+        case TokenType::BANG: emit_bytes(OpCode::NOT); break;
         case TokenType::MINUS: emit_bytes(OpCode::NEGATE); break;
         default: unreachable();
     }
@@ -143,7 +157,8 @@ inline constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
     }
 }
 
-inline constexpr const ParseRule& Parser::get_rule(TokenType token_type) noexcept {
+inline constexpr const ParseRule& Parser::get_rule(TokenType token_type
+) noexcept {
     return ParseRules::get_rule(token_type);
 }
 
