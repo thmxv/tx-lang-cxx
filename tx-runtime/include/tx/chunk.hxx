@@ -86,8 +86,7 @@ struct Chunk {
             );
             return;
         }
-        assert(false);
-        __builtin_unreachable();
+        unreachable();
     }
 
     [[nodiscard]] constexpr size_t get_line(size_t instruction) const noexcept {

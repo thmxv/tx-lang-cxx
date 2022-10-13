@@ -5,6 +5,7 @@
 
 #include <gsl/gsl>
 
+#include <cassert>
 #include <memory>
 
 namespace tx {
@@ -23,6 +24,7 @@ namespace tx {
 inline gsl::owner<void*> allocator_reallocate(
     Allocator alloc,
     gsl::owner<void*> pointer,
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     size_t old_size,
     size_t new_size,
     size_t alignment
@@ -54,7 +56,9 @@ inline gsl::owner<void*> reallocate_impl(
     size_t new_size,
     size_t alignment
 ) {
+    // NOLINTNEXTLINE(*-decay)
     assert(old_size >= 0);
+    // NOLINTNEXTLINE(*-decay)
     assert(new_size >= 0);
     if (new_size == 0 and pointer != nullptr) {
         tvm.get_allocator().deallocate_bytes(
@@ -71,7 +75,7 @@ inline gsl::owner<void*> reallocate_impl(
         new_size,
         alignment
     );
-    if (result == nullptr) { std::abort(); }
+    if (result == nullptr) { report_and_abort("Out of memory."); }
     return result;
 }
 

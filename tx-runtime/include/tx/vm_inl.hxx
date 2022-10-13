@@ -15,9 +15,13 @@
 
 namespace tx {
 
-constexpr ByteCode VM::read_byte() noexcept { return *instruction_ptr++; }
+inline constexpr ByteCode VM::read_byte() noexcept {
+    auto result = *instruction_ptr;
+    instruction_ptr = std::next(instruction_ptr);
+    return result;
+}
 
-constexpr Value VM::read_constant(bool is_long) noexcept {
+inline constexpr Value VM::read_constant(bool is_long) noexcept {
     const auto [constant_idx, new_ptr] = read_constant_index(
         instruction_ptr,
         is_long
@@ -26,7 +30,7 @@ constexpr Value VM::read_constant(bool is_long) noexcept {
     return chunk_ptr->constants[constant_idx];
 }
 
-TX_VM_CONSTEXPR InterpretResult VM::interpret(std::string_view source
+inline TX_VM_CONSTEXPR InterpretResult VM::interpret(std::string_view source
 ) noexcept {
     if constexpr (HAS_DEBUG_FEATURES) {
         if (options.print_tokens) { print_tokens(source); }
@@ -44,7 +48,7 @@ TX_VM_CONSTEXPR InterpretResult VM::interpret(std::string_view source
     return result;
 }
 
-[[nodiscard]] constexpr bool VM::negate_op() noexcept {
+[[nodiscard]] inline constexpr bool VM::negate_op() noexcept {
     const auto operand = pop();
     Value result;
     if (operand.is_int()) {
@@ -82,13 +86,13 @@ template <template <typename> typename Op>
     return false;
 }
 
-void VM::print_stack() const noexcept {
+inline void VM::print_stack() const noexcept {
     fmt::print(FMT_STRING("          "));
     for (const auto& slot : stack) { fmt::print(FMT_STRING("[ {} ]"), slot); }
     fmt::print(FMT_STRING("\n"));
 }
 
-void VM::print_instruction() const noexcept {
+inline void VM::print_instruction() const noexcept {
     disassemble_instruction(
         *chunk_ptr,
         static_cast<size_t>(
@@ -97,7 +101,7 @@ void VM::print_instruction() const noexcept {
     );
 }
 
-constexpr void VM::debug_trace() const noexcept {
+inline constexpr void VM::debug_trace() const noexcept {
     if constexpr (HAS_DEBUG_FEATURES) {
         if (options.trace_execution) {
             print_stack();
@@ -106,8 +110,8 @@ constexpr void VM::debug_trace() const noexcept {
     }
 }
 
-TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
-// clang-format off
+inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
+    // clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -130,13 +134,16 @@ TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
             debug_trace(); \
             instruction = read_byte().as_opcode(); \
             switch (instruction)
+        // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
         #define TX_VM_CASE(name) case name
+        // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
         #define TX_VM_BREAK() break
     #endif
     // clang-format on
     chunk_ptr = &chunk;
     instruction_ptr = chunk_ptr->code.data();
     for (;;) {
+        // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
         OpCode instruction;
         TX_VM_DISPATCH {
             using enum OpCode;
@@ -185,7 +192,7 @@ TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-// clang-format off
+    // clang-format off
     #undef TX_VM_LOOP
     #undef TX_VM_CASE
     #undef TX_VM_CONTINUE

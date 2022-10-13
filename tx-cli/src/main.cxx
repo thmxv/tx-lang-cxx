@@ -125,7 +125,7 @@ void run_file(VM& tvm, const char* path) {
         std::exit(ExitCode::DATA_ERROR);
     }
     if (result == InterpretResult::RUNTIME_ERROR) {
-        // NOLINTNEXTLINE
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
         std::exit(ExitCode::SOFTWARE_INTERNAL_ERROR);
     }
 }

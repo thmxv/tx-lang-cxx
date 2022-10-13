@@ -19,26 +19,33 @@ using source_location = std::source_location;
 namespace tx {
 
 template <typename Enum>
-[[nodiscard]] constexpr std::underlying_type_t<Enum> to_underlying(
+[[nodiscard]] inline constexpr std::underlying_type_t<Enum> to_underlying(
     Enum enumeration
 ) noexcept {
     return static_cast<std::underlying_type_t<Enum>>(enumeration);
+}
+
+[[noreturn]] inline void report_and_abort(
+    std::string_view message,
+    const source_location location = source_location::current()
+) {
+    fmt::print(
+        stderr,
+        FMT_STRING("[{:s}:{:d}:{:d}] Error in {:s}(): {}\n"),
+        location.file_name(),
+        location.line(),
+        location.column(),
+        location.function_name(),
+        message
+    );
+    std::abort();
 }
 
 [[noreturn]] inline void unreachable(
     const source_location location = source_location::current()
 ) {
     if constexpr (IS_DEBUG_BUILD) {
-        fmt::print(
-            stderr,
-            FMT_STRING("[{:s}:{:d}:{:d}] Error in {:s}():"
-                       "This code should have been unreachable\n"),
-            location.file_name(),
-            location.line(),
-            location.column(),
-            location.function_name()
-        );
-        std::abort();
+        report_and_abort("This code should have been unreachable", location);
     }
     __builtin_unreachable();
 }
@@ -55,9 +62,14 @@ struct DeletableFacet : F {
 };
 
 inline
-// constexpr
-char8_t*
-utf8_encode(char32_t* src, char32_t* src_end, char8_t* dst, char8_t* dst_end) {
+    // constexpr
+    char8_t*
+    utf8_encode(
+        char32_t* src,
+        char32_t* src_end,
+        char8_t* dst,
+        char8_t* dst_end
+    ) {
     using Facet = std::codecvt<char32_t, char8_t, std::mbstate_t>;
     std::mbstate_t mb_state{};
     const char32_t* src_next = nullptr;
@@ -70,9 +82,9 @@ utf8_encode(char32_t* src, char32_t* src_end, char8_t* dst, char8_t* dst_end) {
 }
 
 inline
-// constexpr
-char8_t*
-utf8_encode_n(char32_t* src, size_t n, char8_t* dst, char8_t* dst_end) {
+    // constexpr
+    char8_t*
+    utf8_encode_n(char32_t* src, size_t n, char8_t* dst, char8_t* dst_end) {
     return utf8_encode(src, src + n, dst, dst_end);
 }
 

@@ -67,14 +67,7 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
         case RETURN: return simple_instruction("RETURN", offset);
         case END: return simple_instruction("END", offset);
     }
-    fmt::print(
-        FMT_STRING("Unknown opcode {:d}\n"),
-        static_cast<u8>(instruction)
-    );
-    // Techically we already invoked UB, even before print.
-    // No point in trying to continue
-    std::abort();
-    // return offset + 1;
+    unreachable();
 }
 
 inline void print_tokens(std::string_view source) noexcept {

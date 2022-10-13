@@ -3,6 +3,8 @@
 #include "tx/scanner.hxx"
 #include "tx/vm.hxx"
 
+#include <gsl/gsl>
+
 #include <string_view>
 
 namespace tx {
@@ -82,6 +84,7 @@ class Parser {
 
 class ParseRules {
     // clang-format off
+    // NOLINTNEXTLINE(*-avoid-c-arrays)
     __extension__ static constexpr ParseRule rules[] = {
         [to_underlying(TokenType::LEFT_PAREN)]              = {&Parser::grouping, nullptr,         Precedence::NONE      },
         [to_underlying(TokenType::RIGHT_PAREN)]             = {nullptr,           nullptr,         Precedence::NONE      },
@@ -150,7 +153,7 @@ class ParseRules {
 
   public:
     static constexpr const ParseRule& get_rule(TokenType token_type) noexcept {
-        return rules[to_underlying(token_type)];
+        return gsl::at(rules, to_underlying(token_type));
     }
 };
 

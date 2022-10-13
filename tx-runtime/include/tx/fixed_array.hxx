@@ -1,5 +1,7 @@
 #pragma once
 
+#include "tx/utils.hxx"
+
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -19,6 +21,7 @@ class FixedCapacityArray {
         std::conditional_t<std::is_const_v<T>, const MutDataType, MutDataType>;
 
     // using StorageType = std::array<DataType, static_cast<std::size_t>(C)>;
+    // NOLINTNEXTLINE(*-avoid-c-arrays)
     using StorageType = DataType[static_cast<std::size_t>(C)];
 
     SizeT count = 0;
@@ -32,14 +35,19 @@ class FixedCapacityArray {
     using difference_type = std::ptrdiff_t;
 
     constexpr FixedCapacityArray() noexcept = default;
+
     constexpr FixedCapacityArray(const FixedCapacityArray& other) noexcept
-            : count(other.count), data_buff() {
+            : count(other.count)
+            , data_buff() {
         std::uninitialized_value_construct_n(data(), count, other.data());
     }
 
+    constexpr FixedCapacityArray(FixedCapacityArray&& other) noexcept
+            : FixedCapacityArray(other) {}
+
     constexpr ~FixedCapacityArray() noexcept
         requires(std::is_trivially_destructible_v<T>)
-        = default;
+    = default;
 
     constexpr ~FixedCapacityArray() noexcept(std::is_nothrow_destructible_v<T>)
         requires(!std::is_trivially_destructible_v<T>)
@@ -56,6 +64,12 @@ class FixedCapacityArray {
             std::uninitialized_value_construct_n(data(), count, rhs.data());
         }
         return *this;
+    }
+
+    [[nodiscard]] constexpr FixedCapacityArray& operator=(
+        FixedCapacityArray&& rhs
+    ) noexcept {
+        return operator=(rhs); // NOLINT
     }
 
     [[nodiscard]] constexpr SizeT size() const noexcept { return count; }
@@ -85,8 +99,13 @@ class FixedCapacityArray {
 
     constexpr void push_back(T value
     ) noexcept(std::is_nothrow_copy_constructible_v<T>) {
-        if (count == C) { std::abort(); }
+        if (count == C) {
+            report_and_abort(
+                "Incerting into a fixed capacity array at full capacity"
+            );
+        }
         // NOTE: Do not launder
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         std::construct_at(reinterpret_cast<T*>(&data_buff[count++]), value);
     }
 
@@ -94,12 +113,14 @@ class FixedCapacityArray {
     ) noexcept(std::is_nothrow_copy_constructible_v<T>) {
         assert(count < C);
         // NOTE: Do not launder
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         std::construct_at(reinterpret_cast<T*>(&data_buff[count++]), value);
     }
 
     template <typename... Args>
     constexpr T& emplace_back(Args&&... args) noexcept(
         noexcept(std::construct_at(
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             reinterpret_cast<T*>(&data_buff[count++]),
             std::forward<Args>(args)...
         ))
@@ -107,6 +128,7 @@ class FixedCapacityArray {
         assert(count < C);
         // NOTE: Do not launder
         return *std::construct_at(
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             reinterpret_cast<T*>(&data_buff[count++]),
             std::forward<Args>(args)...
         );
@@ -118,10 +140,12 @@ class FixedCapacityArray {
     }
 
     [[nodiscard]] constexpr T& operator[](SizeT idx) noexcept {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         return *std::launder(reinterpret_cast<T*>(&data_buff[idx]));
     }
 
     [[nodiscard]] constexpr const T& operator[](SizeT idx) const noexcept {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         return *std::launder(reinterpret_cast<const T*>(&data_buff[idx]));
     }
 
@@ -155,4 +179,5 @@ class FixedCapacityArray {
         return &operator[](count);
     }
 };
+
 }  // namespace tx

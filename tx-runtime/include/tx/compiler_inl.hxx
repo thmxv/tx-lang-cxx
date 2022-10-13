@@ -10,7 +10,7 @@
 
 namespace tx {
 
-constexpr bool Parser::compile() noexcept {
+inline constexpr bool Parser::compile() noexcept {
     advance();
     expression();
     consume(TokenType::END_OF_FILE, "Expect end of expression.");
@@ -18,7 +18,7 @@ constexpr bool Parser::compile() noexcept {
     return !had_error;
 }
 
-constexpr void
+inline constexpr void
 Parser::error_at(Token& token, std::string_view message) noexcept {
     if (panic_mode) { return; }
     panic_mode = true;
@@ -33,15 +33,15 @@ Parser::error_at(Token& token, std::string_view message) noexcept {
     had_error = true;
 }
 
-constexpr void Parser::error(std::string_view message) noexcept {
+inline constexpr void Parser::error(std::string_view message) noexcept {
     error_at(previous, message);
 }
 
-constexpr void Parser::error_at_current(std::string_view message) noexcept {
+inline constexpr void Parser::error_at_current(std::string_view message) noexcept {
     error_at(current, message);
 }
 
-constexpr void Parser::advance() noexcept {
+inline constexpr void Parser::advance() noexcept {
     previous = current;
     for (;;) {
         current = scanner.scan_token();
@@ -50,7 +50,7 @@ constexpr void Parser::advance() noexcept {
     }
 }
 
-constexpr void
+inline constexpr void
 Parser::consume(TokenType type, std::string_view message) noexcept {
     if (current.type == type) {
         advance();
@@ -59,27 +59,27 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
     error_at_current(message);
 }
 
-[[nodiscard]] constexpr Chunk& Parser::current_chunk() const noexcept {
+[[nodiscard]] inline constexpr Chunk& Parser::current_chunk() const noexcept {
     return chunk_;
 }
 
 template <typename... Ts>
     requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)
-constexpr void Parser::emit_bytes(Ts... bytes) noexcept {
+inline constexpr void Parser::emit_bytes(Ts... bytes) noexcept {
     current_chunk().write(tvm, previous.line, bytes...);
 }
 
-constexpr void Parser::emit_return() noexcept {
+inline constexpr void Parser::emit_return() noexcept {
     // emit_byte(OpCode::NIL);
     emit_bytes(OpCode::RETURN);
 }
 
-constexpr void Parser::emit_constant(Value value) noexcept {
+inline constexpr void Parser::emit_constant(Value value) noexcept {
     current_chunk().write_constant(tvm, previous.line, value);
 }
 
 // [[nodiscard]]
-constexpr void Parser::end_compiler() noexcept {
+inline constexpr void Parser::end_compiler() noexcept {
     emit_return();
     if constexpr (HAS_DEBUG_FEATURES) {
         if (tvm.get_options().print_bytecode) {
@@ -92,7 +92,7 @@ constexpr void Parser::end_compiler() noexcept {
     // return function;
 }
 
-constexpr void Parser::binary(bool /*can_assign*/) noexcept {
+inline constexpr void Parser::binary(bool /*can_assign*/) noexcept {
     auto token_type = previous.type;
     auto rule = get_rule(token_type);
     parse_precedence(static_cast<Precedence>(to_underlying(rule.precedence) + 1)
@@ -107,18 +107,18 @@ constexpr void Parser::binary(bool /*can_assign*/) noexcept {
     }
 }
 
-constexpr void Parser::grouping(bool /*can_assign*/) noexcept {
+inline constexpr void Parser::grouping(bool /*can_assign*/) noexcept {
     expression();
     consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
 }
 
 // constexpr void Parser::number(bool  /*can_assign*/) noexcept {
-constexpr void Parser::literal(bool  /*can_assign*/) noexcept {
+inline constexpr void Parser::literal(bool  /*can_assign*/) noexcept {
     const Value value = previous.value;
     emit_constant(value);
 }
 
-constexpr void Parser::unary(bool /*can_assign*/) noexcept {
+inline constexpr void Parser::unary(bool /*can_assign*/) noexcept {
     auto token_type = previous.type;
     parse_precedence(Precedence::UNARY);
     switch (token_type) {
@@ -127,7 +127,7 @@ constexpr void Parser::unary(bool /*can_assign*/) noexcept {
     }
 }
 
-constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
+inline constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
     advance();
     const ParseFn prefix_rule = get_rule(previous.type).prefix;
     if (prefix_rule == nullptr) {
@@ -143,11 +143,11 @@ constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
     }
 }
 
-constexpr const ParseRule& Parser::get_rule(TokenType token_type) noexcept {
+inline constexpr const ParseRule& Parser::get_rule(TokenType token_type) noexcept {
     return ParseRules::get_rule(token_type);
 }
 
-constexpr void Parser::expression() noexcept {
+inline constexpr void Parser::expression() noexcept {
     parse_precedence(Precedence::ASSIGNMENT);
 }
 
