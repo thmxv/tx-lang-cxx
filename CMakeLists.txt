@@ -135,7 +135,14 @@ dynamic_project_options(
 )
 
 target_compile_features(project_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
-target_compile_options(project_options INTERFACE -fno-exceptions -fno-rtti)
+target_compile_options(
+  project_options
+    INTERFACE
+      -fno-exceptions
+      -fno-rtti
+      -ffunction-sections
+      -fdata-sections
+)
 
 # TODO: The INTERFACE library NAMESPACE ALIAS are missing! CK
 add_library(tx-lang::project_options INTERFACE IMPORTED)

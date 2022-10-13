@@ -293,7 +293,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     return make_token(TokenType::STRING_LITERAL);
 }
 
-[[nodiscard]] inline constexpr std::optional<i32> Scanner::hex_escape(
+[[nodiscard]] inline constexpr std::optional<u32> Scanner::hex_escape(
     size_t digits
 ) noexcept {
     // NOLINTNEXTLINE(*-decay)
@@ -305,7 +305,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
         if (!is_hex_digit(peek())) { return std::nullopt; }
         advance();
     }
-    i32 value = 0;
+    u32 value = 0;
     [[maybe_unused]] auto fcr =
         // NOLINTNEXTLINE(*-decay, *-magic-numbers)
         std::from_chars(escape_start, current, value, 16);
@@ -316,14 +316,30 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     return value;
 }
 
-template <typename OutputIt>
-inline void insert_utf8(char32_t value, OutputIt dst) {
+template <typename OutIt>
+[[nodiscard]] inline constexpr bool
+Scanner::utf8_escape(size_t digits, OutIt dst) noexcept {
+    auto value_opt = hex_escape(digits);
+    if (!value_opt.has_value()) { return true; }
+    auto value = static_cast<char32_t>(*value_opt);
     std::array<char8_t, 4> tmp_buf{};
-    auto* end = utf8_encode_n(&value, 1, tmp_buf.data(), tmp_buf.end());
-    std::copy(tmp_buf.data(), end, dst);
+    const char32_t* src_next = nullptr;
+    char8_t* tmp_next = nullptr;
+    auto result = utf8_encode(
+        &value,
+        std::next(&value),
+        src_next,
+        tmp_buf.begin(),
+        tmp_buf.end(),
+        tmp_next
+    );
+    if (result != std::codecvt_base::result::ok) { return true; }
+    std::copy(tmp_buf.begin(), tmp_next, dst);
+    return false;
 }
 
 [[nodiscard]] inline constexpr Token Scanner::string() noexcept {
+    // TODO dyn_array
     constexpr size_t MAX_STRING_TOKEN_LEN = 1024;
     // FixedCapacityArray<const char, size_t, MAX_STRING_TOKEN_LEN> string;
     FixedCapacityArray<char, size_t, MAX_STRING_TOKEN_LEN> string;
@@ -404,31 +420,21 @@ inline void insert_utf8(char32_t value, OutputIt dst) {
                 }
                 case 'u': {
                     advance();
-                    auto value_opt = hex_escape(4);
-                    if (!value_opt.has_value()) {
+                    if (utf8_escape(4, std::back_inserter(string))) {
                         return error_token(
                             "Invalid 16-bits Unicode escape sequence."
                         );
                     }
-                    insert_utf8(
-                        static_cast<char32_t>(*value_opt),
-                        std::back_inserter(string)
-                    );
                     break;
                 }
                 case 'U': {
                     advance();
                     // NOLINTNEXTLINE(*-magic-numbers)
-                    auto value_opt = hex_escape(8);
-                    if (!value_opt.has_value()) {
+                    if (utf8_escape(8, std::back_inserter(string))) {
                         return error_token(
                             "Invalid 32-bits Unicode escape sequence."
                         );
                     }
-                    insert_utf8(
-                        static_cast<char32_t>(*value_opt),
-                        std::back_inserter(string)
-                    );
                     break;
                 }
                 default: return error_token("Invalid escape character.");

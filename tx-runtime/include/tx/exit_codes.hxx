@@ -4,7 +4,7 @@
 
 namespace tx {
 
-enum ExitCode{
+enum ExitCode {
     SUCCESS = 0,
     USAGE_ERROR = 64,
     DATA_ERROR = 65,

@@ -84,6 +84,11 @@ class Parser {
 
 class ParseRules {
     // clang-format off
+    #ifdef __clang__
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wc99-designator"
+    #endif
+
     // NOLINTNEXTLINE(*-avoid-c-arrays)
     __extension__ static constexpr ParseRule rules[] = {
         [to_underlying(TokenType::LEFT_PAREN)]              = {&Parser::grouping, nullptr,         Precedence::NONE      },
@@ -149,6 +154,10 @@ class ParseRules {
         [to_underlying(TokenType::ERROR)]                   = {nullptr,           nullptr,         Precedence::NONE      },
         [to_underlying(TokenType::END_OF_FILE)]             = {nullptr,           nullptr,         Precedence::NONE      },
     };
+
+    #ifdef __clang__
+    #pragma clang diagnostic pop
+    #endif
     // clang-format on
 
   public:

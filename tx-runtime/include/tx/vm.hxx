@@ -38,7 +38,7 @@ class VM {
 
   public:
     // constexpr
-    VM() noexcept {}
+    VM() noexcept = default;
 
     // constexpr
     explicit VM(VMOptions opts) noexcept : options(opts) {}

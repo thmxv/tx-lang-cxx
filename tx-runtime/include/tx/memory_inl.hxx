@@ -1,7 +1,7 @@
 #pragma once
 
-#include "memory.hxx"
-#include "vm.hxx"
+#include "tx/memory.hxx"
+#include "tx/vm.hxx"
 
 #include <gsl/gsl>
 
@@ -21,9 +21,9 @@ namespace tx {
 
 // pmr::polymorphic_allocator does not provide a reallocate() function :(
 // constexpr
-inline gsl::owner<void*> allocator_reallocate(
+inline void* allocator_reallocate(
     Allocator alloc,
-    gsl::owner<void*> pointer,
+    void* pointer,
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     size_t old_size,
     size_t new_size,
@@ -49,9 +49,9 @@ inline gsl::owner<void*> allocator_reallocate(
 }
 
 // constexpr
-inline gsl::owner<void*> reallocate_impl(
+inline void* reallocate_impl(
     VM& tvm,
-    gsl::owner<void*> pointer,
+    void* pointer,
     size_t old_size,
     size_t new_size,
     size_t alignment
@@ -68,7 +68,7 @@ inline gsl::owner<void*> reallocate_impl(
         );
         return nullptr;
     }
-    gsl::owner<void*> result = allocator_reallocate(
+    void* result = allocator_reallocate(
         tvm.get_allocator(),
         pointer,
         old_size,

@@ -12,6 +12,7 @@ namespace tx {
 
 // clang-format off
 enum class OpCode : u8 {
+    // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
     #define TX_OPCODE(name, _) name,
     #include "tx/opcodes.inc"
     #undef TX_OPCODE
@@ -25,10 +26,14 @@ struct ByteCode {
     };
 
     constexpr ByteCode() noexcept = delete;
+    // NOLINTNEXTLINE(*-member-init)
     constexpr explicit ByteCode(OpCode opc) noexcept : opcode(opc) {}
+    // NOLINTNEXTLINE(*-member-init)
     constexpr explicit ByteCode(u8 val) noexcept : value(val) {}
 
+    // NOLINTNEXTLINE(*-union-access)
     [[nodiscard]] constexpr OpCode as_opcode() const noexcept { return opcode; }
+    // NOLINTNEXTLINE(*-union-access)
     [[nodiscard]] constexpr u8 as_u8() const noexcept { return value; }
 };
 
@@ -71,18 +76,21 @@ struct Chunk {
 
     constexpr void write_constant(VM& tvm, size_t line, Value value) noexcept {
         const u64 index = static_cast<u64>(add_constant(tvm, value));
-        if (index < (1 << 8)) {
+        if (index < (1U << 8U)) {  // NOLINT(*-magic-numbers)
             write(tvm, line, OpCode::CONSTANT, static_cast<u8>(index));
             return;
         }
-        if (index < (1 << 24)) {
+        if (index < (1U << 24U)) {  // NOLINT(*-magic-numbers)
             write(
                 tvm,
                 line,
                 OpCode::CONSTANT_LONG,
+                // NOLINTNEXTLINE(*-magic-numbers)
                 static_cast<u8>(index & 0xffU),
+                // NOLINTNEXTLINE(*-magic-numbers)
                 static_cast<u8>((index >> 8U) & 0xffU),
-                static_cast<u8>((index >> 16U) & 0xffU)
+                // NOLINTNEXTLINE(*-magic-numbers)
+                static_cast<u8>( (index >> 16U) & 0xffU)
             );
             return;
         }
@@ -111,12 +119,12 @@ struct Chunk {
 
 constexpr inline std::pair<size_t, const ByteCode*>
 read_constant_index(const ByteCode* ptr, bool is_long) noexcept {
-    if (!is_long) { return std::make_pair(ptr->as_u8(), ptr + 1); }
+    if (!is_long) { return std::make_pair(ptr->as_u8(), std::next(ptr, 1)); }
     const auto constant_idx =  //
         static_cast<u32>((ptr)->as_u8())
-        | (static_cast<u32>((ptr + 1)->as_u8()) << 8U)
-        | (static_cast<u32>((ptr + 2)->as_u8()) << 16U);
-    return std::make_pair(static_cast<size_t>(constant_idx), ptr + 3);
+        | (static_cast<u32>((std::next(ptr, 1))->as_u8()) << 8U)
+        | (static_cast<u32>((std::next(ptr, 2))->as_u8()) << 16U);
+    return std::make_pair(static_cast<size_t>(constant_idx), std::next(ptr, 3));
 }
 
 }  // namespace tx

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "memory.hxx"
-#include "type_traits.hxx"
+#include "tx/memory.hxx"
+#include "tx/type_traits.hxx"
 
 #include <gsl/gsl>
 
@@ -31,7 +31,7 @@ class DynArray {
     constexpr DynArray(VM& tvm, SizeT size, T value) noexcept
             : count(size)
             , capacity(size)
-            , data_ptr(allocate<T>(tvm, size)) {
+            , data_ptr(grow_array(tvm, nullptr, 0, size)) {
         std::uninitialized_fill_n(data_ptr, count, value);
     }
 
@@ -49,9 +49,10 @@ class DynArray {
     constexpr DynArray& operator=(const DynArray& other) noexcept = delete;
 
     constexpr DynArray& operator=(DynArray&& other) noexcept {
+        destroy();
         count = other.count;
         capacity = other.capacity;
-        data_ptr = other.data_ptr;
+        data_ptr = other.data_ptr;  // NOLINT
         other.count = 0;
         other.capacity = 0;
         other.data_ptr = nullptr;
@@ -69,7 +70,7 @@ class DynArray {
         free_array(tvm, data_ptr, capacity);
         count = 0;
         capacity = 0;
-        data_ptr = nullptr;
+        data_ptr = nullptr;  // NOLINT
     }
 
     [[nodiscard]] constexpr SizeT size() const noexcept { return count; }
@@ -89,7 +90,7 @@ class DynArray {
     }
 
     constexpr void reserve(VM& tvm, SizeT new_cap) noexcept {
-        data_ptr = grow_array(tvm, data_ptr, capacity, new_cap);
+        data_ptr = grow_array(tvm, data_ptr, capacity, new_cap);  // NOLINT
         capacity = new_cap;
     }
 
@@ -119,8 +120,13 @@ class DynArray {
         return data_ptr[count - 1];
     }
 
-    [[nodiscard]] constexpr T* data() noexcept { return data_ptr; }
-    [[nodiscard]] constexpr const T* data() const noexcept { return data_ptr; }
+    [[nodiscard]] constexpr T* data() noexcept {
+        return data_ptr;  // NOLINT
+    }
+
+    [[nodiscard]] constexpr const T* data() const noexcept {
+        return data_ptr;  // NOLINT
+    }
 
     [[nodiscard]] constexpr T* begin() noexcept { return &data_ptr[0]; }
 

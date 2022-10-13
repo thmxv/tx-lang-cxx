@@ -23,7 +23,8 @@ Tx is still verry much a work in progress.
 
 ## Backlog
 
-- use gsl::narrow_cast instead of static_cast
+- use gsl::at
+- use gsl::narrow_cast
 - 'could be const' warnings with containers when elements are const
 - constexpr allocation and from_char (requires C++23 and support in stdlib)
 - Ensure enough stack space (grow or crash?)

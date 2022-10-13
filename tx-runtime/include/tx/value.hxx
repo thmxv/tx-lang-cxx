@@ -46,14 +46,18 @@ struct Value {
             : type(ValueType::OBJECT)
             , as{.obj = val} {}
 
+    // NOLINTNEXTLINE(*-union-access)
     [[nodiscard]] constexpr bool as_bool() const noexcept { return as.boolean; }
 
+    // NOLINTNEXTLINE(*-union-access)
     [[nodiscard]] constexpr int_t as_int() const noexcept { return as.integer; }
 
     [[nodiscard]] constexpr float_t as_float() const noexcept {
+        // NOLINTNEXTLINE(*-union-access)
         return as.scalar;
     }
 
+    // NOLINTNEXTLINE(*-union-access)
     [[nodiscard]] constexpr Obj& as_object() const noexcept { return *as.obj; }
 
     [[nodiscard]] constexpr bool is_nil() const noexcept {
@@ -85,7 +89,11 @@ struct Value {
         if (lhs.type != rhs.type) { return std::partial_ordering::unordered; }
         switch (lhs.type) {
             case ValueType::NIL: return std::strong_ordering::equal;
-            case ValueType::BOOL: return std::strong_order(lhs.as_bool(), rhs.as_bool()); //(lhs.as_bool()) <=> (rhs.as_bool());
+            case ValueType::BOOL:
+                return std::strong_order(
+                    lhs.as_bool(),
+                    rhs.as_bool()
+                );  //(lhs.as_bool()) <=> (rhs.as_bool());
             case ValueType::INT: return lhs.as_int() <=> rhs.as_int();
             case ValueType::FLOAT: return lhs.as_float() <=> rhs.as_float();
             case ValueType::OBJECT:

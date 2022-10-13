@@ -58,6 +58,8 @@ enum class TokenType {
     FOR,
     FN,
     IF,
+    IN,
+    INOUT,
     IMPORT,
     IS,
     LET,
@@ -65,6 +67,7 @@ enum class TokenType {
     NIL,
     MATCH,
     OR,
+    OUT,
     RETURN,
     SELF,
     STRUCT,
@@ -137,8 +140,12 @@ class Scanner {
     [[nodiscard]] constexpr Token number() noexcept;
     [[nodiscard]] constexpr Token hex_number() noexcept;
     [[nodiscard]] constexpr Token raw_string() noexcept;
-    [[nodiscard]] constexpr std::optional<i32> hex_escape(size_t digits
+    [[nodiscard]] constexpr std::optional<u32> hex_escape(size_t digits
     ) noexcept;
+
+    template <typename OutIt>
+    [[nodiscard]] constexpr bool utf8_escape(size_t digits, OutIt dst) noexcept;
+
     [[nodiscard]] constexpr Token string() noexcept;
 };
 

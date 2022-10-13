@@ -14,6 +14,11 @@ target_link_libraries(
     tx-runtime
     fmt::fmt-header-only
 )
+target_link_options(
+  tx-cli
+  PRIVATE
+    -Wl,--gc-sections
+)
 
 # target_include_directories(
 #   tx-cli
