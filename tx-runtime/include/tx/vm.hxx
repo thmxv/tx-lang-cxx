@@ -35,6 +35,7 @@ class VM {
     const Chunk* chunk_ptr = nullptr;
     const ByteCode* instruction_ptr = nullptr;
     Stack stack{};
+    gsl::owner<Obj*> objects = nullptr;
 
   public:
     // constexpr
@@ -47,6 +48,8 @@ class VM {
     constexpr VM(VMOptions opts, const Allocator& alloc) noexcept
             : options(opts)
             , allocator(alloc) {}
+
+    constexpr ~VM() noexcept;
 
     // constexpr
     [[nodiscard]] Allocator get_allocator() const { return allocator; }
@@ -90,6 +93,10 @@ class VM {
     void print_stack() const noexcept;
     void print_instruction() const noexcept;
     constexpr void debug_trace() const noexcept;
+
+    template <typename T, typename... Args>
+    friend T* allocate_object(VM& tvm, Args&&... args) noexcept;
+
 };
 
 }  // namespace tx

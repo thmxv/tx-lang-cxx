@@ -8,6 +8,7 @@
 #include "tx/exit_codes.hxx"
 #include "tx/fixed_array.hxx"
 #include "tx/memory.hxx"
+#include "tx/object.hxx"
 #include "tx/scanner.hxx"
 #include "tx/type_traits.hxx"
 #include "tx/utils.hxx"
@@ -17,6 +18,8 @@
 #include "tx/compiler_inl.hxx"
 #include "tx/debug_inl.hxx"
 #include "tx/memory_inl.hxx"
+#include "tx/object_inl.hxx"
 #include "tx/scanner_inl.hxx"
+#include "tx/value_inl.hxx"
 #include "tx/vm_inl.hxx"
 

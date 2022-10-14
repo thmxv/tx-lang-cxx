@@ -99,6 +99,7 @@ class Scanner {
     static constexpr std::size_t MAX_CHARS_IN_NUMERIC_LITERAL = 64;
     static constexpr size_t MAX_INTERP_DEPTH = 8;
 
+    VM& parent_vm;
     const std::string_view source;
     const char* start;
     const char* current;
@@ -106,8 +107,9 @@ class Scanner {
     FixedCapacityArray<isize, size_t, MAX_INTERP_DEPTH> str_interp_braces;
 
   public:
-    explicit constexpr Scanner(std::string_view src) noexcept
-            : source(src)
+    explicit constexpr Scanner(VM& tvm, std::string_view src) noexcept
+            : parent_vm(tvm)
+            , source(src)
             , start(source.begin())
             , current(start)
             , line(1) {}

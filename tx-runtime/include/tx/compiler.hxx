@@ -35,7 +35,7 @@ struct ParseRule {
 struct Compiler {};
 
 class Parser {
-    VM& tvm;
+    VM& parent_vm;
     Scanner scanner;
     Token current{};
     Token previous{};
@@ -44,9 +44,9 @@ class Parser {
     Chunk& chunk_;
 
   public:
-    constexpr Parser(VM& tvm_, std::string_view source, Chunk& chunk) noexcept
-            : tvm(tvm_)
-            , scanner(source)
+    constexpr Parser(VM& tvm, std::string_view source, Chunk& chunk) noexcept
+            : parent_vm(tvm)
+            , scanner(parent_vm, source)
             , chunk_(chunk) {}
 
     constexpr bool compile() noexcept;

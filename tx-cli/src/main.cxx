@@ -1,5 +1,3 @@
-#include "tx/debug.hxx"
-#include "tx/exit_codes.hxx"
 #include "tx/tx.hxx"
 
 #include <fmt/format.h>
@@ -247,7 +245,8 @@ int main(int argc, const char** argv) noexcept {
         return tx::ExitCode::SUCCESS;
     }
 
-    std::pmr::unsynchronized_pool_resource mem_res;
+    // std::pmr::unsynchronized_pool_resource mem_res;
+    auto& mem_res = *std::pmr::get_default_resource();
     tx::VM tvm(options.args_options, &mem_res);
     if (options.args_file_path == nullptr) {
         tx::run_repl(tvm);

@@ -67,7 +67,7 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
 template <typename... Ts>
     requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)
 inline constexpr void Parser::emit_bytes(Ts... bytes) noexcept {
-    current_chunk().write(tvm, previous.line, bytes...);
+    current_chunk().write(parent_vm, previous.line, bytes...);
 }
 
 inline constexpr void Parser::emit_return() noexcept {
@@ -76,14 +76,14 @@ inline constexpr void Parser::emit_return() noexcept {
 }
 
 inline constexpr void Parser::emit_constant(Value value) noexcept {
-    current_chunk().write_constant(tvm, previous.line, value);
+    current_chunk().write_constant(parent_vm, previous.line, value);
 }
 
 // [[nodiscard]]
 inline constexpr void Parser::end_compiler() noexcept {
     emit_return();
     if constexpr (HAS_DEBUG_FEATURES) {
-        if (tvm.get_options().print_bytecode) {
+        if (parent_vm.get_options().print_bytecode) {
             if (!had_error) {
                 // disassemble_chunk(current_chunk(), function->get_name());
                 disassemble_chunk(current_chunk(), "code");
@@ -120,13 +120,15 @@ inline constexpr void Parser::grouping(bool /*can_assign*/) noexcept {
 }
 
 // constexpr void Parser::number(bool  /*can_assign*/) noexcept {
+// constexpr void Parser::string(bool  /*can_assign*/) noexcept {
 inline constexpr void Parser::literal(bool /*can_assign*/) noexcept {
     switch (previous.type) {
         case NIL: emit_bytes(OpCode::NIL); break;
         case FALSE: emit_bytes(OpCode::FALSE); break;
         case TRUE: emit_bytes(OpCode::TRUE); break;
         case FLOAT_LITERAL:
-        case INTEGER_LITERAL: emit_constant(previous.value); break;
+        case INTEGER_LITERAL:
+        case STRING_LITERAL: emit_constant(previous.value); break;
         default: unreachable();
     }
 }

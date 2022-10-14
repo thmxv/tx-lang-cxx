@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tx/fixed_array.hxx"
+#include "tx/object.hxx"
 #include "tx/scanner.hxx"
 #include "tx/utils.hxx"
 
@@ -164,7 +165,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
             break;
         case 'n': return check_keyword(1, "il", NIL);
         case 'm': return check_keyword(1, "atch", MATCH);
-        case 'o': 
+        case 'o':
             if (std::distance(start, current) > 1) {
                 switch (*std::next(start)) {
                     case 'u': return check_keyword(3, "t", OUT);
@@ -304,7 +305,12 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     advance();
     advance();
     advance();
-    return make_token(TokenType::STRING_LITERAL);
+    auto token = make_token(TokenType::STRING_LITERAL);
+    const auto& lex = token.lexeme;
+    // NOLINTNEXTLINE(*-magic-numbers)
+    token.value = Value(copy_string(parent_vm, lex.substr(3, lex.length() - 6))
+    );
+    return token;
 }
 
 [[nodiscard]] inline constexpr std::optional<u32> Scanner::hex_escape(
@@ -366,8 +372,14 @@ Scanner::utf8_escape(size_t digits, OutIt dst) noexcept {
                     return error_token("Expect '{' after '$'.");
                 }
                 str_interp_braces.push_back(1);
-                auto token = make_token(TokenType::STRING_INTERP);
                 advance();
+                auto token = make_token(TokenType::STRING_INTERP);
+                token.value = Value(copy_string(
+                    parent_vm,
+                    std::string_view{
+                        std::next(string.begin(), 1),
+                        std::prev(string.end(), 2)}
+                ));
                 return token;
             }
             return error_token("Nested string interpolation too deep.");
@@ -459,7 +471,11 @@ Scanner::utf8_escape(size_t digits, OutIt dst) noexcept {
     }
     if (is_at_end()) { return error_token("Unterminated string."); }
     advance();
-    return make_token(TokenType::STRING_LITERAL);
+    auto token = make_token(TokenType::STRING_LITERAL);
+    token.value = Value(
+        copy_string(parent_vm, std::string_view{string.begin(), string.end()})
+    );
+    return token;
 }
 
 [[nodiscard]] inline constexpr Token Scanner::scan_token() noexcept {

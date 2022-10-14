@@ -23,6 +23,9 @@ Tx is still verry much a work in progress.
 
 ## Backlog
 
+- String with one alloc instead of 2
+- Raw string as view into source
+- String concatenation
 - Tests
 - Use gsl::at where necessary
 - Use gsl::narrow_cast where necessary

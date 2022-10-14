@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tx/memory.hxx"
+
 #include "tx/vm.hxx"
 
 #include <gsl/gsl>
@@ -77,6 +78,52 @@ inline void* reallocate_impl(
     );
     if (result == nullptr) { report_and_abort("Out of memory."); }
     return result;
+}
+
+template <typename T>
+// TODO requires base class Obj
+constexpr void free_object_impl(VM& tvm, T* object) noexcept {
+    std::destroy_at(object);
+    free<T>(tvm, object);
+}
+
+inline void free_object(VM& tvm, Obj* object) noexcept {
+    // if constexpr (DEBUG_LOG_GC) {
+    //     fmt::print(
+    //         FMT_STRING("{} free type {}\n"),
+    //         fmt::ptr(object),
+    //         object->type
+    //     );
+    // }
+    switch (object->type) {
+        using enum ObjType;
+        // case CLOSURE:
+        //     free_object_impl(&(object->as<ObjClosure>()));
+        //     return;
+        // case FUNCTION:
+        //     free_object_impl(&(object->as<ObjFunction>()));
+        //     return;
+        // case NATIVE:
+        //     free_object_impl(&(object->as<ObjNative>()));
+        //     return;
+        case STRING:
+            auto& str = object->as<ObjString>();
+            str.destroy(tvm);
+            free_object_impl(tvm, &str);
+            return;
+            // case UPVALUE: free_object_impl(&(object->as<ObjUpvalue>()));
+    }
+    unreachable();
+}
+
+inline constexpr void free_objects(VM& tvm, Obj* objects) {
+    Obj* object = objects;
+    while(object != nullptr) {
+        Obj* next = object->next_object;
+        object->next_object = nullptr;
+        free_object(tvm, object);
+        object = next;
+    }
 }
 
 }  // namespace tx

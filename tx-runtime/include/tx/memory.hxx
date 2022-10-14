@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tx/common.hxx"
+#include "tx/object.hxx"
 #include "tx/type_traits.hxx"
 
 #include <gsl/gsl>
@@ -11,6 +12,16 @@ class VM;
 
 inline constexpr size_t MIN_CAPACIY = 8;
 inline constexpr size_t CAPACITY_SCALE_FACTOR = 2;
+
+template <typename T>
+[[nodiscard]] T* allocate(VM& tvm, size_t count) {
+    return reallocate<T>(tvm, nullptr, 0, count);
+}
+
+template <typename T>
+T* free(VM& tvm, T* ptr) {
+    return reallocate<T>(tvm, ptr, 1, 0);
+}
 
 [[nodiscard]] constexpr size_t grow_capacity(size_t capacity) noexcept;
 
@@ -50,5 +61,7 @@ template <typename T>
 constexpr void free_array(VM& tvm, T* pointer, size_t old_size) {
     (void)reallocate(tvm, pointer, old_size, 0);
 }
+
+inline constexpr void free_objects(VM& tvm, Obj* objects);
 
 }  // namespace tx

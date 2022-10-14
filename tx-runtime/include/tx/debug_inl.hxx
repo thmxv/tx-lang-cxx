@@ -44,6 +44,7 @@ simple_instruction(std::string_view name, size_t offset) noexcept {
 }
 
 inline constexpr std::array name_table = {
+    // NOLINTNEXTLINE(*-macro-usage)
     #define TX_OPCODE(name, _) #name,
     #include "tx/opcodes.inc"
     #undef TX_OPCODE
@@ -86,8 +87,8 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
     unreachable();
 }
 
-inline void print_tokens(std::string_view source) noexcept {
-    Scanner scanner(source);
+inline void print_tokens(VM& tvm, std::string_view source) noexcept {
+    Scanner scanner(tvm, source);
     int line = -1;
     for (;;) {
         Token token = scanner.scan_token();

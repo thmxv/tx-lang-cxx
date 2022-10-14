@@ -14,6 +14,7 @@ enum class ValueType {
     BOOL,
     INT,
     FLOAT,
+    CHAR,
     OBJECT,
 };
 
@@ -27,7 +28,7 @@ struct Value {
         bool boolean;
         int_t integer;
         float_t scalar;
-        char32_t chr;  // TODO
+        char32_t chr;
         Obj* obj = nullptr;
     } as;
 
@@ -44,6 +45,10 @@ struct Value {
     constexpr explicit Value(float_t val) noexcept
             : type(FLOAT)
             , as{.scalar = val} {}
+
+    constexpr explicit Value(char32_t val) noexcept
+            : type(CHAR)
+            , as{.chr = val} {}
 
     constexpr explicit Value(Obj* val) noexcept
             : type(OBJECT)
@@ -65,6 +70,9 @@ struct Value {
     }
 
     // NOLINTNEXTLINE(*-union-access)
+    [[nodiscard]] constexpr int_t as_char() const noexcept { return as.chr; }
+
+    // NOLINTNEXTLINE(*-union-access)
     [[nodiscard]] constexpr Obj& as_object() const noexcept { return *as.obj; }
 
     [[nodiscard]] constexpr bool is_nil() const noexcept { return type == NIL; }
@@ -83,6 +91,10 @@ struct Value {
         return type == FLOAT || type == INT;
     }
 
+    [[nodiscard]] constexpr bool is_char() const noexcept {
+        return type == CHAR;
+    }
+
     [[nodiscard]] constexpr bool is_object() const noexcept {
         return type == OBJECT;
     }
@@ -91,23 +103,12 @@ struct Value {
         return is_nil() || (is_bool() && !as_bool());
     }
 
-    [[nodiscard]] friend constexpr std::partial_ordering
-    operator<=>(const Value& lhs, const Value& rhs) noexcept {
-        if (lhs.type != rhs.type) { return std::partial_ordering::unordered; }
-        switch (lhs.type) {
-            case NIL: return std::strong_ordering::equal;
-            case BOOL: return std::strong_order(lhs.as_bool(), rhs.as_bool());
-            case INT: return lhs.as_int() <=> rhs.as_int();
-            case FLOAT: return lhs.as_float() <=> rhs.as_float();
-            case OBJECT: return &lhs.as_object() <=> &rhs.as_object();
-        }
-        unreachable();
-    }
+    friend constexpr std::partial_ordering
+    operator<=>(const Value& lhs, const Value& rhs) noexcept;
 
-    [[nodiscard]] friend constexpr bool
-    operator==(const Value& lhs, const Value& rhs) noexcept {
-        return (lhs <=> rhs) == std::partial_ordering::equivalent;
-    }
+    friend constexpr bool
+    operator==(const Value& lhs, const Value& rhs) noexcept;
+    
 };
 
 template <>
@@ -137,10 +138,9 @@ struct fmt::formatter<tx::Value> : formatter<string_view> {
             case INT: return fmt::format_to(ctx.out(), "{}", value.as_int());
             case FLOAT:
                 return fmt::format_to(ctx.out(), "{}", value.as_float());
+            case CHAR: return fmt::format_to(ctx.out(), "{}", value.as_char());
             case OBJECT:
-                break;
-                // return fmt::format_to(ctx.out(), "{}", value.as_object());
-                // return fmt::format_to(ctx.out(), "");
+                return fmt::format_to(ctx.out(), "{}", value.as_object());
         }
         tx::unreachable();
     }

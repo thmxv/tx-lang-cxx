@@ -1,11 +1,13 @@
 #pragma once
 
+#include "tx/vm.hxx"
+
 #include "tx/chunk.hxx"
 #include "tx/common.hxx"
 #include "tx/compiler.hxx"
 #include "tx/debug.hxx"
+#include "tx/object.hxx"
 #include "tx/utils.hxx"
-#include "tx/vm.hxx"
 
 #include <fmt/format.h>
 
@@ -14,6 +16,10 @@
 #include <functional>
 
 namespace tx {
+
+constexpr VM::~VM() noexcept {
+    free_objects(*this, objects);
+}
 
 inline constexpr ByteCode VM::read_byte() noexcept {
     auto result = *instruction_ptr;
@@ -52,7 +58,7 @@ inline void VM::runtime_error_impl() noexcept {
 inline TX_VM_CONSTEXPR InterpretResult VM::interpret(std::string_view source
 ) noexcept {
     if constexpr (HAS_DEBUG_FEATURES) {
-        if (options.print_tokens) { print_tokens(source); }
+        if (options.print_tokens) { print_tokens(*this, source); }
     }
     Chunk chunk;
     Parser current_parser(*this, source, chunk);
@@ -128,7 +134,7 @@ inline constexpr void VM::debug_trace() const noexcept {
 }
 
 inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
-    // clang-format off
+// clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -261,7 +267,7 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-    // clang-format off
+// clang-format off
     #undef TX_VM_LOOP
     #undef TX_VM_CASE
     #undef TX_VM_CONTINUE
