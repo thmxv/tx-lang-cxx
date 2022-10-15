@@ -97,7 +97,7 @@ class VM {
     constexpr void debug_trace() const noexcept;
 
     template <typename T, typename... Args>
-    friend T* allocate_object(VM& tvm, Args&&... args) noexcept;
+    friend T* allocate_object(VM& tvm, size_t extra, Args&&... args) noexcept;
 
     friend ObjString*
     allocate_string(VM& tvm, char* chars, size_t length, u32 hash) noexcept;

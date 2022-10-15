@@ -108,8 +108,15 @@ inline void free_object(VM& tvm, Obj* object) noexcept {
         //     return;
         case STRING:
             auto& str = object->as<ObjString>();
-            str.destroy(tvm);
-            free_object_impl(tvm, &str);
+            // str.destroy(tvm);
+            // free_object_impl(tvm, &str);
+            (void)reallocate_impl(
+                tvm,
+                &str,
+                static_cast<size_t>(sizeof(ObjString)) + str.length,
+                0,
+                alignof(ObjString)
+            );
             return;
             // case UPVALUE: free_object_impl(&(object->as<ObjUpvalue>()));
     }

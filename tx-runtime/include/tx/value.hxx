@@ -2,6 +2,7 @@
 
 #include "tx/common.hxx"
 #include "tx/dyn_array.hxx"
+#include "tx/object.hxx"
 #include "tx/type_traits.hxx"
 #include "tx/utils.hxx"
 
@@ -18,7 +19,7 @@ enum class ValueType {
     OBJECT,
 };
 
-struct Obj;
+// struct Obj;
 
 struct Value {
     using enum ValueType;
@@ -108,7 +109,7 @@ struct Value {
 
     friend constexpr bool
     operator==(const Value& lhs, const Value& rhs) noexcept;
-    
+
 };
 
 template <>
