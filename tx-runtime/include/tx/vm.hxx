@@ -5,6 +5,7 @@
 #include "tx/compiler.hxx"
 #include "tx/fixed_array.hxx"
 
+#include "tx/table.hxx"
 #include <memory_resource>
 
 namespace tx {
@@ -34,7 +35,8 @@ class VM {
     Parser* parser = nullptr;
     const Chunk* chunk_ptr = nullptr;
     const ByteCode* instruction_ptr = nullptr;
-    Stack stack{};
+    Stack stack;
+    Table strings;
     gsl::owner<Obj*> objects = nullptr;
 
   public:
@@ -97,6 +99,10 @@ class VM {
     template <typename T, typename... Args>
     friend T* allocate_object(VM& tvm, Args&&... args) noexcept;
 
+    friend ObjString*
+    allocate_string(VM& tvm, char* chars, size_t length, u32 hash) noexcept;
+
+    friend ObjString* copy_string(VM& tvm, std::string_view strv);
 };
 
 }  // namespace tx

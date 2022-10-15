@@ -1,7 +1,7 @@
 #pragma once
 
 #include "tx/vm.hxx"
-
+//
 #include "tx/chunk.hxx"
 #include "tx/common.hxx"
 #include "tx/compiler.hxx"
@@ -18,6 +18,7 @@
 namespace tx {
 
 constexpr VM::~VM() noexcept {
+    strings.destroy(*this);
     free_objects(*this, objects);
 }
 

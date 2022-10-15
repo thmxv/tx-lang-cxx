@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tx/common.hxx"
+#include "tx/hash.hxx"
 #include "tx/type_traits.hxx"
 #include "tx/utils.hxx"
 
@@ -73,11 +74,10 @@ struct Obj {
     friend constexpr bool operator==(const Obj& lhs, const Obj& rhs) noexcept;
 };
 
-class VM;
-
 struct ObjString : Obj {
     size_t length = 0;
     gsl::owner<char*> data_ptr = nullptr;
+    u32 hash=0;
 
     constexpr explicit ObjString() noexcept : Obj(ObjType::STRING) {}
 
@@ -94,6 +94,11 @@ struct ObjString : Obj {
 
     constexpr void destroy(VM& tvm) noexcept;
 
+    // implicit
+    constexpr operator std::string_view() const noexcept {
+        return std::string_view{data_ptr, static_cast<std::size_t>(length)};
+    }
+
     friend constexpr std::partial_ordering
     operator<=>(const ObjString& lhs, const ObjString& rhs) noexcept;
 
@@ -105,6 +110,13 @@ template <>
 struct is_trivially_relocatable<ObjString>
         : std::__is_bitwise_relocatable<ObjString> {
     static constexpr value_type value = true;
+};
+
+template <>
+struct Hash<ObjString*> {
+    constexpr u32 operator()(tx::ObjString* const& obj) const noexcept {
+        return obj->hash;
+    }
 };
 
 ObjString* copy_string(VM* tvm, std::string_view strv) noexcept;

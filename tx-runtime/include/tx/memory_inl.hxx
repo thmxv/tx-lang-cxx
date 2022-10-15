@@ -61,7 +61,7 @@ inline void* reallocate_impl(
     assert(old_size >= 0);
     // NOLINTNEXTLINE(*-decay)
     assert(new_size >= 0);
-    if (new_size == 0 and pointer != nullptr) {
+    if (new_size == 0) {
         tvm.get_allocator().deallocate_bytes(
             pointer,
             static_cast<std::size_t>(old_size),
@@ -118,7 +118,7 @@ inline void free_object(VM& tvm, Obj* object) noexcept {
 
 inline constexpr void free_objects(VM& tvm, Obj* objects) {
     Obj* object = objects;
-    while(object != nullptr) {
+    while (object != nullptr) {
         Obj* next = object->next_object;
         object->next_object = nullptr;
         free_object(tvm, object);
