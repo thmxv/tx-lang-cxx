@@ -23,7 +23,6 @@ Tx is still verry much a work in progress.
 
 ## Backlog
 
-- Use dyn_array instead of fixed_array in scanner string
 - Call destructors/constructor in hash_map.hxx
 - String with one alloc instead of 2
 - Raw string as view into source
@@ -47,7 +46,7 @@ Tx is still verry much a work in progress.
 - [X] Parsing/compiling expressions
 - [X] Value types
 - [X] String
-- [ ] Hash table
+- [X] Hash table
 - [ ] Global variables
 - [ ] Local variables
 - [ ] Type checking

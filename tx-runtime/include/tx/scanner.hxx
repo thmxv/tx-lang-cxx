@@ -145,8 +145,8 @@ class Scanner {
     [[nodiscard]] constexpr std::optional<u32> hex_escape(size_t digits
     ) noexcept;
 
-    template <typename OutIt>
-    [[nodiscard]] constexpr bool utf8_escape(size_t digits, OutIt dst) noexcept;
+    [[nodiscard]] constexpr bool
+    utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept;
 
     [[nodiscard]] constexpr Token string() noexcept;
 };

@@ -336,9 +336,8 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     return value;
 }
 
-template <typename OutIt>
 [[nodiscard]] inline constexpr bool
-Scanner::utf8_escape(size_t digits, OutIt dst) noexcept {
+Scanner::utf8_escape(size_t digits, DynArray<char,size_t>& dst) noexcept {
     auto value_opt = hex_escape(digits);
     if (!value_opt.has_value()) { return true; }
     auto value = static_cast<char32_t>(*value_opt);
@@ -354,15 +353,14 @@ Scanner::utf8_escape(size_t digits, OutIt dst) noexcept {
         tmp_next
     );
     if (result != std::codecvt_base::result::ok) { return true; }
-    std::copy(tmp_buf.begin(), tmp_next, dst);
+    for(auto* it=tmp_buf.begin(); it!=tmp_next; ++it) {
+        dst.push_back(parent_vm, static_cast<char>(*it));
+    }
     return false;
 }
 
 [[nodiscard]] inline constexpr Token Scanner::string() noexcept {
-    // TODO dyn_array
-    constexpr size_t MAX_STRING_TOKEN_LEN = 1024;
-    // FixedCapacityArray<const char, size_t, MAX_STRING_TOKEN_LEN> string;
-    FixedCapacityArray<char, size_t, MAX_STRING_TOKEN_LEN> string;
+    DynArray<char, size_t> string;
     while (peek() != '"' && !is_at_end()) {
         if (peek() == '\n') { ++line; }
         if (peek() == '$') {
@@ -389,51 +387,51 @@ Scanner::utf8_escape(size_t digits, OutIt dst) noexcept {
             switch (peek()) {
                 case '\\':
                     advance();
-                    string.push_back('\\');
+                    string.push_back(parent_vm, '\\');
                     break;
                 case '"':
                     advance();
-                    string.push_back('"');
+                    string.push_back(parent_vm, '"');
                     break;
                 case '$':
                     advance();
-                    string.push_back('$');
+                    string.push_back(parent_vm, '$');
                     break;
                 case '0':
                     advance();
-                    string.push_back('\0');
+                    string.push_back(parent_vm, '\0');
                     break;
                 case 'a':
                     advance();
-                    string.push_back('\a');
+                    string.push_back(parent_vm, '\a');
                     break;
                 case 'b':
                     advance();
-                    string.push_back('\b');
+                    string.push_back(parent_vm, '\b');
                     break;
                 case 'e':
                     advance();
-                    string.push_back('\33');
+                    string.push_back(parent_vm, '\33');
                     break;
                 case 'f':
                     advance();
-                    string.push_back('\f');
+                    string.push_back(parent_vm, '\f');
                     break;
                 case 'n':
                     advance();
-                    string.push_back('\n');
+                    string.push_back(parent_vm, '\n');
                     break;
                 case 'r':
                     advance();
-                    string.push_back('\r');
+                    string.push_back(parent_vm, '\r');
                     break;
                 case 't':
                     advance();
-                    string.push_back('\t');
+                    string.push_back(parent_vm, '\t');
                     break;
                 case 'v':
                     advance();
-                    string.push_back('\v');
+                    string.push_back(parent_vm, '\v');
                     break;
                 case 'x': {
                     advance();
@@ -441,12 +439,12 @@ Scanner::utf8_escape(size_t digits, OutIt dst) noexcept {
                     if (!value_opt.has_value()) {
                         return error_token("Invalid byte escape sequence.");
                     }
-                    string.push_back(static_cast<char>(*value_opt));
+                    string.push_back(parent_vm, static_cast<char>(*value_opt));
                     break;
                 }
                 case 'u': {
                     advance();
-                    if (utf8_escape(4, std::back_inserter(string))) {
+                    if (utf8_escape(4, string)) {
                         return error_token(
                             "Invalid 16-bits Unicode escape sequence."
                         );
@@ -456,7 +454,7 @@ Scanner::utf8_escape(size_t digits, OutIt dst) noexcept {
                 case 'U': {
                     advance();
                     // NOLINTNEXTLINE(*-magic-numbers)
-                    if (utf8_escape(8, std::back_inserter(string))) {
+                    if (utf8_escape(8, string)) {
                         return error_token(
                             "Invalid 32-bits Unicode escape sequence."
                         );
@@ -466,7 +464,7 @@ Scanner::utf8_escape(size_t digits, OutIt dst) noexcept {
                 default: return error_token("Invalid escape character.");
             }
         } else {
-            string.push_back(advance());
+            string.push_back(parent_vm, advance());
         }
     }
     if (is_at_end()) { return error_token("Unterminated string."); }
@@ -475,6 +473,7 @@ Scanner::utf8_escape(size_t digits, OutIt dst) noexcept {
     token.value = Value(
         copy_string(parent_vm, std::string_view{string.begin(), string.end()})
     );
+    string.destroy(parent_vm);
     return token;
 }
 
