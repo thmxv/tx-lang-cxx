@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <span>
 #include <type_traits>
@@ -21,15 +22,14 @@ template <
     typename Hash = Hash<Key>,
     typename KeyEqual = std::equal_to<Key> >
 class HashMap {
-  protected:
     static_assert(EMPTY_VALUE != TOMBSTONE_VALUE);
 
+  public:
     using Entry = std::pair<Key, T>;
 
+  private:
     static constexpr float MAX_LOAD_FACTOR = 0.75;
-
-    // count includes tombstones
-    i32 count = 0;
+    i32 count = 0;  // count includes tombstones
     i32 capacity = 0;
     gsl::owner<Entry*> data_ptr = nullptr;
 
@@ -48,7 +48,7 @@ class HashMap {
     }
 
     constexpr void destroy(VM& tvm) noexcept {
-        // TODO call destructor on entries
+        std::destroy_n(data_ptr, capacity);
         if (data_ptr != nullptr) { free_array(tvm, data_ptr, capacity); }
         count = 0;
         capacity = 0;
@@ -69,8 +69,9 @@ class HashMap {
         return entry.second;
     }
 
-    template <typename... Args>
-    constexpr bool set(VM& tvm, Key key, Args&&... args) noexcept {
+    // template <typename... Args>
+    // constexpr bool set(VM& tvm, Key key, Args&&... args) noexcept {
+    constexpr bool set(VM& tvm, Key key, T&& value) noexcept {
         assert(!KeyEqual()(key, EMPTY_KEY) && "Key cannot be the empty key.");
         if (count + 1 > static_cast<i32>(
                 static_cast<float>(capacity) * max_load_factor()
@@ -80,9 +81,9 @@ class HashMap {
         Entry& entry = find_entry(key);
         bool is_new_key = is_entry_empty(entry);
         if (is_new_key && !is_entry_tombstone(entry)) { ++count; }
-        // TODO destroy previous and construct new
         entry.first = key;
-        entry.second = T(std::forward<Args>(args)...);
+        // entry.second = T(std::forward<Args>(args)...);
+        entry.second = std::move(value);
         return is_new_key;
     }
 
@@ -90,7 +91,6 @@ class HashMap {
         if (count == 0) { return false; }
         Entry& entry = find_entry(key);
         if (is_entry_empty(entry)) { return false; }
-        // TODO call destructors
         entry.first = EMPTY_KEY;
         entry.second = TOMBSTONE_VALUE;
         return true;
@@ -106,18 +106,17 @@ class HashMap {
     constexpr void rehash(VM& tvm, i32 new_cap) noexcept {
         // TODO: Make new_cap power of 2 and big enough
         Entry* entries = allocate<Entry>(tvm, new_cap);
-        for (i32 i = 0; i < new_cap; ++i) {
-            // TODO: use contruct_at and copy constructor
-            std::next(entries, i)->first = EMPTY_KEY;
-            std::next(entries, i)->second = EMPTY_VALUE;
-        }
+        std::uninitialized_fill_n(
+            entries,
+            new_cap,
+            Entry(EMPTY_KEY, EMPTY_VALUE)
+        );
         count = 0;
         for (i32 i = 0; i < capacity; ++i) {
-            const Entry& entry = data_ptr[i];
+            Entry& entry = data_ptr[i];
             if (is_entry_empty(entry)) { continue; }
             Entry& dest = find_entry(entry.first);
-            // TODO: use contruct_at and move constructor
-            dest = entry;
+            dest = std::move(entry);
             ++count;
         }
         if (data_ptr != nullptr) { free_array<Entry>(tvm, data_ptr, capacity); }
@@ -125,7 +124,15 @@ class HashMap {
         capacity = new_cap;
     }
 
-  protected:
+    template <typename F>
+    [[nodiscard]] constexpr Entry* find_in_bucket(u32 hash, F func) noexcept {
+        if (count == 0) { return nullptr; }
+        auto& result = find_in_bucket_impl(hash, func);
+        if (is_entry_empty(result)) { return nullptr; }
+        return &result;
+    }
+
+  private:
     [[nodiscard]] static constexpr bool is_entry_empty(const Entry& entry
     ) noexcept {
         return KeyEqual()(entry.first, EMPTY_KEY);
@@ -138,17 +145,29 @@ class HashMap {
 
     [[nodiscard]] constexpr Entry& find_entry(Key key) noexcept {
         assert(!KeyEqual()(key, EMPTY_KEY) && "Key cannot be the empty key.");
-        u32 index = Hash()(key) % static_cast<u32>(capacity);
+        const u32 hash = Hash()(key);
+        return find_in_bucket_impl(hash, [&key](Entry& entry) {
+            return KeyEqual()(entry.first, key);
+        });
+    }
+
+    template <typename F>
+    [[nodiscard]] constexpr Entry&
+    find_in_bucket_impl(u32 hash, F func) noexcept {
+        assert(capacity > 0);
+        u32 index = hash % static_cast<u32>(capacity);
         Entry* tombstone = nullptr;
         while (true) {
             Entry& entry = *std::next(data_ptr, static_cast<gsl::index>(index));
             if (is_entry_empty(entry)) {
                 if (!is_entry_tombstone(entry)) {
+                    // found the end of the bucket
                     return tombstone != nullptr ? *tombstone : entry;
                 } else {
                     if (tombstone == nullptr) { tombstone = &entry; }
                 }
-            } else if (KeyEqual()(entry.first, key)) {
+            } else if (std::invoke(func, entry)) {
+                // found the entry
                 return entry;
             }
             index = (index + 1) % static_cast<u32>(capacity);

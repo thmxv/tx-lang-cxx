@@ -66,8 +66,10 @@ class DynArray {
     }
 
     constexpr void destroy(VM& tvm) noexcept {
-        std::destroy_n(data_ptr, count);
-        free_array(tvm, data_ptr, capacity);
+        if (data_ptr != nullptr) {
+            std::destroy_n(data_ptr, count);
+            free_array(tvm, data_ptr, capacity);
+        }
         count = 0;
         capacity = 0;
         data_ptr = nullptr;  // NOLINT

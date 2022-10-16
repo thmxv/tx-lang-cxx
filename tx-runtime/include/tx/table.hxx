@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tx/hash_map.hxx"
+#include "tx/hash_set.hxx"
 #include "tx/value.hxx"
 // for Value::operator==()
 #include "tx/value_inl.hxx"
@@ -8,12 +8,9 @@
 namespace tx {
 
 class Table
-        : public HashMap<
+        : public HashSet<
               ObjString*,
-              Value,
               nullptr,
-              Value{},
-              Value(true),
               Hash<ObjString*>,
               std::equal_to<ObjString*> > {
   public:

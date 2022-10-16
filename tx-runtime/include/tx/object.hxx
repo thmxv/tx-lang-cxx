@@ -95,6 +95,7 @@ struct ObjString : Obj {
             , length(gsl::narrow_cast<size_t>(strv.length()))
             , hash(hsh)
             , owns_chars(copy) {
+        if (strv.empty()) { return; }
         if (owns_chars) {
             std::memcpy(&data[0], strv.data(), strv.length());
             data_ptr = &data[0];

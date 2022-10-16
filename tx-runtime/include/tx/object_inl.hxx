@@ -71,7 +71,7 @@ make_string(VM& tvm, bool copy, std::string_view strv) noexcept {
     auto len = static_cast<size_t>(strv.length());
     auto* string =
         allocate_object<ObjString>(tvm, copy ? len : 0, copy, strv, hash);
-    tvm.strings.set(tvm, string, Value());
+    tvm.strings.set(tvm, string);
     return string;
 }
 

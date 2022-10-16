@@ -9,6 +9,7 @@
 #include "tx/fixed_array.hxx"
 #include "tx/hash.hxx"
 #include "tx/hash_map.hxx"
+#include "tx/hash_set.hxx"
 #include "tx/memory.hxx"
 #include "tx/object.hxx"
 #include "tx/scanner.hxx"
