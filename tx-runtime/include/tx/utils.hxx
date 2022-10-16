@@ -65,10 +65,10 @@ struct NoLocaleFacet : F {
 [[nodiscard]] inline std::codecvt_base::result utf8_encode(
     const char32_t* src,
     const char32_t* src_end,
-    const char32_t* src_next,
+    const char32_t*& src_next,
     char8_t* dst,
     char8_t* dst_end,
-    char8_t* dst_next
+    char8_t*& dst_next
 ) {
     using Facet = std::codecvt<char32_t, char8_t, std::mbstate_t>;
     std::mbstate_t mb_state{};
