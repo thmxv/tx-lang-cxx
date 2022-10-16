@@ -24,14 +24,13 @@ Tx is still verry much a work in progress.
 ## Backlog
 
 - Call destructors/constructor in hash_map.hxx
-- String with one alloc instead of 2
 - Raw string as view into source
 - String concatenation
+- String interpolation
 - Tests
-- Use gsl::at where necessary
 - Use gsl::narrow_cast where necessary
 - Ensure enough stack space
-- Add OP CODES for common constant values (0,1,2,-1)
+- Add OP CODES for common constant values (0,1,2,-1,"")
 
 ### To consider
 - Fix 'could be const' warnings with containers when elements are const

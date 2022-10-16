@@ -110,10 +110,12 @@ inline void free_object(VM& tvm, Obj* object) noexcept {
             auto& str = object->as<ObjString>();
             // str.destroy(tvm);
             // free_object_impl(tvm, &str);
+            std::destroy_at(&str);
             (void)reallocate_impl(
                 tvm,
                 &str,
-                static_cast<size_t>(sizeof(ObjString)) + str.length,
+                static_cast<size_t>(sizeof(ObjString))
+                    + (str.owns_chars ? str.length : 0),
                 0,
                 alignof(ObjString)
             );

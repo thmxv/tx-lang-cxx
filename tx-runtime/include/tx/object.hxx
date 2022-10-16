@@ -7,6 +7,7 @@
 
 #include <gsl/gsl>
 
+#include <gsl/util>
 #include <string_view>
 #include <type_traits>
 #include <cassert>
@@ -15,7 +16,7 @@ namespace tx {
 
 class VM;
 
-enum class ObjType {
+enum class ObjType : u8 {
     STRING,
 };
 
@@ -24,6 +25,7 @@ struct Obj {
     // bool is_marked = false;
     gsl::owner<Obj*> next_object = nullptr;
 
+    Obj() = delete;
     constexpr explicit Obj(ObjType typ) noexcept : type(typ) {}
 
     constexpr Obj(const Obj& other) noexcept = delete;
@@ -76,29 +78,42 @@ struct Obj {
 
 struct ObjString : Obj {
     size_t length = 0;
-    // gsl::owner<char*> data_ptr = nullptr;
     u32 hash = 0;
+    bool owns_chars = false;
+    gsl::owner<const char*> data_ptr = nullptr;
+    // NOLINTNEXTLINE(*-c-arrays)
     __extension__ char data[];
 
-    constexpr explicit ObjString() noexcept : Obj(ObjType::STRING) {}
+    constexpr explicit ObjString() noexcept = delete;
+
+    constexpr explicit ObjString(
+        bool copy,
+        std::string_view strv,
+        u32 hsh
+    ) noexcept
+            : Obj(ObjType::STRING)
+            , length(gsl::narrow_cast<size_t>(strv.length()))
+            , hash(hsh)
+            , owns_chars(copy) {
+        if (owns_chars) {
+            std::memcpy(&data[0], strv.data(), strv.length());
+            data_ptr = &data[0];
+        } else {
+            data_ptr = strv.data();
+        }
+    }
 
     ObjString(const ObjString& other) = delete;
     ObjString(ObjString&& other) = delete;
 
-    // constexpr ~ObjString() noexcept {
-    //     // NOLINTNEXTLINE(*-decay)
-    //     assert(data_ptr == nullptr);
-    // }
+    constexpr ~ObjString() noexcept = default;
 
     constexpr ObjString* operator=(const ObjString& rhs) noexcept = delete;
     constexpr ObjString* operator=(ObjString&& rhs) noexcept = delete;
 
-    // constexpr void destroy(VM& tvm) noexcept;
-
     // implicit
     constexpr operator std::string_view() const noexcept {
-        // return std::string_view{data_ptr, static_cast<std::size_t>(length)};
-        return std::string_view{&data[0], static_cast<std::size_t>(length)};
+        return std::string_view{data_ptr, static_cast<std::size_t>(length)};
     }
 
     friend constexpr std::partial_ordering
@@ -121,7 +136,7 @@ struct Hash<ObjString*> {
     }
 };
 
-ObjString* copy_string(VM* tvm, std::string_view strv) noexcept;
+ObjString* make_string(VM& tvm, bool copy, std::string_view strv) noexcept;
 
 }  // namespace tx
 

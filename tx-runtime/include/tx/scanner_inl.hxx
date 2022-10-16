@@ -307,9 +307,9 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     advance();
     auto token = make_token(TokenType::STRING_LITERAL);
     const auto& lex = token.lexeme;
-    // NOLINTNEXTLINE(*-magic-numbers)
-    token.value = Value(copy_string(parent_vm, lex.substr(3, lex.length() - 6))
-    );
+    token.value =
+        // NOLINTNEXTLINE(*-magic-numbers)
+        Value(make_string(parent_vm, false, lex.substr(3, lex.length() - 6)));
     return token;
 }
 
@@ -337,7 +337,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
 }
 
 [[nodiscard]] inline constexpr bool
-Scanner::utf8_escape(size_t digits, DynArray<char,size_t>& dst) noexcept {
+Scanner::utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept {
     auto value_opt = hex_escape(digits);
     if (!value_opt.has_value()) { return true; }
     auto value = static_cast<char32_t>(*value_opt);
@@ -353,7 +353,7 @@ Scanner::utf8_escape(size_t digits, DynArray<char,size_t>& dst) noexcept {
         tmp_next
     );
     if (result != std::codecvt_base::result::ok) { return true; }
-    for(auto* it=tmp_buf.begin(); it!=tmp_next; ++it) {
+    for (auto* it = tmp_buf.begin(); it != tmp_next; ++it) {
         dst.push_back(parent_vm, static_cast<char>(*it));
     }
     return false;
@@ -372,8 +372,9 @@ Scanner::utf8_escape(size_t digits, DynArray<char,size_t>& dst) noexcept {
                 str_interp_braces.push_back(1);
                 advance();
                 auto token = make_token(TokenType::STRING_INTERP);
-                token.value = Value(copy_string(
+                token.value = Value(make_string(
                     parent_vm,
+                    true,
                     std::string_view{
                         std::next(string.begin(), 1),
                         std::prev(string.end(), 2)}
@@ -470,9 +471,11 @@ Scanner::utf8_escape(size_t digits, DynArray<char,size_t>& dst) noexcept {
     if (is_at_end()) { return error_token("Unterminated string."); }
     advance();
     auto token = make_token(TokenType::STRING_LITERAL);
-    token.value = Value(
-        copy_string(parent_vm, std::string_view{string.begin(), string.end()})
-    );
+    token.value = Value(make_string(
+        parent_vm,
+        true,
+        std::string_view{string.begin(), string.end()}
+    ));
     string.destroy(parent_vm);
     return token;
 }

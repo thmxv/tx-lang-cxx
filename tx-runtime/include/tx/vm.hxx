@@ -100,9 +100,7 @@ class VM {
     friend T* allocate_object(VM& tvm, size_t extra, Args&&... args) noexcept;
 
     friend ObjString*
-    allocate_string(VM& tvm, char* chars, size_t length, u32 hash) noexcept;
-
-    friend ObjString* copy_string(VM& tvm, std::string_view strv);
+    make_string(VM& tvm, bool copy, std::string_view strv) noexcept;
 };
 
 }  // namespace tx

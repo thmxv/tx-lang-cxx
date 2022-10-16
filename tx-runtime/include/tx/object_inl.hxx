@@ -9,11 +9,6 @@
 
 namespace tx {
 
-// inline constexpr void ObjString::destroy(VM& tvm) noexcept {
-//     if (data_ptr != nullptr) { free_array(tvm, data_ptr, length); }
-//     data_ptr = nullptr;
-// }
-
 [[nodiscard]] inline constexpr std::partial_ordering
 operator<=>(const Obj& lhs, const Obj& rhs) noexcept {
     if (lhs.type != rhs.type) { return std::partial_ordering::unordered; }
@@ -67,37 +62,16 @@ T* allocate_object(VM& tvm, size_t extra, Args&&... args) noexcept {
     return object_ptr;
 }
 
-// constexpr
-// inline ObjString*
-// allocate_string(VM& tvm, char* chars, size_t length, u32 hash) noexcept {
-//     auto* string = allocate_object<ObjString>(tvm);
-//     string->length = length;
-//     string->data_ptr = chars;
-//     string->hash = hash;
-//     tvm.strings.set(tvm, string, Value());
-//     // XXX push(Value{string});
-//     // tvm.strings[string] = Value{};
-//     // XXX pop();
-//     return string;
-// }
-
-inline ObjString* make_string(VM& tvm, size_t length) {
-    auto* string = allocate_object<ObjString>(tvm, length);
-    string->length = length;
-    return string;
-}
-
 // constexpt
-inline ObjString* copy_string(VM& tvm, std::string_view strv) {
+inline ObjString*
+make_string(VM& tvm, bool copy, std::string_view strv) noexcept {
     auto hash = Hash<std::string_view>()(strv);
     auto* interned = tvm.strings.find_string(strv, hash);
     if (interned != nullptr) { return interned; }
     auto len = static_cast<size_t>(strv.length());
-    // char* heap_chars = allocate<char>(tvm, len);
-    // std::memcpy(heap_chars, strv.data(), strv.length());
-    // return allocate_string(tvm, heap_chars, len, hash);
-    ObjString* string = make_string(tvm, len);
-    std::memcpy(&string->data[0], strv.data(), strv.length());
+    auto* string =
+        allocate_object<ObjString>(tvm, copy ? len : 0, copy, strv, hash);
+    tvm.strings.set(tvm, string, Value());
     return string;
 }
 
