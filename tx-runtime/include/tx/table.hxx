@@ -1,21 +1,20 @@
 #pragma once
 
+#include "tx/hash_map.hxx"
 #include "tx/hash_set.hxx"
 #include "tx/value.hxx"
-// for Value::operator==()
-#include "tx/value_inl.hxx"
 
 namespace tx {
 
-class Table
-        : public HashSet<
-              ObjString*,
-              nullptr,
-              Hash<ObjString*>,
-              std::equal_to<ObjString*> > {
-  public:
-    [[nodiscard]] constexpr ObjString*
-    find_string(std::string_view str_v, u32 hash) noexcept;
-};
+using Map = HashMap<
+    Value,
+    Value,
+    Value{},
+    Value{},
+    Value{true},
+    Hash<ObjString*>,
+    std::equal_to<ObjString*> >;
 
+using StringSet =
+    HashSet<ObjString*, nullptr, Hash<ObjString*>, std::equal_to<ObjString*> >;
 }  // namespace tx

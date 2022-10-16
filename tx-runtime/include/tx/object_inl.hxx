@@ -66,8 +66,12 @@ T* allocate_object(VM& tvm, size_t extra, Args&&... args) noexcept {
 inline ObjString*
 make_string(VM& tvm, bool copy, std::string_view strv) noexcept {
     auto hash = Hash<std::string_view>()(strv);
-    auto* interned = tvm.strings.find_string(strv, hash);
-    if (interned != nullptr) { return interned; }
+    // auto* interned = tvm.strings.find_string(strv, hash);
+    auto* interned = tvm.strings.find_in_bucket(hash, [&](const auto& entry) {
+        return entry.first->hash == hash
+               && std::string_view(*entry.first) == strv;
+    });
+    if (interned != nullptr) { return interned->first; }
     auto len = static_cast<size_t>(strv.length());
     auto* string =
         allocate_object<ObjString>(tvm, copy ? len : 0, copy, strv, hash);
