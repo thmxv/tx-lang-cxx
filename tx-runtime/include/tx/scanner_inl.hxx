@@ -3,6 +3,7 @@
 #include "tx/fixed_array.hxx"
 #include "tx/object.hxx"
 #include "tx/scanner.hxx"
+#include "tx/unicode.hxx"
 #include "tx/utils.hxx"
 
 #include <cassert>
@@ -63,7 +64,7 @@ inline constexpr char Scanner::advance() noexcept {
         .type = type,
         .lexeme{start, static_cast<std::size_t>(std::distance(start, current))},
         .line = line,
-        .value{}
+        .value = Value(val_none)
     };
 }
 
@@ -71,7 +72,11 @@ inline constexpr char Scanner::advance() noexcept {
     std::string_view message
 ) const noexcept {
     using enum TokenType;
-    return Token{.type = ERROR, .lexeme = message, .line = line, .value{}};
+    return Token{
+        .type = ERROR,
+        .lexeme = message,
+        .line = line,
+        .value = Value(val_none)};
 }
 
 inline constexpr void Scanner::skip_whitespace() noexcept {
@@ -341,21 +346,26 @@ Scanner::utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept {
     auto value_opt = hex_escape(digits);
     if (!value_opt.has_value()) { return true; }
     auto value = static_cast<char32_t>(*value_opt);
-    std::array<char8_t, 4> tmp_buf{};
+    dst.resize(parent_vm, dst.size() + 4, '\0');
+    auto* dst_it = std::prev(dst.end(), 4);
     const char32_t* src_next = nullptr;
-    char8_t* tmp_next = nullptr;
+    char* tmp_next = nullptr;
     auto result = utf8_encode(
         &value,
         std::next(&value),
         src_next,
-        tmp_buf.begin(),
-        tmp_buf.end(),
+        dst_it,
+        dst.end(),
         tmp_next
     );
-    if (result != std::codecvt_base::result::ok) { return true; }
-    for (auto* it = tmp_buf.begin(); it != tmp_next; ++it) {
-        dst.push_back(parent_vm, static_cast<char>(*it));
+    if (result != std::codecvt_base::result::ok) {
+        dst.resize(parent_vm, dst.size() - 4);
+        return true;
     }
+    dst.resize(
+        parent_vm,
+        static_cast<size_t>(std::distance(dst.begin(), tmp_next))
+    );
     return false;
 }
 
@@ -367,6 +377,7 @@ Scanner::utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept {
             advance();
             if (str_interp_braces.size() < MAX_INTERP_DEPTH) {
                 if (peek() != '{') {
+                    string.destroy(parent_vm);
                     return error_token("Expect '{' after '$'.");
                 }
                 str_interp_braces.push_back(1);
@@ -379,8 +390,10 @@ Scanner::utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept {
                         std::next(string.begin(), 1),
                         std::prev(string.end(), 2)}
                 ));
+                string.destroy(parent_vm);
                 return token;
             }
+            string.destroy(parent_vm);
             return error_token("Nested string interpolation too deep.");
         }
         if (peek() == '\\') {
@@ -438,6 +451,7 @@ Scanner::utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept {
                     advance();
                     auto value_opt = hex_escape(2);
                     if (!value_opt.has_value()) {
+                        string.destroy(parent_vm);
                         return error_token("Invalid byte escape sequence.");
                     }
                     string.push_back(parent_vm, static_cast<char>(*value_opt));
@@ -446,6 +460,7 @@ Scanner::utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept {
                 case 'u': {
                     advance();
                     if (utf8_escape(4, string)) {
+                        string.destroy(parent_vm);
                         return error_token(
                             "Invalid 16-bits Unicode escape sequence."
                         );
@@ -456,19 +471,25 @@ Scanner::utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept {
                     advance();
                     // NOLINTNEXTLINE(*-magic-numbers)
                     if (utf8_escape(8, string)) {
+                        string.destroy(parent_vm);
                         return error_token(
                             "Invalid 32-bits Unicode escape sequence."
                         );
                     }
                     break;
                 }
-                default: return error_token("Invalid escape character.");
+                default:
+                    string.destroy(parent_vm);
+                    return error_token("Invalid escape character.");
             }
         } else {
             string.push_back(parent_vm, advance());
         }
     }
-    if (is_at_end()) { return error_token("Unterminated string."); }
+    if (is_at_end()) {
+        string.destroy(parent_vm);
+        return error_token("Unterminated string.");
+    }
     advance();
     auto token = make_token(TokenType::STRING_LITERAL);
     token.value = Value(make_string(

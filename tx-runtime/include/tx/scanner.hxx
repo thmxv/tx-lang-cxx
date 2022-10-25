@@ -92,7 +92,7 @@ struct Token {
     TokenType type;
     std::string_view lexeme;
     size_t line;
-    Value value{};
+    Value value{val_none};
 };
 
 class Scanner {

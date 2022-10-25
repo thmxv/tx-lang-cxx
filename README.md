@@ -23,8 +23,7 @@ Tx is still verry much a work in progress.
 
 ## Backlog
 
-- Call destructors/constructor in hash_map.hxx
-- Raw string as view into source
+- clean up utf8 conv, utf8 lenght, resize once
 - String concatenation
 - String interpolation
 - Tests

@@ -6,12 +6,12 @@
 
 namespace tx {
 
-using Map = HashMap<
+using ValueMap = HashMap<
     Value,
     Value,
-    Value{},
-    Value{},
-    Value{true},
+    Value{val_none},
+    Value{val_none},
+    Value{val_nil},
     Hash<ObjString*>,
     std::equal_to<ObjString*> >;
 

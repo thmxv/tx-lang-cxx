@@ -19,16 +19,24 @@ class HashSet
             T,
             Value,
             EMPTY_VALUE,
-            Value{},
-            Value{true},
+            Value{val_none},
+            Value{val_nil},
             Hash,
             Equal> {
-    using Base =
-        HashMap<T, Value, EMPTY_VALUE, Value{}, Value{true}, Hash, Equal>;
+
+    using Base = HashMap<
+        T,
+        Value,
+        EMPTY_VALUE,
+        Value{val_none},
+        Value{val_nil},
+        Hash,
+        Equal
+    >;
 
   public:
     constexpr bool set(VM& tvm, T val) noexcept {
-        return Base::set(tvm, val, Value{});
+        return Base::set(tvm, val, Value{val_none});
     }
 };
 

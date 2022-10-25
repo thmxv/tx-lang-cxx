@@ -5,7 +5,6 @@
 #include <fmt/format.h>
 
 #include <cassert>
-#include <codecvt>
 
 // TODO remove and force clang 15
 #ifdef __clang__
@@ -48,32 +47,6 @@ template <typename Enum>
         report_and_abort("This code should have been unreachable", location);
     }
     __builtin_unreachable();
-}
-
-template <typename F>
-struct NoLocaleFacet : F {
-    template <typename... Args>
-    explicit NoLocaleFacet(Args&&... args) : F(std::forward<Args>(args)...) {}
-    NoLocaleFacet(const NoLocaleFacet& other) = delete;
-    NoLocaleFacet(NoLocaleFacet&& other) = delete;
-    ~NoLocaleFacet() override = default;
-    NoLocaleFacet* operator=(const NoLocaleFacet& other) = delete;
-    NoLocaleFacet* operator=(NoLocaleFacet&& other) = delete;
-};
-
-// constexpr
-[[nodiscard]] inline std::codecvt_base::result utf8_encode(
-    const char32_t* src,
-    const char32_t* src_end,
-    const char32_t*& src_next,
-    char8_t* dst,
-    char8_t* dst_end,
-    char8_t*& dst_next
-) {
-    using Facet = std::codecvt<char32_t, char8_t, std::mbstate_t>;
-    std::mbstate_t mb_state{};
-    auto facet = NoLocaleFacet<Facet>();
-    return facet.out(mb_state, src, src_end, src_next, dst, dst_end, dst_next);
 }
 
 }  // namespace tx

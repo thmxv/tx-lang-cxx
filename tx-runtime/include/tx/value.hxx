@@ -2,15 +2,13 @@
 
 #include "tx/common.hxx"
 #include "tx/dyn_array.hxx"
-#include "tx/object.hxx"
 #include "tx/type_traits.hxx"
 #include "tx/utils.hxx"
-
-#include <fmt/format.h>
 
 namespace tx {
 
 enum class ValueType {
+    NONE,
     NIL,
     BOOL,
     INT,
@@ -19,12 +17,18 @@ enum class ValueType {
     OBJECT,
 };
 
-// struct Obj;
+struct Obj;
+
+struct ValNone {};
+struct ValNil {};
+
+inline constexpr ValNone val_none;
+inline constexpr ValNil val_nil;
 
 struct Value {
     using enum ValueType;
 
-    ValueType type = ValueType::NIL;
+    ValueType type;
     union {
         bool boolean;
         int_t integer;
@@ -33,7 +37,10 @@ struct Value {
         Obj* obj = nullptr;
     } as;
 
-    constexpr Value() noexcept = default;
+    constexpr Value() noexcept = delete;
+
+    constexpr explicit Value(const ValNone&  /*tag*/) noexcept : type(NONE) {}
+    constexpr explicit Value(const ValNil&  /*tag*/) noexcept : type(NIL) {}
 
     constexpr explicit Value(bool val) noexcept
             : type(BOOL)
@@ -71,7 +78,7 @@ struct Value {
     }
 
     // NOLINTNEXTLINE(*-union-access)
-    [[nodiscard]] constexpr int_t as_char() const noexcept { return as.chr; }
+    [[nodiscard]] constexpr char32_t as_char() const noexcept { return as.chr; }
 
     // NOLINTNEXTLINE(*-union-access)
     [[nodiscard]] constexpr Obj& as_object() const noexcept { return *as.obj; }
@@ -112,6 +119,7 @@ struct Value {
         if (lhs.type != rhs.type) { return false; }
         switch (lhs.type) {
             using enum ValueType;
+            case NONE: unreachable();
             case NIL: return true;
             case BOOL: return lhs.as_bool() == rhs.as_bool();
             case INT: return lhs.as_int() == rhs.as_int();
@@ -138,22 +146,3 @@ using ValueArray = DynArray<Value, size_t>;
 // using ConstValueArray = DynArray<const Value, size_t>;
 
 }  // namespace tx
-
-template <>
-struct fmt::formatter<tx::Value> : formatter<string_view> {
-    template <typename FormatContext>
-    constexpr auto format(const tx::Value value, FormatContext& ctx) noexcept {
-        switch (value.type) {
-            using enum tx::ValueType;
-            case NIL: return fmt::format_to(ctx.out(), "nil");
-            case BOOL: return fmt::format_to(ctx.out(), "{}", value.as_bool());
-            case INT: return fmt::format_to(ctx.out(), "{}", value.as_int());
-            case FLOAT:
-                return fmt::format_to(ctx.out(), "{}", value.as_float());
-            case CHAR: return fmt::format_to(ctx.out(), "{}", value.as_char());
-            case OBJECT:
-                return fmt::format_to(ctx.out(), "{}", value.as_object());
-        }
-        tx::unreachable();
-    }
-};

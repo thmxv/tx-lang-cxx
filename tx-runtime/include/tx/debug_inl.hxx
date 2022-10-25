@@ -2,6 +2,7 @@
 
 #include "tx/chunk.hxx"
 #include "tx/debug.hxx"
+#include "tx/formatting.hxx"
 #include "tx/scanner.hxx"
 #include "tx/value.hxx"
 

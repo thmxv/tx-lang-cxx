@@ -78,12 +78,13 @@ class DynArray {
     [[nodiscard]] constexpr SizeT size() const noexcept { return count; }
 
     constexpr void resize(VM& tvm, SizeT new_size) noexcept {
+        resize(tvm, new_size, T());
+    }
+
+    constexpr void resize(VM& tvm, SizeT new_size, const T& val) noexcept {
+        if (new_size > capacity) { reserve(tvm, new_size); }
         if (new_size > count) {
-            reserve(tvm, new_size);
-            std::uninitialized_default_construct_n(
-                &data_ptr[count],
-                new_size - count
-            );
+            std::uninitialized_fill_n(end(), new_size - count, val);
             count = new_size;
         } else if (new_size < count) {
             std::destroy_n(&data_ptr[new_size], count - new_size);

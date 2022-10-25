@@ -17,8 +17,8 @@ class FixedCapacityArray {
     static_assert(C > 0, "Capacity must be positive.");
 
     using MutDataType = std::array<std::byte, sizeof(T)>;
-    using DataType =
-        std::conditional_t<std::is_const_v<T>, const MutDataType, MutDataType>;
+    using DataType = MutDataType;
+    // std::conditional_t<std::is_const_v<T>, const MutDataType, MutDataType>;
 
     // using StorageType = std::array<DataType, static_cast<std::size_t>(C)>;
     // NOLINTNEXTLINE(*-avoid-c-arrays)
@@ -36,14 +36,19 @@ class FixedCapacityArray {
 
     constexpr FixedCapacityArray() noexcept = default;
 
+    constexpr FixedCapacityArray(SizeT len, T val) noexcept {
+        resize(len, val);
+    }
+
     constexpr FixedCapacityArray(const FixedCapacityArray& other) noexcept
-            : count(other.count)
-            , data_buff() {
-        std::uninitialized_value_construct_n(data(), count, other.data());
+            : count(other.count) {
+        std::uninitialized_copy_n(other.cbegin(), count, begin());
     }
 
     constexpr FixedCapacityArray(FixedCapacityArray&& other) noexcept
-            : FixedCapacityArray(other) {}
+            : count(other.count) {
+        std::uninitialized_move_n(other.begin(), count, begin());
+    }
 
     constexpr ~FixedCapacityArray() noexcept
         requires(std::is_trivially_destructible_v<T>)
@@ -61,7 +66,7 @@ class FixedCapacityArray {
         if (this != &rhs) {
             clear();
             count = rhs.count;
-            std::uninitialized_value_construct_n(data(), count, rhs.data());
+            std::uninitialized_copy_n(rhs.cbegin(), count, begin());
         }
         return *this;
     }
@@ -69,15 +74,32 @@ class FixedCapacityArray {
     [[nodiscard]] constexpr FixedCapacityArray& operator=(
         FixedCapacityArray&& rhs
     ) noexcept {
-        return operator=(rhs); // NOLINT
+        return operator=(rhs);  // NOLINT
     }
 
     [[nodiscard]] constexpr SizeT size() const noexcept { return count; }
 
     [[nodiscard]] constexpr bool empty() const noexcept { return count == 0; }
 
+    constexpr void resize(SizeT new_size) noexcept {
+        resize(new_size, T());
+    }
+
+    constexpr void resize(
+        SizeT len,
+        const T& val
+    ) noexcept(std::is_nothrow_copy_constructible_v<T>) {
+        if (len > count) {
+            std::uninitialized_fill_n(begin(), count, val);
+        } else if (len < count) {
+            auto diff = count - len;
+            std::destroy_n(std::prev(begin(), diff), diff);
+        }
+        count = len;
+    }
+
     constexpr void clear() noexcept(std::is_nothrow_destructible_v<T>) {
-        for (SizeT i = 0; i < count; ++i) { std::destroy_at(&operator[](i)); }
+        std::destroy_n(data_buff, count);
         count = 0;
     }
 
@@ -155,28 +177,30 @@ class FixedCapacityArray {
         return operator[](count - 1);
     }
 
+    [[nodiscard]] constexpr T* data() noexcept { return &(operator[](0)); }
+
     [[nodiscard]] constexpr const T* data() const noexcept {
-        return &operator[](0);
+        return &(operator[](0));
     }
 
-    [[nodiscard]] constexpr T* begin() noexcept { return &operator[](0); }
+    [[nodiscard]] constexpr T* begin() noexcept { return &(operator[](0)); }
 
     [[nodiscard]] constexpr const T* begin() const noexcept {
-        return &operator[](0);
+        return &(operator[](0));
     }
 
-    [[nodiscard]] constexpr T* end() noexcept { return &operator[](count); }
+    [[nodiscard]] constexpr T* end() noexcept { return &(operator[](count)); }
 
     [[nodiscard]] constexpr const T* end() const noexcept {
-        return &operator[](count);
+        return &(operator[](count));
     }
 
     [[nodiscard]] constexpr const T* cbegin() const noexcept {
-        return &operator[](0);
+        return &(operator[](0));
     }
 
     [[nodiscard]] constexpr const T* cend() const noexcept {
-        return &operator[](count);
+        return &(operator[](count));
     }
 };
 

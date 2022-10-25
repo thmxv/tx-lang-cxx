@@ -51,7 +51,13 @@ class VM {
             : options(opts)
             , allocator(alloc) {}
 
+    VM(const VM& other) = delete;
+    VM(VM&& other) = delete;
+
     constexpr ~VM() noexcept;
+
+    VM& operator=(const VM& rhs) = delete;
+    VM& operator=(VM&& rhs) = delete;
 
     // constexpr
     [[nodiscard]] Allocator get_allocator() const { return allocator; }
