@@ -37,7 +37,7 @@ inline void* allocator_reallocate(
     if (pointer != nullptr) {
         std::copy_n(
             static_cast<std::byte*>(pointer),
-            old_size,
+            std::min(old_size, new_size),
             static_cast<std::byte*>(result)
         );
         alloc.deallocate_bytes(
