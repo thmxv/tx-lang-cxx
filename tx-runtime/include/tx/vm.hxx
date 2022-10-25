@@ -36,7 +36,7 @@ class VM {
     const Chunk* chunk_ptr = nullptr;
     const ByteCode* instruction_ptr = nullptr;
     Stack stack;
-    StringSet strings;
+    ValueSet strings;
     gsl::owner<Obj*> objects = nullptr;
 
   public:

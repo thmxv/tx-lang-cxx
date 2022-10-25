@@ -119,7 +119,7 @@ struct Value {
         if (lhs.type != rhs.type) { return false; }
         switch (lhs.type) {
             using enum ValueType;
-            case NONE: unreachable();
+            case NONE:
             case NIL: return true;
             case BOOL: return lhs.as_bool() == rhs.as_bool();
             case INT: return lhs.as_int() == rhs.as_int();

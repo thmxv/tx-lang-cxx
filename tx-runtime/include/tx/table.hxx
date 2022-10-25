@@ -15,6 +15,10 @@ using ValueMap = HashMap<
     Hash<ObjString*>,
     std::equal_to<ObjString*> >;
 
-using StringSet =
-    HashSet<ObjString*, nullptr, Hash<ObjString*>, std::equal_to<ObjString*> >;
+// using StringSet =
+//     HashSet<ObjString*, nullptr, Hash<ObjString*>, std::equal_to<ObjString*>
+//     >;
+
+using ValueSet = HashSet<Value, Value{val_none}>;
+
 }  // namespace tx
