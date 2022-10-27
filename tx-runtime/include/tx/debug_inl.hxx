@@ -44,12 +44,14 @@ simple_instruction(std::string_view name, size_t offset) noexcept {
     return offset + 1;
 }
 
-inline constexpr std::array name_table = {
-// NOLINTNEXTLINE(*-macro-usage)
-#define TX_OPCODE(name, _) #name,
-#include "tx/opcodes.inc"
-#undef TX_OPCODE
+// clang-format off
+inline constexpr std::array opcode_name_table = {
+    // NOLINTNEXTLINE(*-macro-usage)
+    #define TX_OPCODE(name, _) #name,
+    #include "tx/opcodes.inc"
+    #undef TX_OPCODE
 };
+// clang-format on
 
 inline size_t
 disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
@@ -61,7 +63,7 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
         fmt::print(FMT_STRING("{:4d} "), line);
     }
     const OpCode instruction = chunk.code[offset].as_opcode();
-    const auto * name = name_table[to_underlying(instruction)];
+    const auto* name = opcode_name_table[to_underlying(instruction)];
     switch (instruction) {
         using enum OpCode;
         case NIL:
@@ -97,6 +99,15 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
     unreachable();
 }
 
+// clang-format off
+inline constexpr std::array token_name_table = {
+    // NOLINTNEXTLINE(*-macro-usage)
+    #define TX_TOKEN(name) #name,
+    #include "tx/tokens.inc"
+    #undef TX_TOKEN
+};
+// clang-format on
+
 inline void print_tokens(VM& tvm, std::string_view source) noexcept {
     Scanner scanner(tvm, source);
     int line = -1;
@@ -109,8 +120,8 @@ inline void print_tokens(VM& tvm, std::string_view source) noexcept {
             fmt::print("   | ");
         }
         fmt::print(
-            FMT_STRING("{:2d} '{:s}' {}\n"),
-            to_underlying(token.type),
+            FMT_STRING("{:16s} '{:s}' {}\n"),
+            std::string_view(token_name_table[to_underlying(token.type)]),
             token.lexeme,
             token.value
         );

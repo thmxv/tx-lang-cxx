@@ -8,85 +8,21 @@
 
 namespace tx {
 
-enum TokenType {
-    // single char tokens
-    LEFT_PAREN,
-    RIGHT_PAREN,
-    LEFT_BRACE,
-    RIGHT_BRACE,
-    LEFT_BRACKET,
-    RIGHT_BRACKET,
-    COLON,
-    COMMA,
-    DOT,
-    MINUS,
-    PIPE,
-    PLUS,
-    SEMICOLON,
-    SLASH,
-    STAR,
-    // one or two char tokens
-    BANG,
-    BANG_EQUAL,
-    EQUAL,
-    EQUAL_EQUAL,
-    LEFT_CHEVRON,
-    LESS_EQUAL,
-    RIGHT_CHEVRON,
-    GREATER_EQUAL,
-    // literals
-    IDENTIFIER,
-    INTEGER_LITERAL,
-    FLOAT_LITERAL,
-    STRING_LITERAL,
-    // "a ${b} c ${d} e" is tokenized to:
-    // STRING_INTERP        "a "
-    // INDENTIFIER          "b"
-    // STRING_INTERP        " c "
-    // INDENTIFIER          "d"
-    // STRING_LITERAL       " e"
-    STRING_INTERP,
-    // keywords
-    AND,
-    AS,
-    ASYNC,
-    AWAIT,
-    BREAK,
-    CONTINUE,
-    ELSE,
-    FALSE,
-    FOR,
-    FN,
-    IF,
-    IN,
-    INOUT,
-    IMPORT,
-    IS,
-    LET,
-    LOOP,
-    NIL,
-    MATCH,
-    OR,
-    OUT,
-    RETURN,
-    SELF,
-    STRUCT,
-    SUPER,
-    TRUE,
-    VAR,
-    WHILE,
-    // built-in types
-    ANY,
-    BOOL,
-    CHAR,
-    FLOAT,
-    INT,
-    NIL_TYPE,
-    STR,
+// "a ${b} c ${d} e" is tokenized to:
+// STRING_INTERP        "a "
+// INDENTIFIER          "b"
+// STRING_INTERP        " c "
+// INDENTIFIER          "d"
+// STRING_LITERAL       " e"
 
-    ERROR,
-    END_OF_FILE,
+// clang-format-off
+enum TokenType {
+    // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+    #define TX_TOKEN(name) name,
+    #include "tx/tokens.inc"
+    #undef TX_TOKEN
 };
+// clang-format-on
 
 struct Token {
     TokenType type;
