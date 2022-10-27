@@ -22,6 +22,9 @@ struct VMOptions {
     bool print_bytecode = false;
     bool trace_gc = false;
     bool stress_gc = false;
+    // REPL specific options
+    bool allow_pointer_to_souce_content = true;
+    bool allow_global_redefinition = false;
 };
 
 class Parser;
@@ -36,6 +39,7 @@ class VM {
     const Chunk* chunk_ptr = nullptr;
     const ByteCode* instruction_ptr = nullptr;
     Stack stack;
+    ValueMap globals;
     ValueSet strings;
     gsl::owner<Obj*> objects = nullptr;
 
@@ -61,7 +65,12 @@ class VM {
 
     // constexpr
     [[nodiscard]] Allocator get_allocator() const { return allocator; }
+
     [[nodiscard]] constexpr const VMOptions& get_options() const noexcept {
+        return options;
+    }
+
+    [[nodiscard]] constexpr VMOptions& get_options() noexcept {
         return options;
     }
 
@@ -105,7 +114,7 @@ class VM {
     template <typename T, typename... Args>
     friend T* allocate_object(VM& tvm, size_t extra, Args&&... args) noexcept;
 
-    friend ObjString*
+    friend constexpr  ObjString*
     make_string(VM& tvm, bool copy, std::string_view strv) noexcept;
 };
 

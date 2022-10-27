@@ -3,6 +3,7 @@
 #include "tx/common.hxx"
 #include "tx/compiler.hxx"
 #include "tx/debug.hxx"
+#include "tx/object.hxx"
 #include "tx/scanner.hxx"
 #include "tx/utils.hxx"
 
@@ -12,8 +13,7 @@ namespace tx {
 
 inline constexpr bool Parser::compile() noexcept {
     advance();
-    expression();
-    consume(TokenType::END_OF_FILE, "Expect end of expression.");
+    while (!match(TokenType::END_OF_FILE)) { statement(); }
     end_compiler();
     return !had_error;
 }
@@ -60,6 +60,17 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
     error_at_current(message);
 }
 
+[[nodiscard]] inline constexpr bool Parser::check(TokenType type
+) const noexcept {
+    return current.type == type;
+}
+
+[[nodiscard]] inline constexpr bool Parser::match(TokenType type) noexcept {
+    if (!check(type)) { return false; }
+    advance();
+    return true;
+}
+
 [[nodiscard]] inline constexpr Chunk& Parser::current_chunk() const noexcept {
     return chunk_;
 }
@@ -71,12 +82,17 @@ inline constexpr void Parser::emit_bytes(Ts... bytes) noexcept {
 }
 
 inline constexpr void Parser::emit_return() noexcept {
-    // emit_byte(OpCode::NIL);
     emit_bytes(OpCode::RETURN);
 }
 
+inline constexpr void
+Parser::emit_var_length_instruction(OpCode opc, size_t idx) noexcept {
+    current_chunk().write_constant(parent_vm, previous.line, opc, idx);
+}
+
 inline constexpr void Parser::emit_constant(Value value) noexcept {
-    current_chunk().write_constant(parent_vm, previous.line, value);
+    auto idx = current_chunk().add_constant(parent_vm, value);
+    emit_var_length_instruction(OpCode::CONSTANT, idx);
 }
 
 // [[nodiscard]]
@@ -133,6 +149,21 @@ inline constexpr void Parser::literal(bool /*can_assign*/) noexcept {
     }
 }
 
+inline constexpr void
+Parser::named_variable(const Token& name, bool can_assign) noexcept {
+    auto idx = identifier_constant(name);
+    if (can_assign && match(TokenType::EQUAL)) {
+        expression();
+        emit_var_length_instruction(OpCode::SET_GLOBAL, idx);
+    } else {
+        emit_var_length_instruction(OpCode::GET_GLOBAL, idx);
+    }
+}
+
+inline constexpr void Parser::variable(bool can_assign) noexcept {
+    named_variable(previous, can_assign);
+}
+
 inline constexpr void Parser::unary(bool /*can_assign*/) noexcept {
     auto token_type = previous.type;
     parse_precedence(Precedence::UNARY);
@@ -143,11 +174,16 @@ inline constexpr void Parser::unary(bool /*can_assign*/) noexcept {
     }
 }
 
+inline constexpr const ParseRule& Parser::get_rule(TokenType token_type
+) noexcept {
+    return ParseRules::get_rule(token_type);
+}
+
 inline constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
     advance();
     const ParseFn prefix_rule = get_rule(previous.type).prefix;
     if (prefix_rule == nullptr) {
-        error("Except expression.");
+        error("Expect expression.");
         return;
     }
     const bool can_assign = precedence <= Precedence::ASSIGNMENT;
@@ -157,15 +193,87 @@ inline constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
         const ParseFn infix_rule = get_rule(previous.type).infix;
         std::invoke(infix_rule, *this, can_assign);
     }
+    if (can_assign && match(TokenType::EQUAL)) {
+        error("Invalid assignment target.");
+    }
 }
 
-inline constexpr const ParseRule& Parser::get_rule(TokenType token_type
+inline constexpr size_t Parser::identifier_constant(const Token& name
 ) noexcept {
-    return ParseRules::get_rule(token_type);
+    return current_chunk().add_constant(
+        parent_vm,
+        Value{make_string(
+            parent_vm,
+            !parent_vm.get_options().allow_pointer_to_souce_content,
+            name.lexeme
+        )}
+    );
+}
+
+inline constexpr size_t Parser::parse_variable(const char* error_message
+) noexcept {
+    consume(TokenType::IDENTIFIER, error_message);
+    return identifier_constant(previous);
+}
+
+inline constexpr void Parser::define_variable(size_t global) noexcept {
+    emit_var_length_instruction(OpCode::DEFINE_GLOBAL, global);
 }
 
 inline constexpr void Parser::expression() noexcept {
     parse_precedence(Precedence::ASSIGNMENT);
+}
+
+inline constexpr void Parser::var_declaration() noexcept {
+    auto global = parse_variable("Expect variable name.");
+    if (match(TokenType::EQUAL)) {
+        expression();
+    } else {
+        // TODO: allow forward declaration but mark as uninitialized and not nil
+        emit_bytes(OpCode::NIL);
+    }
+    consume(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
+    define_variable(global);
+}
+
+inline constexpr void Parser::expression_statement() noexcept {
+    expression();
+    consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+    emit_bytes(OpCode::POP);
+}
+
+inline constexpr void Parser::synchronize() noexcept {
+    panic_mode = false;
+    while (current.type != TokenType::END_OF_FILE) {
+        if (previous.type == TokenType::SEMICOLON) { return; }
+        switch (current.type) {
+            using enum TokenType;
+            case STRUCT:
+            case FN:
+            case LET:
+            case VAR:
+            case IF:
+            case MATCH:
+            case LOOP:
+            case WHILE:
+            case FOR:
+            case RETURN:
+            case IMPORT: return;
+            default:;  // Do nothing.
+        }
+        advance();
+    }
+}
+
+inline constexpr void Parser::statement() noexcept {
+    if (match(TokenType::VAR)) {
+        var_declaration();
+    } else if (match(TokenType::LET)) {
+        // TODO
+    } else {
+        expression_statement();
+    }
+    if (panic_mode) { synchronize(); }
 }
 
 // void Compiler::emit_loop(index_t loop_start) noexcept {

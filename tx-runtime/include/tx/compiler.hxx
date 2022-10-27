@@ -59,25 +59,41 @@ class Parser {
     constexpr void advance() noexcept;
     constexpr void consume(TokenType type, std::string_view message) noexcept;
 
+    [[nodiscard]] constexpr bool check(TokenType type) const noexcept;
+    [[nodiscard]] constexpr bool match(TokenType type) noexcept;
+
     [[nodiscard]] constexpr Chunk& current_chunk() const noexcept;
 
     template <typename... Ts>
         requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)
     constexpr void emit_bytes(Ts... bytes) noexcept;
 
-    constexpr void emit_return() noexcept;
     constexpr void emit_constant(Value value) noexcept;
+    constexpr void emit_return() noexcept;
+    constexpr void emit_var_length_instruction(OpCode opc, size_t idx) noexcept;
+    constexpr void end_compiler() noexcept;
 
   public:
-    constexpr void end_compiler() noexcept;
     constexpr void binary(bool) noexcept;
     constexpr void grouping(bool) noexcept;
-    // constexpr void number(bool) noexcept;
     constexpr void literal(bool) noexcept;
+    constexpr void named_variable(const Token& name, bool) noexcept;
+    constexpr void variable(bool) noexcept;
     constexpr void unary(bool) noexcept;
-    constexpr void parse_precedence(Precedence) noexcept;
+
+  private:
     static constexpr const ParseRule& get_rule(TokenType token_type) noexcept;
+    constexpr void parse_precedence(Precedence) noexcept;
+
+    constexpr size_t identifier_constant(const Token& name) noexcept;
+    constexpr size_t parse_variable(const char* error_message) noexcept;
+    constexpr void define_variable(size_t global) noexcept;
+
     constexpr void expression() noexcept;
+    constexpr void var_declaration() noexcept;
+    constexpr void expression_statement() noexcept;
+    constexpr void synchronize() noexcept;
+    constexpr void statement() noexcept;
 
     // friend class ParseRules;
 };
@@ -92,9 +108,9 @@ class ParseRules {
     using P = Precedence;
     using p = Parser;
 
+    // clang-format off
     // NOLINTNEXTLINE(*-avoid-c-arrays)
     __extension__ static constexpr ParseRule rules[] = {
-  // clang-format off
         [LEFT_PAREN]      = {&p::grouping, nullptr,    P::NONE},
         [RIGHT_PAREN]     = {nullptr,      nullptr,    P::NONE},
         [LEFT_BRACE]      = {nullptr,      nullptr,    P::NONE},
@@ -118,7 +134,7 @@ class ParseRules {
         [LESS_EQUAL]      = {nullptr,      &p::binary, P::COMPARISON},
         [RIGHT_CHEVRON]   = {nullptr,      &p::binary, P::COMPARISON},
         [GREATER_EQUAL]   = {nullptr,      &p::binary, P::COMPARISON},
-        [IDENTIFIER]      = {nullptr,      nullptr,    P::NONE},
+        [IDENTIFIER]      = {&p::variable, nullptr,    P::NONE},
         [INTEGER_LITERAL] = {&p::literal,  nullptr,    P::NONE},
         [FLOAT_LITERAL]   = {&p::literal,  nullptr,    P::NONE},
         [STRING_LITERAL]  = {&p::literal,  nullptr,    P::NONE},
@@ -160,8 +176,8 @@ class ParseRules {
         [STR]             = {nullptr,      nullptr,    P::NONE},
         [ERROR]           = {nullptr,      nullptr,    P::NONE},
         [END_OF_FILE]     = {nullptr,      nullptr,    P::NONE},
-  // clang-format on
     };
+    // clang-format on
 
   public:
     static constexpr const ParseRule& get_rule(TokenType token_type) noexcept {

@@ -18,6 +18,7 @@
 namespace tx {
 
 constexpr VM::~VM() noexcept {
+    globals.destroy(*this);
     strings.destroy(*this);
     free_objects(*this, objects);
 }
@@ -191,6 +192,64 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
                 push(Value(false));
                 TX_VM_BREAK();
             }
+            TX_VM_CASE(POP) : {
+                pop();
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(GET_GLOBAL) : {
+                auto name = read_constant(false);
+                auto* var_ptr = globals.get(name);
+                if (var_ptr == nullptr) {
+                    runtime_error("Undefined variable '{}'.", name);
+                    return InterpretResult::RUNTIME_ERROR;
+                }
+                push(*var_ptr);
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(GET_GLOBAL_LONG) : {
+                auto name = read_constant(true);
+                auto* var_ptr = globals.get(name);
+                if (var_ptr == nullptr) {
+                    runtime_error("Undefined variable '{}'.", name);
+                    return InterpretResult::RUNTIME_ERROR;
+                }
+                push(*var_ptr);
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(DEFINE_GLOBAL) : {
+                auto name = read_constant(false);
+                globals.set(*this, name, peek(0));
+                pop();
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(DEFINE_GLOBAL_LONG) : {
+                auto name = read_constant(true);
+                globals.set(*this, name, peek(0));
+                pop();
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(SET_GLOBAL) : {
+                auto name = read_constant(false);
+                if (globals.set(*this, name, peek(0))) {
+                    // TODO: make compile error
+                    // unreachable();
+                    globals.erase(name);
+                    runtime_error("Undefined variable '{}'.", name);
+                    return InterpretResult::RUNTIME_ERROR;
+                }
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(SET_GLOBAL_LONG) : {
+                auto name = read_constant(true);
+                if (globals.set(*this, name, peek(0))) {
+                    // TODO: make compile error
+                    // unreachable();
+                    globals.erase(name);
+                    runtime_error("Undefined variable '{}'.", name);
+                    return InterpretResult::RUNTIME_ERROR;
+                }
+                TX_VM_BREAK();
+            }
             TX_VM_CASE(EQUAL) : {
                 const Value rhs = pop();
                 const Value lhs = pop();
@@ -260,7 +319,6 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(RETURN) : {
-                fmt::print(FMT_STRING("{}\n"), pop());
                 return InterpretResult::OK;
             }
             TX_VM_CASE(END) : { unreachable(); }

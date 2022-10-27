@@ -39,7 +39,7 @@ enum TokenType {
     INTEGER_LITERAL,
     FLOAT_LITERAL,
     STRING_LITERAL,
-    // "a {b} c {d} e" is tokenized to:
+    // "a ${b} c ${d} e" is tokenized to:
     // STRING_INTERP        "a "
     // INDENTIFIER          "b"
     // STRING_INTERP        " c "

@@ -38,7 +38,7 @@ struct Hash<int_t> {
     constexpr u32 operator()(const int_t& val) const noexcept {
         return hash_function(std::span<const char>(
             static_cast<const char*>(static_cast<const void*>(&val)),
-            sizeof(char32_t)
+            sizeof(int_t)
         ));
     }
 };
@@ -48,7 +48,7 @@ struct Hash<float_t> {
     constexpr u32 operator()(const float_t& val) const noexcept {
         return hash_function(std::span<const char>(
             static_cast<const char*>(static_cast<const void*>(&val)),
-            sizeof(char32_t)
+            sizeof(float_t)
         ));
     }
 };

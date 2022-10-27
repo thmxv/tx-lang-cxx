@@ -62,8 +62,7 @@ T* allocate_object(VM& tvm, size_t extra, Args&&... args) noexcept {
     return object_ptr;
 }
 
-// constexpt
-inline ObjString*
+inline constexpr ObjString*
 make_string(VM& tvm, bool copy, std::string_view strv) noexcept {
     auto hash = Hash<std::string_view>()(strv);
     // auto* interned = tvm.strings.find_in_bucket(hash, [&](const auto& entry)

@@ -36,19 +36,16 @@ Options:
 )";
 
 constexpr std::string_view usage_debug_str =
-R"(Allowed debug options: 'all', 'print-tokens', 'print-bytecode', 
+    R"(Allowed debug options: 'all', 'print-tokens', 'print-bytecode', 
   'trace-execution', 'trace-gc', 'stress-gc'.
-)"
-                ;
+)";
 void print_title() noexcept {
     fmt::print(FMT_STRING("Tx version {}\n"), tx::VERSION);
 }
 
 void print_usage() noexcept { fmt::print(usage_str); }
 
-void print_debug_usage() noexcept {
-    fmt::print(stderr, usage_debug_str);
-}
+void print_debug_usage() noexcept { fmt::print(stderr, usage_debug_str); }
 
 [[nodiscard]] std::string read_file(const char* path) noexcept {
     gsl::owner<std::FILE*> file = std::fopen(path, "rb");
@@ -139,17 +136,18 @@ void run_file(VM& tvm, const char* path) {
     }
 }
 
-struct ArgsOptions{
+struct ArgsOptions {
     bool args_help = false;
     bool args_version = false;
     bool args_use_stdin = false;
     const char* args_file_path = nullptr;
     std::string_view args_command;
     std::span<const char*> args_rest_of_args;
-    tx::VMOptions args_options;
+    tx::VMOptions args_vm_options;
 };
 
-constexpr std::optional<ArgsOptions> parse_arguments(int argc, const char** argv) {
+constexpr std::optional<ArgsOptions>
+parse_arguments(int argc, const char** argv) {
     const std::span<const char*> args{argv, static_cast<std::size_t>(argc)};
     ArgsOptions options;
     std::size_t idx = 1;
@@ -172,21 +170,21 @@ constexpr std::optional<ArgsOptions> parse_arguments(int argc, const char** argv
             }
             const auto opt = std::string_view{args[idx]};
             if (opt == "trace-execution") {
-                options.args_options.trace_execution = true;
+                options.args_vm_options.trace_execution = true;
             } else if (opt == "print-tokens") {
-                options.args_options.print_tokens = true;
+                options.args_vm_options.print_tokens = true;
             } else if (opt == "print-bytecode") {
-                options.args_options.print_bytecode = true;
+                options.args_vm_options.print_bytecode = true;
             } else if (opt == "trace-gc") {
-                options.args_options.trace_gc = true;
+                options.args_vm_options.trace_gc = true;
             } else if (opt == "stress-gc") {
-                options.args_options.stress_gc = true;
+                options.args_vm_options.stress_gc = true;
             } else if (opt == "all") {
-                options.args_options.print_bytecode = true;
-                options.args_options.print_tokens = true;
-                options.args_options.trace_execution = true;
-                options.args_options.trace_gc = true;
-                options.args_options.stress_gc = true;
+                options.args_vm_options.print_bytecode = true;
+                options.args_vm_options.print_tokens = true;
+                options.args_vm_options.trace_execution = true;
+                options.args_vm_options.trace_gc = true;
+                options.args_vm_options.stress_gc = true;
             } else {
                 fmt::print(
                     stderr,
@@ -200,10 +198,7 @@ constexpr std::optional<ArgsOptions> parse_arguments(int argc, const char** argv
         } else if (arg == "-c" or arg == "--command") {
             ++idx;
             if (idx >= args.size()) {
-                fmt::print(
-                    stderr,
-                    "Expecting command argument after '-c'.\n"
-                );
+                fmt::print(stderr, "Expecting command argument after '-c'.\n");
                 tx::print_usage();
                 return std::nullopt;
             }
@@ -231,9 +226,7 @@ constexpr std::optional<ArgsOptions> parse_arguments(int argc, const char** argv
 // NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, const char** argv) noexcept {
     auto options_opt = tx::parse_arguments(argc, argv);
-    if (!options_opt.has_value()) {
-        return tx::ExitCode::USAGE_ERROR;
-    }
+    if (!options_opt.has_value()) { return tx::ExitCode::USAGE_ERROR; }
     auto options = *options_opt;
     if (options.args_help) {
         tx::print_title();
@@ -247,11 +240,13 @@ int main(int argc, const char** argv) noexcept {
 
     // std::pmr::unsynchronized_pool_resource mem_res;
     auto& mem_res = *std::pmr::get_default_resource();
-    tx::VM tvm(options.args_options, &mem_res);
+    tx::VM tvm(options.args_vm_options, &mem_res);
     if (options.args_file_path == nullptr) {
+        tvm.get_options().allow_pointer_to_souce_content = false;
+        tvm.get_options().allow_global_redefinition = true;
         tx::run_repl(tvm);
     } else {
-        if (options.args_use_stdin){
+        if (options.args_use_stdin) {
             fmt::print(FMT_STRING("UNIMPLEMENTED: shoud read from stdin\n"));
         } else {
             tx::run_file(tvm, options.args_file_path);

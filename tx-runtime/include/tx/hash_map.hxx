@@ -62,11 +62,11 @@ class HashMap {
         return MAX_LOAD_FACTOR;
     }
 
-    [[nodiscard]] constexpr std::optional<T&> get(const Key& key) noexcept {
-        if (count == 0) { return std::nullopt; }
-        const Entry& entry = find_entry(key);
-        if (is_entry_empty(entry)) { return std::nullopt; }
-        return entry.second;
+    [[nodiscard]] constexpr T* get(const Key& key) noexcept {
+        if (count == 0) { return nullptr; }
+        Entry& entry = find_entry(key);
+        if (is_entry_empty(entry)) { return nullptr; }
+        return &entry.second;
     }
 
     // template <typename... Args>
@@ -83,7 +83,8 @@ class HashMap {
         if (is_new_key && !is_entry_tombstone(entry)) { ++count; }
         entry.first = key;
         // entry.second = T(std::forward<Args>(args)...);
-        entry.second = std::move(value);
+        // entry.second = std::move(value);
+        entry.second = value;
         return is_new_key;
     }
 

@@ -19,10 +19,11 @@ almost completely constexpr.
 
 ## Disclaimer
 
-Tx is still verry much a work in progress.
+Tx is still very much a work in progress.
 
 ## Backlog
 
+- better and more conform error messages
 - clean up utf8 conv, utf8 lenght, resize once
 - String concatenation
 - String interpolation
@@ -45,7 +46,7 @@ Tx is still verry much a work in progress.
 - [X] Value types
 - [X] String
 - [X] Hash table
-- [ ] Global variables
+- [X] Global variables
 - [ ] Local variables
 - [ ] Type checking
 - [ ] Jumping

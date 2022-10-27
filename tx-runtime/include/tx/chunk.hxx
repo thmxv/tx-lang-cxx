@@ -58,7 +58,9 @@ struct Chunk {
     }
 
     constexpr void write_line(VM& tvm, size_t line) {
-        if (lines.size() > 0 && lines[lines.size()].line == line) { return; }
+        if (lines.size() > 0 && lines[lines.size() - 1].line == line) {
+            return;
+        }
         lines.push_back(tvm, LineStart{.offset = code.size(), .line = line});
     }
 
@@ -74,23 +76,29 @@ struct Chunk {
         return constants.size() - 1;
     }
 
-    constexpr void write_constant(VM& tvm, size_t line, Value value) noexcept {
-        const u64 index = static_cast<u64>(add_constant(tvm, value));
+    constexpr void write_constant(
+        VM& tvm,
+        size_t line,
+        OpCode opc,
+        size_t constant_index
+    ) noexcept {
+        const u64 index = static_cast<u64>(constant_index);
         if (index < (1U << 8U)) {  // NOLINT(*-magic-numbers)
-            write(tvm, line, OpCode::CONSTANT, static_cast<u8>(index));
+            write(tvm, line, opc, static_cast<u8>(index));
             return;
         }
         if (index < (1U << 24U)) {  // NOLINT(*-magic-numbers)
+            opc = OpCode(to_underlying(opc) + 1);
             write(
                 tvm,
                 line,
-                OpCode::CONSTANT_LONG,
+                opc,
                 // NOLINTNEXTLINE(*-magic-numbers)
                 static_cast<u8>(index & 0xffU),
                 // NOLINTNEXTLINE(*-magic-numbers)
                 static_cast<u8>((index >> 8U) & 0xffU),
                 // NOLINTNEXTLINE(*-magic-numbers)
-                static_cast<u8>( (index >> 16U) & 0xffU)
+                static_cast<u8>((index >> 16U) & 0xffU)
             );
             return;
         }

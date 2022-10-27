@@ -5,6 +5,7 @@
 #include "tx/scanner.hxx"
 #include "tx/unicode.hxx"
 #include "tx/utils.hxx"
+#include "tx/vm.hxx"
 
 #include <cassert>
 #include <charconv>
@@ -314,7 +315,11 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     const auto& lex = token.lexeme;
     token.value =
         // NOLINTNEXTLINE(*-magic-numbers)
-        Value(make_string(parent_vm, false, lex.substr(3, lex.length() - 6)));
+        Value(make_string(
+            parent_vm,
+            !parent_vm.get_options().allow_pointer_to_souce_content,
+            lex.substr(3, lex.length() - 6)
+        ));
     return token;
 }
 

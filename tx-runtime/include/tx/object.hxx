@@ -129,7 +129,7 @@ struct is_trivially_relocatable<ObjString>
     static constexpr value_type value = true;
 };
 
-ObjString* make_string(VM& tvm, bool copy, std::string_view strv) noexcept;
+constexpr ObjString*
+make_string(VM& tvm, bool copy, std::string_view strv) noexcept;
 
 }  // namespace tx
-
