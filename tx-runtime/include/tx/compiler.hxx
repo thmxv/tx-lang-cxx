@@ -59,6 +59,8 @@ class Parser {
     bool had_error{false};
     bool panic_mode{false};
     Compiler* current_compiler{nullptr};
+    // TODO: move to Compiler? go in pair whith chunk
+    ValueMap constant_indices{};
     Chunk& chunk_;
 
   public:
@@ -66,6 +68,16 @@ class Parser {
             : parent_vm(tvm)
             , scanner(parent_vm, source)
             , chunk_(chunk) {}
+
+    Parser(const Parser&) = delete;
+    Parser(Parser&&) = delete;
+
+    constexpr ~Parser() {
+        constant_indices.destroy(parent_vm);
+    }
+
+    Parser& operator=(const Parser&) = delete;
+    Parser& operator=(Parser&&) = delete;
 
     constexpr bool compile() noexcept;
 
@@ -81,6 +93,7 @@ class Parser {
     [[nodiscard]] constexpr bool match(TokenType type) noexcept;
 
     [[nodiscard]] constexpr Chunk& current_chunk() const noexcept;
+    [[nodiscard]] constexpr size_t add_constant(Value value) noexcept;
 
     template <typename... Ts>
         requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)

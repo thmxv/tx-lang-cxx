@@ -18,6 +18,7 @@ inline constexpr bool Parser::compile() noexcept {
     advance();
     while (!match(TokenType::END_OF_FILE)) { statement(); }
     end_compiler();
+    constant_indices.clear();
     return !had_error;
 }
 
@@ -78,6 +79,17 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
     return chunk_;
 }
 
+[[nodiscard]] inline constexpr size_t Parser::add_constant(Value value
+) noexcept {
+    if (had_error) { return -1; }
+    const auto* existing = constant_indices.get(value);
+    if (existing != nullptr) { return static_cast<size_t>(existing->as_int()); }
+    // TODO: error if too much constants
+    auto idx = current_chunk().add_constant(parent_vm, value);
+    constant_indices.set(parent_vm, value, Value{static_cast<int_t>(idx)});
+    return idx;
+}
+
 template <typename... Ts>
     requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)
 inline constexpr void Parser::emit_bytes(Ts... bytes) noexcept {
@@ -94,7 +106,7 @@ Parser::emit_var_length_instruction(OpCode opc, size_t idx) noexcept {
 }
 
 inline constexpr void Parser::emit_constant(Value value) noexcept {
-    auto idx = current_chunk().add_constant(parent_vm, value);
+    auto idx = add_constant(value);
     emit_var_length_instruction(OpCode::CONSTANT, idx);
 }
 
@@ -277,14 +289,11 @@ inline constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
 
 inline constexpr size_t Parser::identifier_constant(const Token& name
 ) noexcept {
-    return current_chunk().add_constant(
+    return add_constant(Value{make_string(
         parent_vm,
-        Value{make_string(
-            parent_vm,
-            !parent_vm.get_options().allow_pointer_to_souce_content,
-            name.lexeme
-        )}
-    );
+        !parent_vm.get_options().allow_pointer_to_souce_content,
+        name.lexeme
+    )});
 }
 
 inline constexpr void Parser::add_local(Token name, bool is_const) noexcept {

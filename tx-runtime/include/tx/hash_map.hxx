@@ -62,6 +62,12 @@ class HashMap {
         return MAX_LOAD_FACTOR;
     }
 
+    constexpr void clear() noexcept{
+        std::destroy_n(data_ptr, capacity);
+        count = 0;
+        capacity = 0;
+    }
+
     [[nodiscard]] constexpr T* get(const Key& key) noexcept {
         if (count == 0) { return nullptr; }
         Entry& entry = find_entry(key);
