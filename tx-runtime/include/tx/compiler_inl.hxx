@@ -134,13 +134,16 @@ inline constexpr void Parser::begin_scope() noexcept {
 }
 
 inline constexpr void Parser::end_scope() noexcept {
+    size_t scope_local_count = 0;
     current_compiler->scope_depth--;
     while (!current_compiler->locals.empty()
            && current_compiler->locals.back().depth
                   > current_compiler->scope_depth) {
-        emit_bytes(OpCode::POP);
+        // emit_bytes(OpCode::POP);
+        ++scope_local_count;
         current_compiler->locals.pop_back();
     }
+    emit_var_length_instruction(OpCode::END_SCOPE, scope_local_count);
 }
 
 inline constexpr void Parser::binary(bool /*can_assign*/) noexcept {
@@ -261,6 +264,7 @@ inline constexpr void Parser::block(bool /*can_assign*/) noexcept {
     consume(RIGHT_BRACE, "Expect '}' after block.");
     if (!has_final_expression) { emit_bytes(OpCode::NIL); }
     end_scope();
+    // TODO: expression result should be below scope local on the stack
 }
 
 inline constexpr const ParseRule& Parser::get_rule(TokenType token_type

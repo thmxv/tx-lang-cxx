@@ -110,6 +110,7 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
             return constant_instruction(name, chunk, offset, true);
         case GET_LOCAL:
         case SET_LOCAL:
+        case END_SCOPE:
             return var_length_instruction(name, chunk, offset, false);
         case GET_LOCAL_LONG:
         case SET_LOCAL_LONG:

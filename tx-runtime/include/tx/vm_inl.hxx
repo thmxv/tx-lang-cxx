@@ -343,6 +343,15 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
                 if (negate_op()) { return InterpretResult::RUNTIME_ERROR; }
                 TX_VM_BREAK();
             }
+            TX_VM_CASE(END_SCOPE) : {
+                const auto slot_count = read_constant_index(false);
+                const auto result = pop();
+                for(auto i=0; i<slot_count; ++i) {
+                    pop();
+                }
+                push(result);
+                TX_VM_BREAK();
+            }
             TX_VM_CASE(RETURN) : {
                 return InterpretResult::OK;
             }
