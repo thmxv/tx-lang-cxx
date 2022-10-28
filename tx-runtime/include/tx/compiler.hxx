@@ -72,9 +72,7 @@ class Parser {
     Parser(const Parser&) = delete;
     Parser(Parser&&) = delete;
 
-    constexpr ~Parser() {
-        constant_indices.destroy(parent_vm);
-    }
+    constexpr ~Parser() { constant_indices.destroy(parent_vm); }
 
     Parser& operator=(const Parser&) = delete;
     Parser& operator=(Parser&&) = delete;
@@ -102,6 +100,8 @@ class Parser {
     constexpr void emit_constant(Value value) noexcept;
     constexpr void emit_return() noexcept;
     constexpr void emit_var_length_instruction(OpCode opc, size_t idx) noexcept;
+    constexpr size_t emit_jump(OpCode instruction) noexcept;
+    constexpr void patch_jump(i32 offset) noexcept;
     constexpr void begin_compiler(Compiler& compiler) noexcept;
     constexpr void end_compiler() noexcept;
     constexpr void begin_scope() noexcept;
@@ -115,6 +115,7 @@ class Parser {
     constexpr void variable(bool) noexcept;
     constexpr void unary(bool) noexcept;
     constexpr void block(bool) noexcept;
+    constexpr void if_expr(bool) noexcept;
 
   private:
     [[nodiscard]] static constexpr const ParseRule& get_rule(
@@ -199,7 +200,7 @@ class ParseRules {
         [FALSE]           = {&p::literal,  nullptr,    P::NONE},
         [FOR]             = {nullptr,      nullptr,    P::NONE},
         [FN]              = {nullptr,      nullptr,    P::NONE},
-        [IF]              = {nullptr,      nullptr,    P::NONE},
+        [IF]              = {&p::if_expr,  nullptr,    P::NONE},
         [IN]              = {nullptr,      nullptr,    P::NONE},
         [INOUT]           = {nullptr,      nullptr,    P::NONE},
         [IMPORT]          = {nullptr,      nullptr,    P::NONE},

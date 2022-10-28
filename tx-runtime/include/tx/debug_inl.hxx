@@ -52,6 +52,18 @@ disassemble_chunk(const Chunk& chunk, std::string_view name) noexcept {
     return static_cast<size_t>(std::distance(chunk.code.data(), new_ptr));
 }
 
+[[nodiscard]] inline size_t jump_instruction(
+    std::string_view name,
+    i32 sign,
+    const Chunk& chunk,
+    size_t offset
+) {
+    u16 jump = static_cast<u16>(chunk.code[offset + 1].value << 8U);
+    jump |= chunk.code[offset + 2].value;
+    fmt::print("{:8s} {:4d} -> {:d}\n", name, offset, offset + 3 + sign * jump);
+    return offset + 3;
+}
+
 [[nodiscard]] inline size_t
 simple_instruction(std::string_view name, size_t offset) noexcept {
     fmt::print(FMT_STRING("{:8s}\n"), name);
@@ -115,6 +127,8 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
         case GET_LOCAL_LONG:
         case SET_LOCAL_LONG:
             return var_length_instruction(name, chunk, offset, true);
+        case JUMP:
+        case JUMP_IF_FALSE: return jump_instruction(name, 1, chunk, offset);
     }
     unreachable();
 }

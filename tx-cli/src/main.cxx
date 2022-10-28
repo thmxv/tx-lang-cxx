@@ -42,7 +42,7 @@ constexpr std::string_view usage_debug_str =
 
 constexpr std::string_view greeting_str =
     R"((o)>    Tx v{}
-//\     MIT License. Copyright (C) 2022 Xavier Thomas
+//\     MIT License, Copyright (C) 2022 Xavier Thomas
 V_/_    https://github.com/thmxv/tx-lang 
 )";
 

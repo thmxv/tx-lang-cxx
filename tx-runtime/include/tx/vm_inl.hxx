@@ -39,6 +39,13 @@ inline constexpr size_t VM::read_multibyte_index(bool is_long) noexcept {
     return constant_idx;
 }
 
+[[nodiscard]] inline constexpr u16 VM::read_short() noexcept {
+    instruction_ptr = std::next(instruction_ptr, 2);
+    return static_cast<u16>(
+        (instruction_ptr[-2].value << 8) | instruction_ptr[-1].value
+    );
+}
+
 inline constexpr Value VM::read_constant(bool is_long) noexcept {
     const auto constant_idx = read_multibyte_index(is_long);
     return chunk_ptr->constants[constant_idx];
@@ -224,7 +231,7 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
             }
             TX_VM_CASE(GET_GLOBAL) : {
                 auto value = global_values[read_multibyte_index(false)];
-                if(value.is_none()) {
+                if (value.is_none()) {
                     runtime_error("Undefined variable.");
                     return InterpretResult::RUNTIME_ERROR;
                 }
@@ -233,7 +240,7 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
             }
             TX_VM_CASE(GET_GLOBAL_LONG) : {
                 auto value = global_values[read_multibyte_index(true)];
-                if(value.is_none()) {
+                if (value.is_none()) {
                     runtime_error("Undefined variable.");
                     return InterpretResult::RUNTIME_ERROR;
                 }
@@ -252,7 +259,7 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
             }
             TX_VM_CASE(SET_GLOBAL) : {
                 auto index = read_multibyte_index(false);
-                if(global_values[index].is_none()){
+                if (global_values[index].is_none()) {
                     runtime_error("Undefined variable.");
                     return InterpretResult::RUNTIME_ERROR;
                 }
@@ -261,7 +268,7 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
             }
             TX_VM_CASE(SET_GLOBAL_LONG) : {
                 auto index = read_multibyte_index(true);
-                if(global_values[index].is_none()){
+                if (global_values[index].is_none()) {
                     runtime_error("Undefined variable.");
                     return InterpretResult::RUNTIME_ERROR;
                 }
@@ -336,18 +343,24 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
                 if (negate_op()) { return InterpretResult::RUNTIME_ERROR; }
                 TX_VM_BREAK();
             }
+            TX_VM_CASE(JUMP) : {
+                auto offset = read_short();
+                instruction_ptr = std::next(instruction_ptr, offset);
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(JUMP_IF_FALSE) : {
+                auto offset = read_short();
+                if (peek(0).is_falsey()) { instruction_ptr += offset; }
+                TX_VM_BREAK();
+            }
             TX_VM_CASE(END_SCOPE) : {
                 const auto slot_count = read_multibyte_index(false);
                 const auto result = pop();
-                for(auto i=0; i<slot_count; ++i) {
-                    pop();
-                }
+                for (auto i = 0; i < slot_count; ++i) { pop(); }
                 push(result);
                 TX_VM_BREAK();
             }
-            TX_VM_CASE(RETURN) : {
-                return InterpretResult::OK;
-            }
+            TX_VM_CASE(RETURN) : { return InterpretResult::OK; }
             TX_VM_CASE(END) : { unreachable(); }
         }
     }

@@ -7,6 +7,7 @@
 #include "tx/scanner.hxx"
 #include "tx/utils.hxx"
 
+#include <limits>
 #include <ranges>
 #include <functional>
 
@@ -108,6 +109,23 @@ Parser::emit_var_length_instruction(OpCode opc, size_t idx) noexcept {
 inline constexpr void Parser::emit_constant(Value value) noexcept {
     auto idx = add_constant(value);
     emit_var_length_instruction(OpCode::CONSTANT, idx);
+}
+
+inline constexpr size_t Parser::emit_jump(OpCode instruction) noexcept {
+    emit_bytes(instruction, static_cast<u8>(0xff), static_cast<u8>(0xff));
+    return current_chunk().code.size() - 2;
+}
+
+inline constexpr void Parser::patch_jump(i32 offset) noexcept {
+    auto jump = current_chunk().code.size() - offset - 2;
+    if (jump > std::numeric_limits<u16>::max()) {
+        error("Too much code to jump over.");
+    }
+    const u16 jump_16 = static_cast<u16>(jump);
+    current_chunk().code[offset].value = static_cast<u8>(
+        (jump_16 >> 8U) & 0xffU
+    );
+    current_chunk().code[offset + 1].value = static_cast<u8>(jump_16 & 0xffU);
 }
 
 constexpr void Parser::begin_compiler(Compiler& compiler) noexcept {
@@ -265,6 +283,26 @@ inline constexpr void Parser::block(bool /*can_assign*/) noexcept {
     if (!has_final_expression) { emit_bytes(OpCode::NIL); }
     end_scope();
     // TODO: expression result should be below scope local on the stack
+}
+
+inline constexpr void Parser::if_expr(bool can_assign) noexcept {
+    consume(LEFT_PAREN, "Expect '(' after 'if'.");
+    expression();
+    consume(RIGHT_PAREN, "Expect ')' after condition.");
+    auto then_jump = emit_jump(OpCode::JUMP_IF_FALSE);
+    emit_bytes(OpCode::POP);
+    consume(LEFT_BRACE, "Expect '{' after 'if (...)'.");
+    block(can_assign);
+    auto else_jump = emit_jump(OpCode::JUMP);
+    patch_jump(then_jump);
+    emit_bytes(OpCode::POP);
+    if (match(ELSE)) {
+        consume(LEFT_BRACE, "Expect '{' after 'else'.");
+        block(can_assign);
+    } else {
+        emit_bytes(OpCode::NIL);
+    }
+    patch_jump(else_jump);
 }
 
 inline constexpr const ParseRule& Parser::get_rule(TokenType token_type

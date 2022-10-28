@@ -81,6 +81,7 @@ class VM {
   private:
     constexpr ByteCode read_byte() noexcept;
     constexpr size_t read_multibyte_index(bool is_long) noexcept;
+    [[nodiscard]] constexpr u16 read_short() noexcept;
     constexpr Value read_constant(bool is_long) noexcept;
 
     constexpr void push(Value value) noexcept { stack.push_back_unsafe(value); }
