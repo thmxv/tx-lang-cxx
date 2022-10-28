@@ -126,7 +126,7 @@ struct Chunk {
 };
 
 constexpr inline std::pair<size_t, const ByteCode*>
-read_constant_index(const ByteCode* ptr, bool is_long) noexcept {
+read_multibyte_index(const ByteCode* ptr, bool is_long) noexcept {
     if (!is_long) { return std::make_pair(ptr->as_u8(), std::next(ptr, 1)); }
     const auto constant_idx =  //
         static_cast<u32>((ptr)->as_u8())

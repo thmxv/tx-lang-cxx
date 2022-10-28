@@ -216,7 +216,7 @@ Parser::named_variable(const Token& name, bool can_assign) noexcept {
         set_op = OpCode::SET_LOCAL;
         is_const = current_compiler->locals[idx].is_const;
     } else {
-        idx = identifier_constant(name);
+        idx = identifier_global_index(name);
         get_op = OpCode::GET_GLOBAL;
         set_op = OpCode::SET_GLOBAL;
         is_const = false;
@@ -291,13 +291,20 @@ inline constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
     }
 }
 
-inline constexpr size_t Parser::identifier_constant(const Token& name
+inline constexpr size_t Parser::identifier_global_index(const Token& name
 ) noexcept {
-    return add_constant(Value{make_string(
+    auto identifier = Value{make_string(
         parent_vm,
         !parent_vm.get_options().allow_pointer_to_souce_content,
         name.lexeme
-    )});
+    )};
+    auto* index = parent_vm.global_indices.get(identifier);
+    if (index != nullptr) { return static_cast<size_t>(index->as_int()); }
+    auto new_index = parent_vm.global_values.size();
+    parent_vm.global_values.push_back(parent_vm, Value{val_none});
+    parent_vm.global_indices
+        .set(parent_vm, identifier, Value{static_cast<int_t>(new_index)});
+    return new_index;
 }
 
 inline constexpr void Parser::add_local(Token name, bool is_const) noexcept {
@@ -334,7 +341,7 @@ inline constexpr size_t Parser::parse_variable(const char* error_message
     // that follows to exit early.
     declare_variable(is_const);
     if (current_compiler->scope_depth > 0) { return 0; }
-    return identifier_constant(previous);
+    return identifier_global_index(previous);
 }
 
 inline constexpr void Parser::mark_initialized() noexcept {

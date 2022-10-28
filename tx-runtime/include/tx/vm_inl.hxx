@@ -18,7 +18,8 @@
 namespace tx {
 
 constexpr VM::~VM() noexcept {
-    globals.destroy(*this);
+    global_indices.destroy(*this);
+    global_values.destroy(*this);
     strings.destroy(*this);
     free_objects(*this, objects);
 }
@@ -29,8 +30,8 @@ inline constexpr ByteCode VM::read_byte() noexcept {
     return result;
 }
 
-inline constexpr size_t VM::read_constant_index(bool is_long) noexcept {
-    const auto [constant_idx, new_ptr] = ::tx::read_constant_index(
+inline constexpr size_t VM::read_multibyte_index(bool is_long) noexcept {
+    const auto [constant_idx, new_ptr] = ::tx::read_multibyte_index(
         instruction_ptr,
         is_long
     );
@@ -39,7 +40,7 @@ inline constexpr size_t VM::read_constant_index(bool is_long) noexcept {
 }
 
 inline constexpr Value VM::read_constant(bool is_long) noexcept {
-    const auto constant_idx = read_constant_index(is_long);
+    const auto constant_idx = read_multibyte_index(is_long);
     return chunk_ptr->constants[constant_idx];
 }
 
@@ -202,77 +203,69 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_LOCAL) : {
-                const auto slot = read_constant_index(false);
+                const auto slot = read_multibyte_index(false);
                 push(stack[slot]);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_LOCAL_LONG) : {
-                const auto slot = read_constant_index(true);
+                const auto slot = read_multibyte_index(true);
                 push(stack[slot]);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_LOCAL) : {
-                const auto slot = read_constant_index(false);
+                const auto slot = read_multibyte_index(false);
                 stack[slot] = peek(0);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_LOCAL_LONG) : {
-                const auto slot = read_constant_index(true);
+                const auto slot = read_multibyte_index(true);
                 stack[slot] = peek(0);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_GLOBAL) : {
-                auto name = read_constant(false);
-                auto* var_ptr = globals.get(name);
-                if (var_ptr == nullptr) {
-                    runtime_error("Undefined variable '{}'.", name);
+                auto value = global_values[read_multibyte_index(false)];
+                if(value.is_none()) {
+                    runtime_error("Undefined variable.");
                     return InterpretResult::RUNTIME_ERROR;
                 }
-                push(*var_ptr);
+                push(value);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_GLOBAL_LONG) : {
-                auto name = read_constant(true);
-                auto* var_ptr = globals.get(name);
-                if (var_ptr == nullptr) {
-                    runtime_error("Undefined variable '{}'.", name);
+                auto value = global_values[read_multibyte_index(true)];
+                if(value.is_none()) {
+                    runtime_error("Undefined variable.");
                     return InterpretResult::RUNTIME_ERROR;
                 }
-                push(*var_ptr);
+                push(value);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(DEFINE_GLOBAL) : {
-                auto name = read_constant(false);
-                globals.set(*this, name, peek(0));
+                global_values[read_multibyte_index(false)] = peek(0);
                 pop();
                 TX_VM_BREAK();
             }
             TX_VM_CASE(DEFINE_GLOBAL_LONG) : {
-                auto name = read_constant(true);
-                globals.set(*this, name, peek(0));
+                global_values[read_multibyte_index(true)] = peek(0);
                 pop();
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_GLOBAL) : {
-                auto name = read_constant(false);
-                if (globals.set(*this, name, peek(0))) {
-                    // TODO: make compile error
-                    // unreachable();
-                    globals.erase(name);
-                    runtime_error("Undefined variable '{}'.", name);
+                auto index = read_multibyte_index(false);
+                if(global_values[index].is_none()){
+                    runtime_error("Undefined variable.");
                     return InterpretResult::RUNTIME_ERROR;
                 }
+                global_values[index] = peek(0);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_GLOBAL_LONG) : {
-                auto name = read_constant(true);
-                if (globals.set(*this, name, peek(0))) {
-                    // TODO: make compile error
-                    // unreachable();
-                    globals.erase(name);
-                    runtime_error("Undefined variable '{}'.", name);
+                auto index = read_multibyte_index(true);
+                if(global_values[index].is_none()){
+                    runtime_error("Undefined variable.");
                     return InterpretResult::RUNTIME_ERROR;
                 }
+                global_values[index] = peek(0);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(EQUAL) : {
@@ -344,7 +337,7 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(END_SCOPE) : {
-                const auto slot_count = read_constant_index(false);
+                const auto slot_count = read_multibyte_index(false);
                 const auto result = pop();
                 for(auto i=0; i<slot_count; ++i) {
                     pop();

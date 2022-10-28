@@ -126,7 +126,7 @@ class Parser {
     [[nodiscard]] constexpr i32
     resolve_local(Compiler& compiler, const Token& name) noexcept;
 
-    [[nodiscard]] constexpr size_t identifier_constant(const Token& name
+    [[nodiscard]] constexpr size_t identifier_global_index(const Token& name
     ) noexcept;
 
     constexpr void add_local(Token name, bool is_const) noexcept;

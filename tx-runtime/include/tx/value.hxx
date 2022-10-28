@@ -39,8 +39,8 @@ struct Value {
 
     constexpr Value() noexcept = delete;
 
-    constexpr explicit Value(const ValNone&  /*tag*/) noexcept : type(NONE) {}
-    constexpr explicit Value(const ValNil&  /*tag*/) noexcept : type(NIL) {}
+    constexpr explicit Value(const ValNone& /*tag*/) noexcept : type(NONE) {}
+    constexpr explicit Value(const ValNil& /*tag*/) noexcept : type(NIL) {}
 
     constexpr explicit Value(bool val) noexcept
             : type(BOOL)
@@ -82,6 +82,10 @@ struct Value {
 
     // NOLINTNEXTLINE(*-union-access)
     [[nodiscard]] constexpr Obj& as_object() const noexcept { return *as.obj; }
+
+    [[nodiscard]] constexpr bool is_none() const noexcept {
+        return type == NONE;
+    }
 
     [[nodiscard]] constexpr bool is_nil() const noexcept { return type == NIL; }
 

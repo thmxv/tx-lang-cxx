@@ -25,7 +25,7 @@ disassemble_chunk(const Chunk& chunk, std::string_view name) noexcept {
     size_t offset,
     bool is_long
 ) noexcept {
-    const auto [constant_idx, new_ptr] = read_constant_index(
+    const auto [constant_idx, new_ptr] = read_multibyte_index(
         &chunk.code[offset + 1],
         is_long
     );
@@ -44,7 +44,7 @@ disassemble_chunk(const Chunk& chunk, std::string_view name) noexcept {
     size_t offset,
     bool is_long
 ) noexcept {
-    const auto [constant_idx, new_ptr] = read_constant_index(
+    const auto [constant_idx, new_ptr] = read_multibyte_index(
         &chunk.code[offset + 1],
         is_long
     );
