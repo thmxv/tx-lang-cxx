@@ -79,6 +79,7 @@ class VM {
 
   private:
     constexpr ByteCode read_byte() noexcept;
+    constexpr size_t read_constant_index(bool is_long) noexcept;
     constexpr Value read_constant(bool is_long) noexcept;
 
     constexpr void push(Value value) noexcept { stack.push_back_unsafe(value); }
@@ -114,7 +115,7 @@ class VM {
     template <typename T, typename... Args>
     friend T* allocate_object(VM& tvm, size_t extra, Args&&... args) noexcept;
 
-    friend constexpr  ObjString*
+    friend constexpr ObjString*
     make_string(VM& tvm, bool copy, std::string_view strv) noexcept;
 };
 

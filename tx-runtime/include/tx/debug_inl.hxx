@@ -38,6 +38,20 @@ disassemble_chunk(const Chunk& chunk, std::string_view name) noexcept {
     return static_cast<size_t>(std::distance(chunk.code.data(), new_ptr));
 }
 
+[[nodiscard]] inline size_t var_length_instruction(
+    std::string_view name,
+    const Chunk& chunk,
+    size_t offset,
+    bool is_long
+) noexcept {
+    const auto [constant_idx, new_ptr] = read_constant_index(
+        &chunk.code[offset + 1],
+        is_long
+    );
+    fmt::print("{:8s} {:4d}\n", name, constant_idx);
+    return static_cast<size_t>(std::distance(chunk.code.data(), new_ptr));
+}
+
 [[nodiscard]] inline size_t
 simple_instruction(std::string_view name, size_t offset) noexcept {
     fmt::print(FMT_STRING("{:8s}\n"), name);
@@ -83,18 +97,23 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
         case NOT:
         case NEGATE:
         case RETURN:
-        case END:  //
-            return simple_instruction(name, offset);
+        case END: return simple_instruction(name, offset);
         case CONSTANT:
         case GET_GLOBAL:
         case SET_GLOBAL:
-        case DEFINE_GLOBAL:  //
+        case DEFINE_GLOBAL:
             return constant_instruction(name, chunk, offset, false);
         case CONSTANT_LONG:
         case GET_GLOBAL_LONG:
         case SET_GLOBAL_LONG:
-        case DEFINE_GLOBAL_LONG:  //
+        case DEFINE_GLOBAL_LONG:
             return constant_instruction(name, chunk, offset, true);
+        case GET_LOCAL:
+        case SET_LOCAL:
+            return var_length_instruction(name, chunk, offset, false);
+        case GET_LOCAL_LONG:
+        case SET_LOCAL_LONG:
+            return var_length_instruction(name, chunk, offset, true);
     }
     unreachable();
 }

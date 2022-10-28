@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tx/fixed_array.hxx"
 #include "tx/scanner.hxx"
 #include "tx/vm.hxx"
 
@@ -32,15 +33,28 @@ struct ParseRule {
     Precedence precedence;
 };
 
-struct Compiler {};
+struct Local {
+    Token name{};
+    i32 depth{0};
+
+    Local(Token name_, i32 dpth) : name(name_), depth(dpth) {}
+};
+
+struct Compiler {
+    using LocalArray = FixedCapacityArray<Local, size_t, 256>;
+
+    LocalArray locals;
+    i32 scope_depth{0};
+};
 
 class Parser {
     VM& parent_vm;
     Scanner scanner;
     Token current{};
     Token previous{};
-    bool had_error = false;
-    bool panic_mode = false;
+    bool had_error{false};
+    bool panic_mode{false};
+    Compiler* current_compiler{nullptr};
     Chunk& chunk_;
 
   public:
@@ -71,7 +85,10 @@ class Parser {
     constexpr void emit_constant(Value value) noexcept;
     constexpr void emit_return() noexcept;
     constexpr void emit_var_length_instruction(OpCode opc, size_t idx) noexcept;
+    constexpr void begin_compiler(Compiler& compiler) noexcept;
     constexpr void end_compiler() noexcept;
+    constexpr void begin_scope() noexcept;
+    constexpr void end_scope() noexcept;
 
   public:
     constexpr void binary(bool) noexcept;
@@ -80,19 +97,35 @@ class Parser {
     constexpr void named_variable(const Token& name, bool) noexcept;
     constexpr void variable(bool) noexcept;
     constexpr void unary(bool) noexcept;
+    constexpr void block(bool) noexcept;
 
   private:
-    static constexpr const ParseRule& get_rule(TokenType token_type) noexcept;
+    [[nodiscard]] static constexpr const ParseRule& get_rule(
+        TokenType token_type
+    ) noexcept;
+
     constexpr void parse_precedence(Precedence) noexcept;
 
-    constexpr size_t identifier_constant(const Token& name) noexcept;
-    constexpr size_t parse_variable(const char* error_message) noexcept;
+    [[nodiscard]] constexpr i32
+    resolve_local(Compiler& compiler, const Token& name) noexcept;
+
+    [[nodiscard]] constexpr size_t identifier_constant(const Token& name
+    ) noexcept;
+
+    constexpr void add_local(Token name) noexcept;
+    constexpr void declare_variable() noexcept;
+
+    [[nodiscard]] constexpr size_t parse_variable(const char* error_message
+    ) noexcept;
+
+    constexpr void mark_initialized() noexcept;
     constexpr void define_variable(size_t global) noexcept;
 
     constexpr void expression() noexcept;
     constexpr void var_declaration() noexcept;
     constexpr void expression_statement() noexcept;
     constexpr void synchronize() noexcept;
+    [[nodiscard]] constexpr bool statement_no_expression() noexcept;
     constexpr void statement() noexcept;
 
     // friend class ParseRules;
@@ -113,7 +146,7 @@ class ParseRules {
     __extension__ static constexpr ParseRule rules[] = {
         [LEFT_PAREN]      = {&p::grouping, nullptr,    P::NONE},
         [RIGHT_PAREN]     = {nullptr,      nullptr,    P::NONE},
-        [LEFT_BRACE]      = {nullptr,      nullptr,    P::NONE},
+        [LEFT_BRACE]      = {&p::block,    nullptr,    P::NONE},
         [RIGHT_BRACE]     = {nullptr,      nullptr,    P::NONE},
         [LEFT_BRACKET]    = {nullptr,      nullptr,    P::NONE},
         [RIGHT_BRACKET]   = {nullptr,      nullptr,    P::NONE},

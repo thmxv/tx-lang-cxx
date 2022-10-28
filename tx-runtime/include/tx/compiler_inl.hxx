@@ -7,11 +7,14 @@
 #include "tx/scanner.hxx"
 #include "tx/utils.hxx"
 
+#include <ranges>
 #include <functional>
 
 namespace tx {
 
 inline constexpr bool Parser::compile() noexcept {
+    Compiler comp{};
+    begin_compiler(comp);
     advance();
     while (!match(TokenType::END_OF_FILE)) { statement(); }
     end_compiler();
@@ -95,6 +98,10 @@ inline constexpr void Parser::emit_constant(Value value) noexcept {
     emit_var_length_instruction(OpCode::CONSTANT, idx);
 }
 
+constexpr void Parser::begin_compiler(Compiler& compiler) noexcept {
+    current_compiler = &compiler;
+}
+
 // [[nodiscard]]
 inline constexpr void Parser::end_compiler() noexcept {
     emit_return();
@@ -106,7 +113,22 @@ inline constexpr void Parser::end_compiler() noexcept {
             }
         }
     }
+    current_compiler = nullptr;
     // return function;
+}
+
+inline constexpr void Parser::begin_scope() noexcept {
+    current_compiler->scope_depth++;
+}
+
+inline constexpr void Parser::end_scope() noexcept {
+    current_compiler->scope_depth--;
+    while (!current_compiler->locals.empty()
+           && current_compiler->locals.back().depth
+                  > current_compiler->scope_depth) {
+        emit_bytes(OpCode::POP);
+        current_compiler->locals.pop_back();
+    }
 }
 
 inline constexpr void Parser::binary(bool /*can_assign*/) noexcept {
@@ -149,14 +171,45 @@ inline constexpr void Parser::literal(bool /*can_assign*/) noexcept {
     }
 }
 
+static inline constexpr bool
+identifiers_equal(const Token& lhs, const Token& rhs) {
+    return lhs.lexeme == rhs.lexeme;
+}
+
+inline constexpr i32
+Parser::resolve_local(Compiler& compiler, const Token& name) noexcept {
+    // TODO: use ranges, enumerate+reverse
+    // for (const auto& local : compiler.locals | std::views::reverse) {
+    for (i32 i = compiler.locals.size() - 1; i >= 0; --i) {
+        const Local& local = compiler.locals[i];
+        if (identifiers_equal(name, local.name)) {
+            if (local.depth == -1) {
+                error("Can't read local variable in its own initializer.");
+            }
+            return i;
+        }
+    }
+    return -1;
+}
+
 inline constexpr void
 Parser::named_variable(const Token& name, bool can_assign) noexcept {
-    auto idx = identifier_constant(name);
+    OpCode get_op{};
+    OpCode set_op{};
+    auto idx = resolve_local(*current_compiler, name);
+    if (idx != -1) {
+        get_op = OpCode::GET_LOCAL;
+        set_op = OpCode::SET_LOCAL;
+    } else {
+        idx = identifier_constant(name);
+        get_op = OpCode::GET_GLOBAL;
+        set_op = OpCode::SET_GLOBAL;
+    }
     if (can_assign && match(TokenType::EQUAL)) {
         expression();
-        emit_var_length_instruction(OpCode::SET_GLOBAL, idx);
+        emit_var_length_instruction(set_op, idx);
     } else {
-        emit_var_length_instruction(OpCode::GET_GLOBAL, idx);
+        emit_var_length_instruction(get_op, idx);
     }
 }
 
@@ -172,6 +225,28 @@ inline constexpr void Parser::unary(bool /*can_assign*/) noexcept {
         case TokenType::MINUS: emit_bytes(OpCode::NEGATE); break;
         default: unreachable();
     }
+}
+
+inline constexpr void Parser::block(bool /*can_assign*/) noexcept {
+    begin_scope();
+    bool has_final_expression = false;
+    while (!check(RIGHT_BRACE) && !check(END_OF_FILE)) {
+        if (!statement_no_expression()) {
+            expression();
+            switch (current.type) {
+                case RIGHT_BRACE: has_final_expression = true; break;
+                case SEMICOLON:
+                    advance();
+                    emit_bytes(OpCode::POP);
+                    continue;
+                default:
+                    error("Expect ';' or '}' after expression inside block.");
+            }
+        }
+    }
+    consume(RIGHT_BRACE, "Expect '}' after block.");
+    if (!has_final_expression) { emit_bytes(OpCode::NIL); }
+    end_scope();
 }
 
 inline constexpr const ParseRule& Parser::get_rule(TokenType token_type
@@ -210,13 +285,50 @@ inline constexpr size_t Parser::identifier_constant(const Token& name
     );
 }
 
+inline constexpr void Parser::add_local(Token name) noexcept {
+    if (current_compiler->locals.size() == 256) {
+        error("Too many local variables in function.");
+        return;
+    }
+    current_compiler->locals.emplace_back(name, -1);
+}
+
+inline constexpr void Parser::declare_variable() noexcept {
+    if (current_compiler->scope_depth == 0) { return; }
+    const auto& name = previous;
+    // for (const auto& local : current_compiler->locals | std::views::reverse)
+    // {
+    for (auto i = current_compiler->locals.size() - 1; i >= 0; --i) {
+        const auto& local = current_compiler->locals[i];
+        if (local.depth != -1 && local.depth < current_compiler->scope_depth) {
+            break;
+        }
+        if (identifiers_equal(name, local.name)) {
+            error("Already a variable with this name in this scope.");
+        }
+    }
+    add_local(name);
+}
+
 inline constexpr size_t Parser::parse_variable(const char* error_message
 ) noexcept {
     consume(TokenType::IDENTIFIER, error_message);
+    // TODO: rework code for following function that handle locals and if test
+    // that follows to exit early.
+    declare_variable();
+    if (current_compiler->scope_depth > 0) { return 0; }
     return identifier_constant(previous);
 }
 
+inline constexpr void Parser::mark_initialized() noexcept {
+    current_compiler->locals.back().depth = current_compiler->scope_depth;
+}
+
 inline constexpr void Parser::define_variable(size_t global) noexcept {
+    if (current_compiler->scope_depth > 0) {
+        mark_initialized();
+        return;
+    }
     emit_var_length_instruction(OpCode::DEFINE_GLOBAL, global);
 }
 
@@ -265,14 +377,17 @@ inline constexpr void Parser::synchronize() noexcept {
     }
 }
 
-inline constexpr void Parser::statement() noexcept {
-    if (match(TokenType::VAR)) {
+inline constexpr bool Parser::statement_no_expression() noexcept {
+    if (match(SEMICOLON)) { return true; }
+    if (match(VAR) || match(LET)) {
         var_declaration();
-    } else if (match(TokenType::LET)) {
-        // TODO
-    } else {
-        expression_statement();
+        return true;
     }
+    return false;
+}
+
+inline constexpr void Parser::statement() noexcept {
+    if (!statement_no_expression()) { expression_statement(); }
     if (panic_mode) { synchronize(); }
 }
 

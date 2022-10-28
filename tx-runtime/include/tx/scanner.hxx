@@ -25,9 +25,9 @@ enum TokenType {
 // clang-format-on
 
 struct Token {
-    TokenType type;
-    std::string_view lexeme;
-    size_t line;
+    TokenType type{};
+    std::string_view lexeme{};
+    size_t line{};
     Value value{val_none};
 };
 

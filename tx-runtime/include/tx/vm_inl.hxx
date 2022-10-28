@@ -29,12 +29,17 @@ inline constexpr ByteCode VM::read_byte() noexcept {
     return result;
 }
 
-inline constexpr Value VM::read_constant(bool is_long) noexcept {
-    const auto [constant_idx, new_ptr] = read_constant_index(
+inline constexpr size_t VM::read_constant_index(bool is_long) noexcept {
+    const auto [constant_idx, new_ptr] = ::tx::read_constant_index(
         instruction_ptr,
         is_long
     );
     instruction_ptr = new_ptr;
+    return constant_idx;
+}
+
+inline constexpr Value VM::read_constant(bool is_long) noexcept {
+    const auto constant_idx = read_constant_index(is_long);
     return chunk_ptr->constants[constant_idx];
 }
 
@@ -194,6 +199,26 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
             }
             TX_VM_CASE(POP) : {
                 pop();
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(GET_LOCAL) : {
+                const auto slot = read_constant_index(false);
+                push(stack[slot]);
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(GET_LOCAL_LONG) : {
+                const auto slot = read_constant_index(true);
+                push(stack[slot]);
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(SET_LOCAL) : {
+                const auto slot = read_constant_index(false);
+                stack[slot] = peek(0);
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(SET_LOCAL_LONG) : {
+                const auto slot = read_constant_index(true);
+                stack[slot] = peek(0);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_GLOBAL) : {

@@ -123,7 +123,7 @@ class FixedCapacityArray {
     ) noexcept(std::is_nothrow_copy_constructible_v<T>) {
         if (count == C) {
             report_and_abort(
-                "Incerting into a fixed capacity array at full capacity"
+                "Inserting into a fixed capacity array at full capacity"
             );
         }
         // NOTE: Do not launder

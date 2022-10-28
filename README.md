@@ -23,6 +23,12 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- error when assigning to constants
+- chapter 22 (locals) challenges
+- chapter 21 (globals) challenges
+- allow expression with block (block, all loops, if, match) without ; in places
+  where a statement is permitted. Fix ambiguity and only in case where there
+  is no final expression (ie: when expression is nil)
 - better and more conform error messages
 - clean up utf8 conv, utf8 lenght, resize once
 - String concatenation
