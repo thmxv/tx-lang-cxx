@@ -99,19 +99,19 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
         case RETURN:
         case END: return simple_instruction(name, offset);
         case CONSTANT:
+            return constant_instruction(name, chunk, offset, false);
+        case CONSTANT_LONG:
+            return constant_instruction(name, chunk, offset, true);
         case GET_GLOBAL:
         case SET_GLOBAL:
         case DEFINE_GLOBAL:
-            return constant_instruction(name, chunk, offset, false);
-        case CONSTANT_LONG:
-        case GET_GLOBAL_LONG:
-        case SET_GLOBAL_LONG:
-        case DEFINE_GLOBAL_LONG:
-            return constant_instruction(name, chunk, offset, true);
         case GET_LOCAL:
         case SET_LOCAL:
         case END_SCOPE:
             return var_length_instruction(name, chunk, offset, false);
+        case GET_GLOBAL_LONG:
+        case SET_GLOBAL_LONG:
+        case DEFINE_GLOBAL_LONG:
         case GET_LOCAL_LONG:
         case SET_LOCAL_LONG:
             return var_length_instruction(name, chunk, offset, true);
