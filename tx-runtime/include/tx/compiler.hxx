@@ -36,8 +36,12 @@ struct ParseRule {
 struct Local {
     Token name{};
     i32 depth{0};
+    bool is_const{true};
 
-    Local(Token name_, i32 dpth) : name(name_), depth(dpth) {}
+    Local(Token name_, i32 dpth, bool is_constant)
+            : name(name_)
+            , depth(dpth)
+            , is_const(is_constant) {}
 };
 
 struct Compiler {
@@ -112,8 +116,8 @@ class Parser {
     [[nodiscard]] constexpr size_t identifier_constant(const Token& name
     ) noexcept;
 
-    constexpr void add_local(Token name) noexcept;
-    constexpr void declare_variable() noexcept;
+    constexpr void add_local(Token name, bool is_const) noexcept;
+    constexpr void declare_variable(bool is_const) noexcept;
 
     [[nodiscard]] constexpr size_t parse_variable(const char* error_message
     ) noexcept;

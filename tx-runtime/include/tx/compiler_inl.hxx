@@ -157,8 +157,6 @@ inline constexpr void Parser::grouping(bool /*can_assign*/) noexcept {
     consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
 }
 
-// constexpr void Parser::number(bool  /*can_assign*/) noexcept {
-// constexpr void Parser::string(bool  /*can_assign*/) noexcept {
 inline constexpr void Parser::literal(bool /*can_assign*/) noexcept {
     switch (previous.type) {
         case NIL: emit_bytes(OpCode::NIL); break;
@@ -196,16 +194,20 @@ inline constexpr void
 Parser::named_variable(const Token& name, bool can_assign) noexcept {
     OpCode get_op{};
     OpCode set_op{};
+    auto is_const = true;
     auto idx = resolve_local(*current_compiler, name);
     if (idx != -1) {
         get_op = OpCode::GET_LOCAL;
         set_op = OpCode::SET_LOCAL;
+        is_const = current_compiler->locals[idx].is_const;
     } else {
         idx = identifier_constant(name);
         get_op = OpCode::GET_GLOBAL;
         set_op = OpCode::SET_GLOBAL;
+        is_const = false;
     }
     if (can_assign && match(TokenType::EQUAL)) {
+        if (is_const) { error("Immutable assignment target."); }
         expression();
         emit_var_length_instruction(set_op, idx);
     } else {
@@ -285,17 +287,18 @@ inline constexpr size_t Parser::identifier_constant(const Token& name
     );
 }
 
-inline constexpr void Parser::add_local(Token name) noexcept {
+inline constexpr void Parser::add_local(Token name, bool is_const) noexcept {
     if (current_compiler->locals.size() == 256) {
         error("Too many local variables in function.");
         return;
     }
-    current_compiler->locals.emplace_back(name, -1);
+    current_compiler->locals.emplace_back(name, -1, is_const);
 }
 
-inline constexpr void Parser::declare_variable() noexcept {
+inline constexpr void Parser::declare_variable(bool is_const) noexcept {
     if (current_compiler->scope_depth == 0) { return; }
     const auto& name = previous;
+    // TODO: use ranges
     // for (const auto& local : current_compiler->locals | std::views::reverse)
     // {
     for (auto i = current_compiler->locals.size() - 1; i >= 0; --i) {
@@ -307,15 +310,16 @@ inline constexpr void Parser::declare_variable() noexcept {
             error("Already a variable with this name in this scope.");
         }
     }
-    add_local(name);
+    add_local(name, is_const);
 }
 
 inline constexpr size_t Parser::parse_variable(const char* error_message
 ) noexcept {
+    auto is_const = previous.type != VAR;
     consume(TokenType::IDENTIFIER, error_message);
     // TODO: rework code for following function that handle locals and if test
     // that follows to exit early.
-    declare_variable();
+    declare_variable(is_const);
     if (current_compiler->scope_depth > 0) { return 0; }
     return identifier_constant(previous);
 }
@@ -337,15 +341,19 @@ inline constexpr void Parser::expression() noexcept {
 }
 
 inline constexpr void Parser::var_declaration() noexcept {
-    auto global = parse_variable("Expect variable name.");
+    auto global_idx = parse_variable("Expect variable name.");
     if (match(TokenType::EQUAL)) {
         expression();
     } else {
-        // TODO: allow forward declaration but mark as uninitialized and not nil
+        if (current_compiler->scope_depth > 0) {
+            error("Local variable should be initialized in declaration.");
+        }
+        // TODO: allow forward declaration  for globals but mark as
+        // uninitialized and not nil
         emit_bytes(OpCode::NIL);
     }
     consume(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
-    define_variable(global);
+    define_variable(global_idx);
 }
 
 inline constexpr void Parser::expression_statement() noexcept {
