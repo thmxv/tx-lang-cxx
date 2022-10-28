@@ -39,9 +39,16 @@ constexpr std::string_view usage_debug_str =
     R"(Allowed debug options: 'all', 'print-tokens', 'print-bytecode', 
   'trace-execution', 'trace-gc', 'stress-gc'.
 )";
-void print_title() noexcept {
-    fmt::print(FMT_STRING("Tx version {}\n"), tx::VERSION);
-}
+
+constexpr std::string_view greeting_str =
+    R"((o)>    Tx v{}
+//\     MIT License. Copyright (C) 2022 Xavier Thomas
+V_/_    https://github.com/thmxv/tx-lang 
+)";
+
+void print_title() noexcept { fmt::print(FMT_STRING("Tx v{}\n"), tx::VERSION); }
+
+void print_greeting() noexcept { fmt::print(greeting_str, tx::VERSION); }
 
 void print_usage() noexcept { fmt::print(usage_str); }
 
@@ -110,10 +117,10 @@ void print_debug_usage() noexcept { fmt::print(stderr, usage_debug_str); }
 }
 
 void run_repl(VM& tvm) {
-    print_title();
+    print_greeting();
     std::array<char, REPL_LINE_MAX_LEN> line{};
     while (true) {
-        fmt::print("> ");
+        fmt::print("\n> ");
         if (std::fgets(line.begin(), line.size(), stdin) == nullptr) {
             fmt::print("\n");
             break;

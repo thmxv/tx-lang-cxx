@@ -26,7 +26,7 @@ Tx is still very much a work in progress.
 - error when assigning to constant golbal
 - forbid global redefinition, unless specifically specified (REPL)
 - allow "var a = a;" in the case of shadowing and not assigning to self
-- chapter 21 (globals) challenges
+- remove undefined global runtime errors by checking at compile time
 - allow expression with block (block, all loops, if, match) without ; in places
   where a statement is permitted. Fix ambiguity and only in case where there
   is no final expression (ie: when expression is nil)
