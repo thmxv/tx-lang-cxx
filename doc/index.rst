@@ -1,5 +1,5 @@
 Tx Lang Documentation
 =====================
 
-- Syntax :ref: `syntax.rst`
+- Syntax :doc: `syntax.rst`
 
