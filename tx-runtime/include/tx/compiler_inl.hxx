@@ -13,6 +13,11 @@
 
 namespace tx {
 
+static inline constexpr bool
+identifiers_equal(const Token& lhs, const Token& rhs) {
+    return lhs.lexeme == rhs.lexeme;
+}
+
 inline constexpr bool Parser::compile() noexcept {
     Compiler comp{};
     begin_compiler(comp);
@@ -117,8 +122,7 @@ inline constexpr void Parser::emit_constant(Value value) noexcept {
     return current_chunk().code.size() - 2;
 }
 
-inline constexpr void Parser::emit_loop(size_t loop_start
-) noexcept {
+inline constexpr void Parser::emit_loop(size_t loop_start) noexcept {
     emit_bytes(OpCode::LOOP);
     auto offset = current_chunk().code.size() - loop_start + 2;
     if (offset > std::numeric_limits<u16>::max()) {
@@ -179,6 +183,18 @@ inline constexpr void Parser::end_scope() noexcept {
     emit_var_length_instruction(OpCode::END_SCOPE, scope_local_count);
 }
 
+inline constexpr void Parser::begin_loop(Loop& loop) {
+    loop.enclosing = current_compiler->innermost_loop;
+    loop.start = current_chunk().code.size();
+    loop.scope_depth = current_compiler->scope_depth;
+    current_compiler->innermost_loop = &loop;
+}
+
+inline constexpr void Parser::end_loop() {
+    current_compiler->innermost_loop = current_compiler->innermost_loop
+                                           ->enclosing;
+}
+
 inline constexpr void Parser::binary(bool /*can_assign*/) noexcept {
     auto token_type = previous.type;
     auto rule = get_rule(token_type);
@@ -215,11 +231,6 @@ inline constexpr void Parser::literal(bool /*can_assign*/) noexcept {
         case STRING_LITERAL: emit_constant(previous.value); break;
         default: unreachable();
     }
-}
-
-static inline constexpr bool
-identifiers_equal(const Token& lhs, const Token& rhs) {
-    return lhs.lexeme == rhs.lexeme;
 }
 
 inline constexpr i32
@@ -448,21 +459,41 @@ inline constexpr void Parser::var_declaration() noexcept {
 }
 
 inline constexpr void Parser::while_statement() noexcept {
-    auto loop_start = current_chunk().code.size();
+    Loop loop{};
+    begin_loop(loop);
     consume(LEFT_PAREN, "Expect '(' after 'while'.");
     expression();
     consume(RIGHT_PAREN, "Expect ')' after condition.");
     auto exit_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     emit_bytes(OpCode::POP);
     consume(LEFT_BRACE, "Expect '{' after 'while (...)'.");
-    // TODO: make sure it is ok to pass true for can_assign
-    // TODO: maybe optimize runtime handling block_expre and block_statement
-    // separately in the compiler and avoifing END_SCOPE and POP instruction
-    block(false);
+    // TODO: make sure it is ok to pass true for can_assign. I beleive the
+    // passed value is irelevant.
+    // TODO: maybe optimize for runtime by handling block_expre and
+    // block_statement separately in the compiler and avoiding END_SCOPE and POP
+    // instructions
+    block(true);
     emit_bytes(OpCode::POP);
-    emit_loop(loop_start);
+    emit_loop(loop.start);
     patch_jump(exit_jump);
     emit_bytes(OpCode::POP);
+    end_loop();
+}
+
+inline constexpr void Parser::continue_statement() noexcept {
+    if (current_compiler->innermost_loop == nullptr) {
+        error("Can't use 'continue' outside of a loop.");
+    }
+    consume(SEMICOLON, "Expect ; after 'continue'.");
+    // TODO: make reusable in discard_locals()
+    for (size_t i = current_compiler->locals.size() - 1;
+         i >= 0
+         && current_compiler->locals[i].depth
+                > current_compiler->innermost_loop->scope_depth;
+         --i) {
+        emit_bytes(OpCode::POP);
+    }
+    emit_loop(current_compiler->innermost_loop->start);
 }
 
 inline constexpr void Parser::expression_statement() noexcept {
@@ -504,6 +535,10 @@ inline constexpr bool Parser::statement_no_expression() noexcept {
         while_statement();
         return true;
     }
+    if (match(CONTINUE)) {
+        continue_statement();
+        return true;
+    }
     return false;
 }
 
@@ -511,148 +546,5 @@ inline constexpr void Parser::statement() noexcept {
     if (!statement_no_expression()) { expression_statement(); }
     if (panic_mode) { synchronize(); }
 }
-
-// void Compiler::emit_loop(index_t loop_start) noexcept {
-//     emit_byte(OpCode::LOOP);
-//     const auto offset = static_cast<isize>(current_chunk().code.size())
-//                         - loop_start + 2;
-//     if (offset > std::numeric_limits<u16>::max()) {
-//         parser.error("Loop body too large.");
-//     }
-//     emit_byte(static_cast<u8>((offset >> 8) & 0xff));
-//     emit_byte(static_cast<u8>(offset & 0xff));
-// }
-//
-// [[nodiscard]] i32 Compiler::emit_jump(OpCode instruction) noexcept {
-//     emit_byte(instruction);
-//     emit_byte(static_cast<u8>(0xff));
-//     emit_byte(static_cast<u8>(0xff));
-//     return current_chunk().code.size() - 2;
-// }
-
-// void Compiler::emit_constant(Value value) noexcept {
-//     emit_bytes(OpCode::CONSTANT, make_constant(value));
-// }
-//
-// void Compiler::patch_jump(i32 offset) noexcept {
-//     // -2 to adjust for bytecode for the jump offset itself.
-//     const auto jump = current_chunk().code.size() - offset - 2;
-//     if (jump > std::numeric_limits<u16>::max()) {
-//         parser.error("Too much code to jump over.");
-//     }
-//     current_chunk().code[offset].value_index = static_cast<u8>(
-//         (jump >> 8) & 0xff
-//     );
-//     current_chunk().code[offset + 1].value_index = static_cast<u8>(jump &
-//     0xff);
-// }
-//
-// [[nodiscard]] u8 Compiler::make_constant(Value value) noexcept {
-//     const auto index = current_chunk().add_constant(value);
-//     if (index > std::numeric_limits<u8>::max()) {
-//         parser.error("Too many constants in one chunk.");
-//         return 0;
-//     }
-//     return static_cast<u8>(index);
-// }
-//
-// constexpr void Compiler::begin_scope() noexcept { scope_depth++; }
-//
-// void Compiler::end_scope() noexcept {
-//     scope_depth--;
-//     while (!locals.empty() && locals.back().depth > scope_depth) {
-//         if (locals.back().is_captured) {
-//             emit_byte(OpCode::CLOSE_UPVALUE);
-//         } else {
-//             emit_byte(OpCode::POP);
-//         }
-//         locals.pop_back();
-//     }
-// }
-//
-// void Compiler::add_local(Token name) noexcept {
-//     if (locals.size() == UINT8_COUNT) {
-//         parser.error("Too many local variables in function.");
-//         return;
-//     }
-//     locals.emplace_back(name, -1, false);
-// }
-//
-// void Compiler::declare_variable(Token name) noexcept {
-//     if (scope_depth == 0) { return; }
-//     for (const auto& local : locals | std::views::reverse) {
-//         if (local.depth != -1 && local.depth < scope_depth) { break; }
-//         if (identifiers_equal(name, local.name)) {
-//             parser.error("Already a variable with this name in this scope.");
-//         }
-//     }
-//     add_local(name);
-// }
-//
-// void Compiler::mark_initialized() noexcept {
-//     if (scope_depth == 0) { return; }
-//     locals.back().depth = scope_depth;
-// }
-//
-// void Compiler::define_variable(u8 global) noexcept {
-//     if (scope_depth > 0) {
-//         mark_initialized();
-//         return;
-//     }
-//     emit_bytes(OpCode::DEFINE_GLOBAL, global);
-// }
-//
-// [[nodiscard]] u8 Compiler::identifier_constant(Token& name) noexcept {
-//     return make_constant(Value{copy_string(parser.vm, name.lexeme)});
-// }
-//
-// [[nodiscard]] isize Compiler::resolve_local(const Token& name) noexcept {
-//     for (i32 i = locals.size() - 1; i >= 0; --i) {
-//         const Local& local = locals[i];
-//         if (identifiers_equal(name, local.name)) {
-//             if (local.depth == -1) {
-//                 parser.error("Can't read local variable in its own
-//                 initializer."
-//                 );
-//             }
-//             return i;
-//         }
-//     }
-//     return -1;
-// }
-//
-// [[nodiscard]] constexpr isize
-// Compiler::add_upvalue(u8 index, bool is_local) noexcept {
-//     const auto upvalue_count = function->upvalue_count;
-//     for (auto i = 0; i < upvalue_count; ++i) {
-//         const auto& upvalue = upvalues[static_cast<std::size_t>(i)];
-//         if (upvalue.index == index && upvalue.is_local == is_local) {
-//             return i;
-//         }
-//     }
-//     if (upvalue_count == UINT8_COUNT) {
-//         parser.error("Too many closure variables in function.");
-//         return 0;
-//     }
-//     upvalues[static_cast<std::size_t>(upvalue_count)].is_local = is_local;
-//     upvalues[static_cast<std::size_t>(upvalue_count)].index = index;
-//     return function->upvalue_count++;
-// }
-//
-// [[nodiscard]] constexpr isize Compiler::resolve_upvalue(const Token& name
-// ) noexcept {
-//     if (enclosing == nullptr) { return -1; }
-//     const auto local = enclosing->resolve_local(name);
-//     if (local != -1) {
-//         const auto u8_local = static_cast<u8>(local);
-//         enclosing->locals[u8_local].is_captured = true;
-//         return add_upvalue(u8_local, true);
-//     }
-//     const auto upvalue = enclosing->resolve_upvalue(name);
-//     if (upvalue != -1) {
-//         return add_upvalue(static_cast<std::uint8_t>(upvalue), false);
-//     }
-//     return -1;
-// }
 
 }  // namespace tx

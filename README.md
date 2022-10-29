@@ -23,6 +23,11 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- for loops (range based)
+- match expression
+- loop loops
+- break/continue
+- loop label and support in break and continure
 - investigate what "can_assign" value to pass to block from conditionals/loop
   that requires a block;
 - error when assigning to constant golbal

@@ -44,11 +44,18 @@ struct Local {
             , is_const(is_constant) {}
 };
 
+struct Loop {
+    size_t start;
+    size_t scope_depth;
+    Loop* enclosing;
+};
+
 struct Compiler {
     using LocalArray = FixedCapacityArray<Local, size_t, 256>;
 
     LocalArray locals;
     i32 scope_depth{0};
+    Loop* innermost_loop = nullptr;
 };
 
 class Parser {
@@ -107,6 +114,8 @@ class Parser {
     constexpr void end_compiler() noexcept;
     constexpr void begin_scope() noexcept;
     constexpr void end_scope() noexcept;
+    constexpr void begin_loop(Loop& loop);
+    constexpr void end_loop();
 
   public:
     constexpr void binary(bool) noexcept;
@@ -145,10 +154,11 @@ class Parser {
     constexpr void expression() noexcept;
     constexpr void var_declaration() noexcept;
     constexpr void while_statement() noexcept;
+    constexpr void continue_statement() noexcept;
     constexpr void expression_statement() noexcept;
     constexpr void synchronize() noexcept;
-    [[nodiscard]] constexpr bool statement_no_expression() noexcept;
     constexpr void statement() noexcept;
+    [[nodiscard]] constexpr bool statement_no_expression() noexcept;
 
     // friend class ParseRules;
 };
