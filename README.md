@@ -23,6 +23,8 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- investigate what "can_assign" value to pass to block from conditionals/loop
+  that requires a block;
 - error when assigning to constant golbal
 - forbid global redefinition, unless specifically specified (REPL)
 - allow "var a = a;" in the case of shadowing and not assigning to self
@@ -54,7 +56,7 @@ Tx is still very much a work in progress.
 - [X] String
 - [X] Hash table
 - [X] Global variables
-- [ ] Local variables
+- [X] Local variables
 - [ ] Type checking
 - [ ] Jumping
 - [ ] Functions and call
@@ -67,6 +69,7 @@ Tx is still very much a work in progress.
 
 ## Minimum target for realease candidate
 
+- [ ] Documentation
 - [ ] Array and Map values (generic types)
 - [ ] Tuples (need variadic generic types)
 - [ ] Traits
@@ -80,4 +83,6 @@ Tx is still very much a work in progress.
 - [ ] Fibers
 - [ ] Threads
 - [ ] Async and await
+- [ ] Package manager
+- [ ] Virtual env
 

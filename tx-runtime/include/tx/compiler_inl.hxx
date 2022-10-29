@@ -111,9 +111,24 @@ inline constexpr void Parser::emit_constant(Value value) noexcept {
     emit_var_length_instruction(OpCode::CONSTANT, idx);
 }
 
-inline constexpr size_t Parser::emit_jump(OpCode instruction) noexcept {
+[[nodiscard]] inline constexpr size_t Parser::emit_jump(OpCode instruction
+) noexcept {
     emit_bytes(instruction, static_cast<u8>(0xff), static_cast<u8>(0xff));
     return current_chunk().code.size() - 2;
+}
+
+inline constexpr void Parser::emit_loop(size_t loop_start
+) noexcept {
+    emit_bytes(OpCode::LOOP);
+    auto offset = current_chunk().code.size() - loop_start + 2;
+    if (offset > std::numeric_limits<u16>::max()) {
+        error("Loop body too large.");
+    }
+    const u16 offset_16 = static_cast<u16>(offset);
+    emit_bytes(
+        static_cast<u8>((offset_16 >> 8U) & 0xffU),
+        static_cast<u8>(offset_16 & 0xffU)
+    );
 }
 
 inline constexpr void Parser::patch_jump(i32 offset) noexcept {
@@ -292,17 +307,35 @@ inline constexpr void Parser::if_expr(bool can_assign) noexcept {
     auto then_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     emit_bytes(OpCode::POP);
     consume(LEFT_BRACE, "Expect '{' after 'if (...)'.");
+    // TODO: should we realy pass can_assign?
     block(can_assign);
     auto else_jump = emit_jump(OpCode::JUMP);
     patch_jump(then_jump);
     emit_bytes(OpCode::POP);
     if (match(ELSE)) {
         consume(LEFT_BRACE, "Expect '{' after 'else'.");
+        // TODO: should we realy pass can_assign?
         block(can_assign);
     } else {
         emit_bytes(OpCode::NIL);
     }
     patch_jump(else_jump);
+}
+
+inline constexpr void Parser::and_(bool /*can_assign*/) noexcept {
+    auto end_jump = emit_jump(OpCode::JUMP_IF_FALSE);
+    emit_bytes(OpCode::POP);
+    parse_precedence(Precedence::AND);
+    patch_jump(end_jump);
+}
+
+inline constexpr void Parser::or_(bool /*can_assign*/) noexcept {
+    auto else_jump = emit_jump(OpCode::JUMP_IF_FALSE);
+    auto end_jump = emit_jump(OpCode::JUMP);
+    patch_jump(else_jump);
+    emit_bytes(OpCode::POP);
+    parse_precedence(Precedence::OR);
+    patch_jump(end_jump);
 }
 
 inline constexpr const ParseRule& Parser::get_rule(TokenType token_type
@@ -414,6 +447,24 @@ inline constexpr void Parser::var_declaration() noexcept {
     define_variable(global_idx);
 }
 
+inline constexpr void Parser::while_statement() noexcept {
+    auto loop_start = current_chunk().code.size();
+    consume(LEFT_PAREN, "Expect '(' after 'while'.");
+    expression();
+    consume(RIGHT_PAREN, "Expect ')' after condition.");
+    auto exit_jump = emit_jump(OpCode::JUMP_IF_FALSE);
+    emit_bytes(OpCode::POP);
+    consume(LEFT_BRACE, "Expect '{' after 'while (...)'.");
+    // TODO: make sure it is ok to pass true for can_assign
+    // TODO: maybe optimize runtime handling block_expre and block_statement
+    // separately in the compiler and avoifing END_SCOPE and POP instruction
+    block(false);
+    emit_bytes(OpCode::POP);
+    emit_loop(loop_start);
+    patch_jump(exit_jump);
+    emit_bytes(OpCode::POP);
+}
+
 inline constexpr void Parser::expression_statement() noexcept {
     expression();
     consume(TokenType::SEMICOLON, "Expect ';' after expression.");
@@ -447,6 +498,10 @@ inline constexpr bool Parser::statement_no_expression() noexcept {
     if (match(SEMICOLON)) { return true; }
     if (match(VAR) || match(LET)) {
         var_declaration();
+        return true;
+    }
+    if (match(WHILE)) {
+        while_statement();
         return true;
     }
     return false;

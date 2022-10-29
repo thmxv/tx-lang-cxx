@@ -100,7 +100,8 @@ class Parser {
     constexpr void emit_constant(Value value) noexcept;
     constexpr void emit_return() noexcept;
     constexpr void emit_var_length_instruction(OpCode opc, size_t idx) noexcept;
-    constexpr size_t emit_jump(OpCode instruction) noexcept;
+    [[nodiscard]] constexpr size_t emit_jump(OpCode instruction) noexcept;
+    constexpr void emit_loop(size_t loop_start) noexcept;
     constexpr void patch_jump(i32 offset) noexcept;
     constexpr void begin_compiler(Compiler& compiler) noexcept;
     constexpr void end_compiler() noexcept;
@@ -116,6 +117,8 @@ class Parser {
     constexpr void unary(bool) noexcept;
     constexpr void block(bool) noexcept;
     constexpr void if_expr(bool) noexcept;
+    constexpr void and_(bool) noexcept;
+    constexpr void or_(bool) noexcept;
 
   private:
     [[nodiscard]] static constexpr const ParseRule& get_rule(
@@ -141,6 +144,7 @@ class Parser {
 
     constexpr void expression() noexcept;
     constexpr void var_declaration() noexcept;
+    constexpr void while_statement() noexcept;
     constexpr void expression_statement() noexcept;
     constexpr void synchronize() noexcept;
     [[nodiscard]] constexpr bool statement_no_expression() noexcept;
@@ -190,7 +194,7 @@ class ParseRules {
         [FLOAT_LITERAL]   = {&p::literal,  nullptr,    P::NONE},
         [STRING_LITERAL]  = {&p::literal,  nullptr,    P::NONE},
         [STRING_INTERP]   = {nullptr,      nullptr,    P::NONE},
-        [AND]             = {nullptr,      nullptr,    P::NONE},
+        [AND]             = {nullptr,      &p::and_,   P::AND},
         [AS]              = {nullptr,      nullptr,    P::NONE},
         [ASYNC]           = {nullptr,      nullptr,    P::NONE},
         [AWAIT]           = {nullptr,      nullptr,    P::NONE},
@@ -209,7 +213,7 @@ class ParseRules {
         [LOOP]            = {nullptr,      nullptr,    P::NONE},
         [NIL]             = {&p::literal,  nullptr,    P::NONE},
         [MATCH]           = {nullptr,      nullptr,    P::NONE},
-        [OR]              = {nullptr,      nullptr,    P::NONE},
+        [OR]              = {nullptr,      &p::or_,    P::OR},
         [OUT]             = {nullptr,      nullptr,    P::NONE},
         [RETURN]          = {nullptr,      nullptr,    P::NONE},
         [SELF]            = {nullptr,      nullptr,    P::NONE},

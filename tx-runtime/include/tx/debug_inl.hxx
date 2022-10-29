@@ -110,8 +110,7 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
         case NEGATE:
         case RETURN:
         case END: return simple_instruction(name, offset);
-        case CONSTANT:
-            return constant_instruction(name, chunk, offset, false);
+        case CONSTANT: return constant_instruction(name, chunk, offset, false);
         case CONSTANT_LONG:
             return constant_instruction(name, chunk, offset, true);
         case GET_GLOBAL:
@@ -128,7 +127,8 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
         case SET_LOCAL_LONG:
             return var_length_instruction(name, chunk, offset, true);
         case JUMP:
-        case JUMP_IF_FALSE: return jump_instruction(name, 1, chunk, offset);
+        case JUMP_IF_FALSE:
+        case LOOP: return jump_instruction(name, -1, chunk, offset);
     }
     unreachable();
 }

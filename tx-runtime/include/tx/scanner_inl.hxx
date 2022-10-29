@@ -174,11 +174,11 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
         case 'o':
             if (std::distance(start, current) > 1) {
                 switch (*std::next(start)) {
-                    case 'u': return check_keyword(3, "t", OUT);
-                    case 'r': return check_keyword(1, "", OR);
+                    case 'u': return check_keyword(2, "t", OUT);
+                    case 'r': return check_keyword(2, "", OR);
                 }
             }
-            return check_keyword(2, "", IN);
+            break;
         case 'r': return check_keyword(1, "eturn", RETURN);
         case 's':
             if (std::distance(start, current) > 1) {

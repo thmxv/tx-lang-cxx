@@ -350,7 +350,15 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
             }
             TX_VM_CASE(JUMP_IF_FALSE) : {
                 auto offset = read_short();
-                if (peek(0).is_falsey()) { instruction_ptr += offset; }
+                instruction_ptr = std::next(
+                    instruction_ptr,
+                    static_cast<i64>(peek(0).is_falsey()) * offset
+                );
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(LOOP) : {
+                auto offset = read_short();
+                instruction_ptr = std::prev(instruction_ptr, offset);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(END_SCOPE) : {
