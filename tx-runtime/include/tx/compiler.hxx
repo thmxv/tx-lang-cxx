@@ -46,6 +46,7 @@ struct Local {
 
 struct Loop {
     size_t start;
+    size_t finish;
     size_t scope_depth;
     Loop* enclosing;
 };
@@ -113,9 +114,10 @@ class Parser {
     constexpr void begin_compiler(Compiler& compiler) noexcept;
     constexpr void end_compiler() noexcept;
     constexpr void begin_scope() noexcept;
+    constexpr void patch_jumps_in_innermost_loop() noexcept;
     constexpr void end_scope() noexcept;
-    constexpr void begin_loop(Loop& loop);
-    constexpr void end_loop();
+    constexpr void begin_loop(Loop& loop) noexcept;
+    constexpr void end_loop() noexcept;
 
   public:
     constexpr void binary(bool) noexcept;
@@ -154,6 +156,7 @@ class Parser {
     constexpr void expression() noexcept;
     constexpr void var_declaration() noexcept;
     constexpr void while_statement() noexcept;
+    constexpr void break_statement() noexcept;
     constexpr void continue_statement() noexcept;
     constexpr void expression_statement() noexcept;
     constexpr void synchronize() noexcept;

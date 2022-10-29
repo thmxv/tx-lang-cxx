@@ -153,7 +153,7 @@ inline TX_VM_CONSTEXPR InterpretResult VM::run(const Chunk& chunk) noexcept {
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
-            #define TX_OPCODE(name, _) &&L_opcode_##name,
+            #define TX_OPCODE(name, length, _) &&L_opcode_##name,
             #include "tx/opcodes.inc"
             #undef TX_OPCODE
         };

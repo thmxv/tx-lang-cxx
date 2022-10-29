@@ -23,10 +23,14 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- remove END_SCOPE opcode? or at least make a long version (see when return
+  is implemented)
+- fix crash with: var a=0; while(a<2){var b=0; if(a==1){break;}; a=a+1;};
+- fix issue with if needing ';' after block
+- use get_byte_count_for_opcode in more places
 - for loops (range based)
 - match expression
 - loop loops
-- break/continue
 - loop label and support in break and continure
 - investigate what "can_assign" value to pass to block from conditionals/loop
   that requires a block;

@@ -13,11 +13,23 @@ namespace tx {
 // clang-format off
 enum class OpCode : u8 {
     // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-    #define TX_OPCODE(name, _) name,
+    #define TX_OPCODE(name, length, _) name,
+    #include "tx/opcodes.inc"
+    #undef TX_OPCODE
+};
+
+inline constexpr std::array opcode_length_table = {
+    // NOLINTNEXTLINE(*-macro-usage)
+    #define TX_OPCODE(name, length, _) length,
     #include "tx/opcodes.inc"
     #undef TX_OPCODE
 };
 // clang-format on
+
+static inline constexpr size_t
+get_byte_count_following_opcode(OpCode opc) noexcept {
+    return opcode_length_table[to_underlying(opc)];
+}
 
 struct ByteCode {
     union {

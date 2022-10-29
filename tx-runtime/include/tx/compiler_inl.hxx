@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tx/chunk.hxx"
 #include "tx/common.hxx"
 #include "tx/compiler.hxx"
 #include "tx/debug.hxx"
@@ -136,11 +137,11 @@ inline constexpr void Parser::emit_loop(size_t loop_start) noexcept {
 }
 
 inline constexpr void Parser::patch_jump(i32 offset) noexcept {
-    auto jump = current_chunk().code.size() - offset - 2;
-    if (jump > std::numeric_limits<u16>::max()) {
+    auto jump_distance = current_chunk().code.size() - offset - 2;
+    if (jump_distance > std::numeric_limits<u16>::max()) {
         error("Too much code to jump over.");
     }
-    const u16 jump_16 = static_cast<u16>(jump);
+    const u16 jump_16 = static_cast<u16>(jump_distance);
     current_chunk().code[offset].value = static_cast<u8>(
         (jump_16 >> 8U) & 0xffU
     );
@@ -183,14 +184,30 @@ inline constexpr void Parser::end_scope() noexcept {
     emit_var_length_instruction(OpCode::END_SCOPE, scope_local_count);
 }
 
-inline constexpr void Parser::begin_loop(Loop& loop) {
+inline constexpr void Parser::begin_loop(Loop& loop) noexcept {
     loop.enclosing = current_compiler->innermost_loop;
     loop.start = current_chunk().code.size();
+    loop.finish = -1;
     loop.scope_depth = current_compiler->scope_depth;
     current_compiler->innermost_loop = &loop;
 }
 
-inline constexpr void Parser::end_loop() {
+inline constexpr void Parser::patch_jumps_in_innermost_loop() noexcept {
+    for (size_t i = current_compiler->innermost_loop->start;
+         i < current_chunk().code.size();) {
+        ByteCode& btc = current_chunk().code[i];
+        if (btc.as_opcode() == OpCode::END) {
+            btc = ByteCode{OpCode::JUMP};
+            patch_jump(i + 1);
+            // i += 3;
+            // continue;
+        }
+        i += 1 + get_byte_count_following_opcode(btc.as_opcode());
+    }
+}
+
+inline constexpr void Parser::end_loop() noexcept {
+    patch_jumps_in_innermost_loop();
     current_compiler->innermost_loop = current_compiler->innermost_loop
                                            ->enclosing;
 }
@@ -480,6 +497,23 @@ inline constexpr void Parser::while_statement() noexcept {
     end_loop();
 }
 
+inline constexpr void Parser::break_statement() noexcept {
+    if (current_compiler->innermost_loop == nullptr) {
+        error("Can't use 'break' outside of a loop.");
+    }
+    consume(SEMICOLON, "Expect ; after 'break'.");
+    // TODO: make reusable in emit_pop_innermost_loop_locals()
+    for (size_t i = current_compiler->locals.size() - 1;
+         i >= 0
+         && current_compiler->locals[i].depth
+                > current_compiler->innermost_loop->scope_depth;
+         --i) {
+        emit_bytes(OpCode::POP);
+    }
+    // jump with placeholder opcode that will need patching later
+    (void)emit_jump(OpCode::END);
+}
+
 inline constexpr void Parser::continue_statement() noexcept {
     if (current_compiler->innermost_loop == nullptr) {
         error("Can't use 'continue' outside of a loop.");
@@ -533,6 +567,10 @@ inline constexpr bool Parser::statement_no_expression() noexcept {
     }
     if (match(WHILE)) {
         while_statement();
+        return true;
+    }
+    if (match(BREAK)) {
+        break_statement();
         return true;
     }
     if (match(CONTINUE)) {

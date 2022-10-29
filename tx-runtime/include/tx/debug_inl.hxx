@@ -73,7 +73,7 @@ simple_instruction(std::string_view name, size_t offset) noexcept {
 // clang-format off
 inline constexpr std::array opcode_name_table = {
     // NOLINTNEXTLINE(*-macro-usage)
-    #define TX_OPCODE(name, _) #name,
+    #define TX_OPCODE(name, length, _) #name,
     #include "tx/opcodes.inc"
     #undef TX_OPCODE
 };
