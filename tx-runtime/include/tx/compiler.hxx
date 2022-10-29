@@ -46,8 +46,8 @@ struct Local {
 
 struct Loop {
     size_t start;
-    size_t finish;
     size_t scope_depth;
+    bool is_loop_expr;
     Loop* enclosing;
 };
 
@@ -116,7 +116,7 @@ class Parser {
     constexpr void begin_scope() noexcept;
     constexpr void patch_jumps_in_innermost_loop() noexcept;
     constexpr void end_scope() noexcept;
-    constexpr void begin_loop(Loop& loop) noexcept;
+    constexpr void begin_loop(Loop& loop, bool is_loop_expr=false) noexcept;
     constexpr void end_loop() noexcept;
 
   public:
@@ -128,6 +128,7 @@ class Parser {
     constexpr void unary(bool) noexcept;
     constexpr void block(bool) noexcept;
     constexpr void if_expr(bool) noexcept;
+    constexpr void loop_expr(bool) noexcept;
     constexpr void and_(bool) noexcept;
     constexpr void or_(bool) noexcept;
 
@@ -180,71 +181,71 @@ class ParseRules {
     // clang-format off
     // NOLINTNEXTLINE(*-avoid-c-arrays)
     __extension__ static constexpr ParseRule rules[] = {
-        [LEFT_PAREN]      = {&p::grouping, nullptr,    P::NONE},
-        [RIGHT_PAREN]     = {nullptr,      nullptr,    P::NONE},
-        [LEFT_BRACE]      = {&p::block,    nullptr,    P::NONE},
-        [RIGHT_BRACE]     = {nullptr,      nullptr,    P::NONE},
-        [LEFT_BRACKET]    = {nullptr,      nullptr,    P::NONE},
-        [RIGHT_BRACKET]   = {nullptr,      nullptr,    P::NONE},
-        [COLON]           = {nullptr,      nullptr,    P::NONE},
-        [COMMA]           = {nullptr,      nullptr,    P::NONE},
-        [DOT]             = {nullptr,      nullptr,    P::NONE},
-        [MINUS]           = {&p::unary,    &p::binary, P::TERM},
-        [PIPE]            = {nullptr,      nullptr,    P::NONE},
-        [PLUS]            = {nullptr,      &p::binary, P::TERM},
-        [SEMICOLON]       = {nullptr,      nullptr,    P::NONE},
-        [SLASH]           = {nullptr,      &p::binary, P::FACTOR},
-        [STAR]            = {nullptr,      &p::binary, P::FACTOR},
-        [BANG]            = {&p::unary,    nullptr,    P::NONE},
-        [BANG_EQUAL]      = {nullptr,      &p::binary, P::EQUALITY},
-        [EQUAL]           = {nullptr,      nullptr,    P::NONE},
-        [EQUAL_EQUAL]     = {nullptr,      &p::binary, P::EQUALITY},
-        [LEFT_CHEVRON]    = {nullptr,      &p::binary, P::COMPARISON},
-        [LESS_EQUAL]      = {nullptr,      &p::binary, P::COMPARISON},
-        [RIGHT_CHEVRON]   = {nullptr,      &p::binary, P::COMPARISON},
-        [GREATER_EQUAL]   = {nullptr,      &p::binary, P::COMPARISON},
-        [IDENTIFIER]      = {&p::variable, nullptr,    P::NONE},
-        [INTEGER_LITERAL] = {&p::literal,  nullptr,    P::NONE},
-        [FLOAT_LITERAL]   = {&p::literal,  nullptr,    P::NONE},
-        [STRING_LITERAL]  = {&p::literal,  nullptr,    P::NONE},
-        [STRING_INTERP]   = {nullptr,      nullptr,    P::NONE},
-        [AND]             = {nullptr,      &p::and_,   P::AND},
-        [AS]              = {nullptr,      nullptr,    P::NONE},
-        [ASYNC]           = {nullptr,      nullptr,    P::NONE},
-        [AWAIT]           = {nullptr,      nullptr,    P::NONE},
-        [BREAK]           = {nullptr,      nullptr,    P::NONE},
-        [CONTINUE]        = {nullptr,      nullptr,    P::NONE},
-        [ELSE]            = {nullptr,      nullptr,    P::NONE},
-        [FALSE]           = {&p::literal,  nullptr,    P::NONE},
-        [FOR]             = {nullptr,      nullptr,    P::NONE},
-        [FN]              = {nullptr,      nullptr,    P::NONE},
-        [IF]              = {&p::if_expr,  nullptr,    P::NONE},
-        [IN]              = {nullptr,      nullptr,    P::NONE},
-        [INOUT]           = {nullptr,      nullptr,    P::NONE},
-        [IMPORT]          = {nullptr,      nullptr,    P::NONE},
-        [IS]              = {nullptr,      nullptr,    P::NONE},
-        [LET]             = {nullptr,      nullptr,    P::NONE},
-        [LOOP]            = {nullptr,      nullptr,    P::NONE},
-        [NIL]             = {&p::literal,  nullptr,    P::NONE},
-        [MATCH]           = {nullptr,      nullptr,    P::NONE},
-        [OR]              = {nullptr,      &p::or_,    P::OR},
-        [OUT]             = {nullptr,      nullptr,    P::NONE},
-        [RETURN]          = {nullptr,      nullptr,    P::NONE},
-        [SELF]            = {nullptr,      nullptr,    P::NONE},
-        [STRUCT]          = {nullptr,      nullptr,    P::NONE},
-        [SUPER]           = {nullptr,      nullptr,    P::NONE},
-        [TRUE]            = {&p::literal,  nullptr,    P::NONE},
-        [VAR]             = {nullptr,      nullptr,    P::NONE},
-        [WHILE]           = {nullptr,      nullptr,    P::NONE},
-        [ANY]             = {nullptr,      nullptr,    P::NONE},
-        [BOOL]            = {nullptr,      nullptr,    P::NONE},
-        [CHAR]            = {nullptr,      nullptr,    P::NONE},
-        [FLOAT]           = {nullptr,      nullptr,    P::NONE},
-        [INT]             = {nullptr,      nullptr,    P::NONE},
-        [NIL_TYPE]        = {nullptr,      nullptr,    P::NONE},
-        [STR]             = {nullptr,      nullptr,    P::NONE},
-        [ERROR]           = {nullptr,      nullptr,    P::NONE},
-        [END_OF_FILE]     = {nullptr,      nullptr,    P::NONE},
+        [LEFT_PAREN]      = {&p::grouping,   nullptr,    P::NONE},
+        [RIGHT_PAREN]     = {nullptr,        nullptr,    P::NONE},
+        [LEFT_BRACE]      = {&p::block,      nullptr,    P::NONE},
+        [RIGHT_BRACE]     = {nullptr,        nullptr,    P::NONE},
+        [LEFT_BRACKET]    = {nullptr,        nullptr,    P::NONE},
+        [RIGHT_BRACKET]   = {nullptr,        nullptr,    P::NONE},
+        [COLON]           = {nullptr,        nullptr,    P::NONE},
+        [COMMA]           = {nullptr,        nullptr,    P::NONE},
+        [DOT]             = {nullptr,        nullptr,    P::NONE},
+        [MINUS]           = {&p::unary,      &p::binary, P::TERM},
+        [PIPE]            = {nullptr,        nullptr,    P::NONE},
+        [PLUS]            = {nullptr,        &p::binary, P::TERM},
+        [SEMICOLON]       = {nullptr,        nullptr,    P::NONE},
+        [SLASH]           = {nullptr,        &p::binary, P::FACTOR},
+        [STAR]            = {nullptr,        &p::binary, P::FACTOR},
+        [BANG]            = {&p::unary,      nullptr,    P::NONE},
+        [BANG_EQUAL]      = {nullptr,        &p::binary, P::EQUALITY},
+        [EQUAL]           = {nullptr,        nullptr,    P::NONE},
+        [EQUAL_EQUAL]     = {nullptr,        &p::binary, P::EQUALITY},
+        [LEFT_CHEVRON]    = {nullptr,        &p::binary, P::COMPARISON},
+        [LESS_EQUAL]      = {nullptr,        &p::binary, P::COMPARISON},
+        [RIGHT_CHEVRON]   = {nullptr,        &p::binary, P::COMPARISON},
+        [GREATER_EQUAL]   = {nullptr,        &p::binary, P::COMPARISON},
+        [IDENTIFIER]      = {&p::variable,   nullptr,    P::NONE},
+        [INTEGER_LITERAL] = {&p::literal,    nullptr,    P::NONE},
+        [FLOAT_LITERAL]   = {&p::literal,    nullptr,    P::NONE},
+        [STRING_LITERAL]  = {&p::literal,    nullptr,    P::NONE},
+        [STRING_INTERP]   = {nullptr,        nullptr,    P::NONE},
+        [AND]             = {nullptr,        &p::and_,   P::AND},
+        [AS]              = {nullptr,        nullptr,    P::NONE},
+        [ASYNC]           = {nullptr,        nullptr,    P::NONE},
+        [AWAIT]           = {nullptr,        nullptr,    P::NONE},
+        [BREAK]           = {nullptr,        nullptr,    P::NONE},
+        [CONTINUE]        = {nullptr,        nullptr,    P::NONE},
+        [ELSE]            = {nullptr,        nullptr,    P::NONE},
+        [FALSE]           = {&p::literal,    nullptr,    P::NONE},
+        [FOR]             = {nullptr,        nullptr,    P::NONE},
+        [FN]              = {nullptr,        nullptr,    P::NONE},
+        [IF]              = {&p::if_expr,    nullptr,    P::NONE},
+        [IN]              = {nullptr,        nullptr,    P::NONE},
+        [INOUT]           = {nullptr,        nullptr,    P::NONE},
+        [IMPORT]          = {nullptr,        nullptr,    P::NONE},
+        [IS]              = {nullptr,        nullptr,    P::NONE},
+        [LET]             = {nullptr,        nullptr,    P::NONE},
+        [LOOP]            = {&p::loop_expr,  nullptr,    P::NONE},
+        [NIL]             = {&p::literal,    nullptr,    P::NONE},
+        [MATCH]           = {nullptr,        nullptr,    P::NONE},
+        [OR]              = {nullptr,        &p::or_,    P::OR},
+        [OUT]             = {nullptr,        nullptr,    P::NONE},
+        [RETURN]          = {nullptr,        nullptr,    P::NONE},
+        [SELF]            = {nullptr,        nullptr,    P::NONE},
+        [STRUCT]          = {nullptr,        nullptr,    P::NONE},
+        [SUPER]           = {nullptr,        nullptr,    P::NONE},
+        [TRUE]            = {&p::literal,    nullptr,    P::NONE},
+        [VAR]             = {nullptr,        nullptr,    P::NONE},
+        [WHILE]           = {nullptr,        nullptr,    P::NONE},
+        [ANY]             = {nullptr,        nullptr,    P::NONE},
+        [BOOL]            = {nullptr,        nullptr,    P::NONE},
+        [CHAR]            = {nullptr,        nullptr,    P::NONE},
+        [FLOAT]           = {nullptr,        nullptr,    P::NONE},
+        [INT]             = {nullptr,        nullptr,    P::NONE},
+        [NIL_TYPE]        = {nullptr,        nullptr,    P::NONE},
+        [STR]             = {nullptr,        nullptr,    P::NONE},
+        [ERROR]           = {nullptr,        nullptr,    P::NONE},
+        [END_OF_FILE]     = {nullptr,        nullptr,    P::NONE},
     };
     // clang-format on
 

@@ -48,7 +48,7 @@ inline constexpr size_t VM::read_multibyte_index(bool is_long) noexcept {
 
 inline constexpr Value VM::read_constant(bool is_long) noexcept {
     const auto constant_idx = read_multibyte_index(is_long);
-    return chunk_ptr->constants[constant_idx];
+    return chunk_ptr->constants[static_cast<size_t>(constant_idx)];
 }
 
 inline constexpr void VM::reset_stack() noexcept { stack.clear(); }

@@ -33,7 +33,7 @@ disassemble_chunk(const Chunk& chunk, std::string_view name) noexcept {
         "{:8s} {:4d} '{}'\n",
         name,
         constant_idx,
-        chunk.constants[constant_idx]
+        chunk.constants[static_cast<size_t>(constant_idx)]
     );
     return static_cast<size_t>(std::distance(chunk.code.data(), new_ptr));
 }
@@ -128,6 +128,7 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
             return var_length_instruction(name, chunk, offset, true);
         case JUMP:
         case JUMP_IF_FALSE:
+         return jump_instruction(name, 1, chunk, offset);
         case LOOP: return jump_instruction(name, -1, chunk, offset);
     }
     unreachable();

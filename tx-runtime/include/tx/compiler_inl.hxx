@@ -184,10 +184,11 @@ inline constexpr void Parser::end_scope() noexcept {
     emit_var_length_instruction(OpCode::END_SCOPE, scope_local_count);
 }
 
-inline constexpr void Parser::begin_loop(Loop& loop) noexcept {
+inline constexpr void
+Parser::begin_loop(Loop& loop, bool is_loop_expr) noexcept {
     loop.enclosing = current_compiler->innermost_loop;
     loop.start = current_chunk().code.size();
-    loop.finish = -1;
+    loop.is_loop_expr = is_loop_expr;
     loop.scope_depth = current_compiler->scope_depth;
     current_compiler->innermost_loop = &loop;
 }
@@ -340,7 +341,7 @@ inline constexpr void Parser::if_expr(bool can_assign) noexcept {
     auto then_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     emit_bytes(OpCode::POP);
     consume(LEFT_BRACE, "Expect '{' after 'if (...)'.");
-    // TODO: should we realy pass can_assign?
+    // TODO: should we realy pass can_assign? or save and restore
     block(can_assign);
     auto else_jump = emit_jump(OpCode::JUMP);
     patch_jump(then_jump);
@@ -353,6 +354,17 @@ inline constexpr void Parser::if_expr(bool can_assign) noexcept {
         emit_bytes(OpCode::NIL);
     }
     patch_jump(else_jump);
+}
+
+inline constexpr void Parser::loop_expr(bool can_assign) noexcept {
+    Loop loop{};
+    begin_loop(loop, true);
+    consume(LEFT_BRACE, "Expect '{' after 'loop'.");
+    // TODO: should we realy pass can_assign? or save and restore
+    block(can_assign);
+    emit_bytes(OpCode::POP);
+    emit_loop(loop.start);
+    end_loop();
 }
 
 inline constexpr void Parser::and_(bool /*can_assign*/) noexcept {
@@ -506,14 +518,29 @@ inline constexpr void Parser::break_statement() noexcept {
     if (current_compiler->innermost_loop == nullptr) {
         error("Can't use 'break' outside of a loop.");
     }
-    consume(SEMICOLON, "Expect ; after 'break'.");
+    bool is_loop_expr = current_compiler->innermost_loop->is_loop_expr;
+    if (is_loop_expr) {
+        if (match(SEMICOLON)) {
+            emit_bytes(OpCode::NIL);
+        } else {
+            expression();
+            consume(SEMICOLON, "Expect ; after break return expression.");
+        }
+    } else {
+        consume(SEMICOLON, "Expect ; after 'break'.");
+    }
     // TODO: make reusable in emit_pop_innermost_loop_locals()
+    size_t loop_local_count = 0;
     for (size_t i = current_compiler->locals.size() - 1;
          i >= 0
          && current_compiler->locals[i].depth
                 > current_compiler->innermost_loop->scope_depth;
          --i) {
-        emit_bytes(OpCode::POP);
+        if (!is_loop_expr) { emit_bytes(OpCode::POP); }
+        ++loop_local_count;
+    }
+    if (is_loop_expr) {
+        emit_var_length_instruction(OpCode::END_SCOPE, loop_local_count);
     }
     // jump with placeholder opcode that will need patching later
     (void)emit_jump(OpCode::END);
@@ -536,7 +563,7 @@ inline constexpr void Parser::continue_statement() noexcept {
 }
 
 inline constexpr bool Parser::check_block_expression() const noexcept {
-    return check(LEFT_BRACE) || check(IF);
+    return check(LEFT_BRACE) || check(IF) || check(LOOP);
 }
 
 inline constexpr void Parser::expression_statement() noexcept {

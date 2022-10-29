@@ -86,11 +86,13 @@ class VM {
 
     constexpr void push(Value value) noexcept { stack.push_back_unsafe(value); }
     constexpr Value pop() noexcept {
+        assert(!stack.empty());
         auto value = stack.back();
         stack.pop_back();
         return value;
     }
     constexpr Value peek(size_t distance) noexcept {
+        assert(!stack.empty());
         return *std::prev(stack.end(), 1 + distance);
     }
 

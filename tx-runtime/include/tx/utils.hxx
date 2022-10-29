@@ -3,6 +3,7 @@
 #include "tx/common.hxx"
 
 #include <fmt/format.h>
+#include <type_traits>
 
 #include <cassert>
 
@@ -16,6 +17,13 @@ using source_location = std::source_location;
 #endif
 
 namespace tx {
+
+template <typename T>
+    requires std::is_integral_v<T>
+[[nodiscard]] inline constexpr size_t size_cast(T val) noexcept {
+    return static_cast<size_t>(val);
+}
+
 
 template <typename Enum>
 [[nodiscard]] inline constexpr std::underlying_type_t<Enum> to_underlying(

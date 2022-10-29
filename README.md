@@ -23,12 +23,13 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- fix cast of opcode multibyte values to u32?
+- more work to allow more than 256 locals in compiler 
 - remove END_SCOPE opcode? or at least make a long version (see when return
   is implemented)
 - use get_byte_count_for_opcode in more places
 - for loops (range based)
 - match expression
-- loop loops
 - loop labels with support in break and continue
 - investigate what "can_assign" value to pass to block from conditionals/loop
   that requires a block;
@@ -61,18 +62,18 @@ Tx is still very much a work in progress.
 - [X] Hash table
 - [X] Global variables
 - [X] Local variables
-- [ ] Type checking
-- [ ] Jumping
+- [X] Jumping
 - [ ] Functions and call
 - [ ] Closure
 - [ ] Garbage collection
 - [ ] Struct and instances
 - [ ] Methods and initializer
 - [ ] Inheritance
-- [ ] Optimization
+- [ ] Optimizations
 
 ## Minimum target for realease candidate
 
+- [ ] Type checking
 - [ ] Documentation
 - [ ] Array and Map values (generic types)
 - [ ] Tuples (need variadic generic types)

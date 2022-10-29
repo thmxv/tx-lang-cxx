@@ -144,7 +144,7 @@ read_multibyte_index(const ByteCode* ptr, bool is_long) noexcept {
         static_cast<u32>((ptr)->as_u8())
         | (static_cast<u32>((std::next(ptr, 1))->as_u8()) << 8U)
         | (static_cast<u32>((std::next(ptr, 2))->as_u8()) << 16U);
-    return std::make_pair(static_cast<size_t>(constant_idx), std::next(ptr, 3));
+    return std::make_pair(size_cast(constant_idx), std::next(ptr, 3));
 }
 
 }  // namespace tx
