@@ -23,6 +23,7 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- skip first and last newline if present in raw stings literals
 - fix cast of opcode multibyte values to u32?
 - more work to allow more than 256 locals in compiler 
 - remove END_SCOPE opcode? or at least make a long version (see when return
