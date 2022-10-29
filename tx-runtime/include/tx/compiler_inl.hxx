@@ -310,6 +310,7 @@ inline constexpr void Parser::block(bool /*can_assign*/) noexcept {
     bool has_final_expression = false;
     while (!check(RIGHT_BRACE) && !check(END_OF_FILE)) {
         if (!statement_no_expression()) {
+            const bool is_block_expr = check_block_expression();
             expression();
             switch (current.type) {
                 case RIGHT_BRACE: has_final_expression = true; break;
@@ -318,6 +319,10 @@ inline constexpr void Parser::block(bool /*can_assign*/) noexcept {
                     emit_bytes(OpCode::POP);
                     continue;
                 default:
+                    if (is_block_expr) {
+                        emit_bytes(OpCode::POP);
+                        continue;
+                    }
                     error("Expect ';' or '}' after expression inside block.");
             }
         }
@@ -530,9 +535,18 @@ inline constexpr void Parser::continue_statement() noexcept {
     emit_loop(current_compiler->innermost_loop->start);
 }
 
+inline constexpr bool Parser::check_block_expression() const noexcept {
+    return check(LEFT_BRACE) || check(IF);
+}
+
 inline constexpr void Parser::expression_statement() noexcept {
+    const bool is_block_expr = check_block_expression();
     expression();
-    consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+    if (is_block_expr) {
+        (void)match(SEMICOLON);
+    } else {
+        consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+    }
     emit_bytes(OpCode::POP);
 }
 

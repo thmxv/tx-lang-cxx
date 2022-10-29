@@ -158,6 +158,7 @@ class Parser {
     constexpr void while_statement() noexcept;
     constexpr void break_statement() noexcept;
     constexpr void continue_statement() noexcept;
+    [[nodiscard]] constexpr bool check_block_expression() const noexcept;
     constexpr void expression_statement() noexcept;
     constexpr void synchronize() noexcept;
     constexpr void statement() noexcept;
