@@ -378,6 +378,7 @@ Scanner::utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept {
     DynArray<char, size_t> string;
     while (peek() != '"' && !is_at_end()) {
         if (peek() == '\n') { ++line; }
+        if (peek() == '\r') { continue; }
         if (peek() == '$') {
             advance();
             if (str_interp_braces.size() < MAX_INTERP_DEPTH) {
