@@ -23,6 +23,7 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- allow to use break to break out of a block (using labels only)
 - skip first and last newline if present in raw stings literals
 - fix cast of opcode multibyte values to u32?
 - more work to allow more than 256 locals in compiler 
@@ -84,6 +85,7 @@ Tx is still very much a work in progress.
 - [ ] Modules
 - [ ] Final syntax/grammar
 - [ ] Resereve all future keywords
+- [ ] Editors support
 
 ## Later versions
 - [ ] Fibers
