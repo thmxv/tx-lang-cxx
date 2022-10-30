@@ -40,6 +40,7 @@ statements, like:
 - Control flow statements
 - Expression statements, which are expressions followed by a semicolon `;`.
 
+    ```
     # function declaration
     fn main() -> Nil {
         # variable declaration
@@ -49,6 +50,7 @@ statements, like:
         x + 1;
         15;
     }
+    ```
 
 ## Expressions
 
