@@ -89,7 +89,7 @@ Some characters need to be escaped with `\`
 
 #### Interpolation
 
-Not implemented yetl
+Not implemented yet.
 
 #### Raw strings
 
@@ -115,6 +115,8 @@ a string.
 
 ### Arrays
 
+Not implemented yet.
+
 Arrays are ordered collections of values accessible by an integer index. Arrays 
 are zero indexed (the index of the first element is 0).
 
@@ -127,7 +129,7 @@ are zero indexed (the index of the first element is 0).
 
 ### Maps
 
-TODO 
+Not implemented yet.
 
     ["key_string" : 1, nil : "value_string", 0 : 1, ]
 
@@ -137,7 +139,7 @@ TODO
 
 ## User types
 
-TODO 
+Not implemented yet.
 
     struct S {
         name: Str,
