@@ -10,9 +10,9 @@ Line comments start with `#` and end at the end of the line.
 
 This is a list of all the keywords in Tx.
 
-    and as async await break continue else false for fn if import in inout is
-    let loop nil match out or return self struct super true var while
-    Any Bool Char Float Int Nil Str
+    and as async await break continue else false for fn if import impl in
+    inout is let loop nil match out or return self struct super trait
+    true var while Any Array Bool Char Float Int Map Nil Str
 
 ## Identifiers
 
@@ -45,6 +45,7 @@ statements, like:
     fn main() -> Nil {
         # variable declaration
         let x = 5;
+
         # expression statements
         x;
         x + 1;
@@ -81,6 +82,7 @@ result value is `nil`.
     let y = {
         let x_squared = x * x;
         let x_cube = x_squared * x;
+
         # This expression will be assigned to 'y'
         x_cube + x_squared + x
     };
@@ -92,11 +94,22 @@ result value is `nil`.
 
 In places where a statement is expected, a block can be used without being 
 followed  by a `;`
+
+    let x = 0;
+
+    x+1;                # here a ';' is needed to make expr into statement
+
+    { let y = 666; }    # no ';' needed after '}'
+
+    {
+        let a = 5;
+    }                   # no ';' needed here neither
     
 Blocks are mandatory for the bodies of functions and control flow statements. 
 The result value of the block is discarted when used as the body for a 
 `while` or `for` loop statement.
 
     if (true) { print("hello"); }
+
     if (true) print("hello");      # Invalid syntax 
 
