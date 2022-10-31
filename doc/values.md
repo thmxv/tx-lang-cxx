@@ -146,4 +146,8 @@ Not implemented yet.
         age: Int,   # trailing comma allowed
     };
 
+    impl S {
+        fn get_name(self) -> Str { self.name }
+    }
+
 
