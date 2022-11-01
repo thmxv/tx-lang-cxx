@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tx/chunk.hxx"
 #include "tx/common.hxx"
 #include "tx/type_traits.hxx"
 #include "tx/utils.hxx"
@@ -16,6 +17,8 @@ namespace tx {
 class VM;
 
 enum class ObjType : u8 {
+    FUNCTION,
+    NATIVE,
     STRING,
 };
 
@@ -58,22 +61,24 @@ struct Obj {
     // bool is_closure() const noexcept {
     //     return type == ObjType::CLOSURE;
     // }
-    //
-    // [[nodiscard]] constexpr
-    // bool is_function() const noexcept {
-    //     return type == ObjType::FUNCTION;
-    // }
-    //
-    // [[nodiscard]] constexpr
-    // bool is_native() const noexcept {
-    //     return type == ObjType::NATIVE;
-    // }
 
-    friend constexpr std::partial_ordering
-    operator<=>(const Obj& lhs, const Obj& rhs) noexcept;
+    [[nodiscard]] constexpr bool is_function() const noexcept {
+        return type == ObjType::FUNCTION;
+    }
 
-    friend constexpr bool operator==(const Obj& lhs, const Obj& rhs) noexcept;
+    [[nodiscard]] constexpr bool is_native() const noexcept {
+        return type == ObjType::NATIVE;
+    }
+
+    // friend constexpr std::partial_ordering
+    // operator<=>(const Obj& lhs, const Obj& rhs) noexcept;
+    //
+    // friend constexpr bool operator==(const Obj& lhs, const Obj& rhs)
+    // noexcept;
 };
+
+template <typename T, typename... Args>
+T* allocate_object(VM& tvm, Args&&... args) noexcept;
 
 struct ObjString : Obj {
     size_t length = 0;
@@ -129,7 +134,32 @@ struct is_trivially_relocatable<ObjString>
     static constexpr value_type value = true;
 };
 
-constexpr ObjString*
+[[nodiscard]] ObjString*
 make_string(VM& tvm, bool copy, std::string_view strv) noexcept;
+
+struct ObjFunction : Obj {
+    int arity{0};
+    Chunk chunk;
+    ObjString* name{nullptr};
+
+    constexpr ObjFunction() noexcept : Obj{ObjType::FUNCTION} {}
+
+    constexpr void destroy(VM& tvm) noexcept { chunk.destroy(tvm); }
+
+    [[nodiscard]] constexpr std::string_view get_name() const noexcept {
+        return name == nullptr ? std::string_view("script")
+                               : std::string_view(*name);
+    }
+};
+
+using NativeFn = Value (*)(VM& tvm, std::span<Value> args);
+
+struct ObjNative : Obj {
+    NativeFn function{nullptr};
+
+    constexpr explicit ObjNative(NativeFn fun) noexcept
+            : Obj{ObjType::NATIVE}
+            , function(fun) {}
+};
 
 }  // namespace tx

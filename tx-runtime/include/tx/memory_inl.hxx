@@ -81,8 +81,10 @@ inline void* reallocate_impl(
 }
 
 template <typename T>
-// TODO requires base class Obj
+// requires std::derived_from<T, Obj>
+    requires std::is_base_of_v<Obj, T>
 constexpr void free_object_impl(VM& tvm, T* object) noexcept {
+    // TODO: call destroy if exist
     std::destroy_at(object);
     free<T>(tvm, object);
 }
@@ -98,15 +100,18 @@ inline void free_object(VM& tvm, Obj* object) noexcept {
     switch (object->type) {
         using enum ObjType;
         // case CLOSURE:
-        //     free_object_impl(&(object->as<ObjClosure>()));
+        //     free_object_impl(&object->as<ObjClosure>());
         //     return;
-        // case FUNCTION:
-        //     free_object_impl(&(object->as<ObjFunction>()));
-        //     return;
-        // case NATIVE:
-        //     free_object_impl(&(object->as<ObjNative>()));
-        //     return;
-        case STRING:
+        case FUNCTION: {
+            auto& fun = object->as<ObjFunction>();
+            fun.destroy(tvm);
+            free_object_impl(tvm, &fun);
+            return;
+        }
+        case NATIVE:
+            free_object_impl(tvm, &object->as<ObjNative>());
+            return;
+        case STRING: {
             auto& str = object->as<ObjString>();
             // str.destroy(tvm);
             // free_object_impl(tvm, &str);
@@ -120,7 +125,8 @@ inline void free_object(VM& tvm, Obj* object) noexcept {
                 alignof(ObjString)
             );
             return;
-            // case UPVALUE: free_object_impl(&(object->as<ObjUpvalue>()));
+        }
+        // case UPVALUE: free_object_impl(&object->as<ObjUpvalue>());
     }
     unreachable();
 }

@@ -34,35 +34,24 @@ struct fmt::formatter<tx::Value> : formatter<string_view> {
 
 template <>
 struct fmt::formatter<tx::Obj> : formatter<string_view> {
-    // template <typename FormatContext>
-    // constexpr
-    // auto format_function(
-    //     const tx::ObjFunction& function,
-    //     FormatContext& ctx
-    // ) {
-    //     if (function.name == nullptr) {
-    //         return fmt::format_to(ctx.out(), "<script>");
-    //     }
-    //     return fmt::format_to(
-    //         ctx.out(),
-    //         "<fn {:s}>",
-    //         function.name->content
-    //     );
-    // }
-
     template <typename FormatContext>
     constexpr auto format(const tx::Obj& obj, FormatContext& ctx) {
         switch (obj.type) {
             // case tx::ObjType::CLOSURE: {
-            //     const auto& closure = obj.as<lox::ObjClosure>();
+            //     const auto& closure = obj.as<tx::ObjClosure>();
             //     return format_function(*closure.function, ctx);
             // }
-            // case tx::ObjType::FUNCTION: {
-            //     const auto& function = obj.as<lox::ObjFunction>();
-            //     return format_function(function, ctx);
-            // }
-            // case tx::ObjType::NATIVE:
-            //     return fmt::format_to(ctx.out(), "<native fn>");
+            case tx::ObjType::FUNCTION: {
+                const auto& function = obj.as<tx::ObjFunction>();
+                // return format_function(function, ctx);
+                return fmt::format_to(
+                    ctx.out(),
+                    "<fn {:s}>",
+                    function.get_name()
+                );
+            }
+            case tx::ObjType::NATIVE:
+                return fmt::format_to(ctx.out(), "<native fn>");
             case tx::ObjType::STRING: {
                 const auto& str = obj.as<tx::ObjString>();
                 return fmt::format_to(ctx.out(), "{:s}", std::string_view(str));

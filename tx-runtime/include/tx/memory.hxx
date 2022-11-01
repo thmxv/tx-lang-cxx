@@ -1,14 +1,16 @@
 #pragma once
 
 #include "tx/common.hxx"
-#include "tx/object.hxx"
 #include "tx/type_traits.hxx"
 
 #include <gsl/gsl>
 
+#include <cassert>
+
 namespace tx {
 
 class VM;
+struct Obj;
 
 inline constexpr size_t MIN_CAPACIY = 8;
 inline constexpr size_t CAPACITY_SCALE_FACTOR = 2;

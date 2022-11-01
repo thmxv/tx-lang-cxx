@@ -62,26 +62,40 @@ struct Value {
             : type(OBJECT)
             , as{.obj = val} {}
 
-    // NOLINTNEXTLINE(*-union-access)
-    [[nodiscard]] constexpr bool as_bool() const noexcept { return as.boolean; }
+    [[nodiscard]] constexpr bool as_bool() const noexcept {
+        assert(type == BOOL);
+        // NOLINTNEXTLINE(*-union-access)
+        return as.boolean;
+    }
 
-    // NOLINTNEXTLINE(*-union-access)
-    [[nodiscard]] constexpr int_t as_int() const noexcept { return as.integer; }
+    [[nodiscard]] constexpr int_t as_int() const noexcept {
+        assert(type == INT);
+        // NOLINTNEXTLINE(*-union-access)
+        return as.integer;
+    }
 
     [[nodiscard]] constexpr float_t as_float() const noexcept {
+        assert(type == FLOAT);
         // NOLINTNEXTLINE(*-union-access)
         return as.scalar;
     }
 
     [[nodiscard]] constexpr float_t as_float_force() const noexcept {
+        assert(type == INT || type == FLOAT);
         return type == INT ? static_cast<float_t>(as_int()) : as_float();
     }
 
-    // NOLINTNEXTLINE(*-union-access)
-    [[nodiscard]] constexpr char32_t as_char() const noexcept { return as.chr; }
+    [[nodiscard]] constexpr char32_t as_char() const noexcept {
+        assert(type == CHAR);
+        // NOLINTNEXTLINE(*-union-access)
+        return as.chr;
+    }
 
-    // NOLINTNEXTLINE(*-union-access)
-    [[nodiscard]] constexpr Obj& as_object() const noexcept { return *as.obj; }
+    [[nodiscard]] constexpr Obj& as_object() const noexcept {
+        assert(type == OBJECT);
+        // NOLINTNEXTLINE(*-union-access)
+        return *as.obj;
+    }
 
     [[nodiscard]] constexpr bool is_none() const noexcept {
         return type == NONE;

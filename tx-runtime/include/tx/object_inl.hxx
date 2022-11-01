@@ -4,29 +4,34 @@
 #include "tx/object.hxx"
 #include "tx/memory.hxx"
 #include "tx/vm.hxx"
+#include <type_traits>
 
 #include <compare>
 
 namespace tx {
 
-[[nodiscard]] inline constexpr std::partial_ordering
-operator<=>(const Obj& lhs, const Obj& rhs) noexcept {
-    if (lhs.type != rhs.type) { return std::partial_ordering::unordered; }
-    switch (lhs.type) {
-        using enum ObjType;
-        case STRING: return &lhs.as<ObjString>() <=> &rhs.as<ObjString>();
-    }
-    unreachable();
-}
-[[nodiscard]] inline constexpr bool
-operator==(const Obj& lhs, const Obj& rhs) noexcept {
-    if (lhs.type != rhs.type) { return false; }
-    switch (lhs.type) {
-        using enum ObjType;
-        case STRING: return lhs.as<ObjString>() == rhs.as<ObjString>();
-    }
-    unreachable();
-}
+// [[nodiscard]] inline constexpr std::partial_ordering
+// operator<=>(const Obj& lhs, const Obj& rhs) noexcept {
+//     if (lhs.type != rhs.type) { return std::partial_ordering::unordered; }
+//     switch (lhs.type) {
+//         using enum ObjType;
+//         case STRING: return lhs.as<ObjString>() <=> rhs.as<ObjString>();
+//         default:
+//             break;
+//     }
+//     unreachable();
+// }
+// [[nodiscard]] inline constexpr bool
+// operator==(const Obj& lhs, const Obj& rhs) noexcept {
+//     if (lhs.type != rhs.type) { return false; }
+//     switch (lhs.type) {
+//         using enum ObjType;
+//         case STRING:
+//         case FUNCTION:
+//         case NATIVE: return &lhs == &rhs;
+//     }
+//     unreachable();
+// }
 
 [[nodiscard]] inline constexpr std::partial_ordering
 operator<=>(const ObjString& lhs, const ObjString& rhs) noexcept {
@@ -39,7 +44,7 @@ operator==(const ObjString& lhs, const ObjString& rhs) noexcept {
 }
 
 template <typename T, typename... Args>
-T* allocate_object(VM& tvm, size_t extra, Args&&... args) noexcept {
+T* allocate_object_extra_size(VM& tvm, size_t extra, Args&&... args) noexcept {
     // T* object_ptr = reallocate<T>(tvm, nullptr, 0, 1);
     T* object_ptr = static_cast<T*>(reallocate_impl(
         tvm,
@@ -62,28 +67,34 @@ T* allocate_object(VM& tvm, size_t extra, Args&&... args) noexcept {
     return object_ptr;
 }
 
-inline constexpr ObjString*
+template <typename T, typename... Args>
+// cppcheck-suppress constParameter
+T* allocate_object(VM& tvm, Args&&... args) noexcept {
+    return allocate_object_extra_size<T, Args...>(
+        tvm,
+        0,
+        std::forward<Args>(args)...
+    );
+}
+
+inline ObjString*
 make_string(VM& tvm, bool copy, std::string_view strv) noexcept {
     auto hash = Hash<std::string_view>()(strv);
-    // auto* interned = tvm.strings.find_in_bucket(hash, [&](const auto& entry)
-    // {
-    //     return entry.first->hash == hash
-    //            && std::string_view(*entry.first) == strv;
-    // });
-    // if (interned != nullptr) { return interned->first; }
     auto* interned = tvm.strings.find_in_bucket(hash, [&](const auto& entry) {
-        return entry.first.as_object().template as<ObjString>().hash == hash
-               && std::string_view(
-                      entry.first.as_object().template as<ObjString>()
-                  ) == strv;
+        const auto& str = entry.first.as_object().template as<ObjString>();
+        return str.hash == hash && std::string_view(str) == strv;
     });
     if (interned != nullptr) {
         return &interned->first.as_object().as<ObjString>();
     }
     auto len = static_cast<size_t>(strv.length());
-    auto* string =
-        allocate_object<ObjString>(tvm, copy ? len : 0, copy, strv, hash);
-    // tvm.strings.set(tvm, string);
+    auto* string = allocate_object_extra_size<ObjString>(
+        tvm,
+        copy ? len : 0,
+        copy,
+        strv,
+        hash
+    );
     tvm.strings.set(tvm, Value{string});
     return string;
 }

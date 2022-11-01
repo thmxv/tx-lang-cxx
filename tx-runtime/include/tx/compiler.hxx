@@ -2,6 +2,7 @@
 
 #include "tx/fixed_array.hxx"
 #include "tx/scanner.hxx"
+#include "tx/table.hxx"
 #include "tx/vm.hxx"
 
 #include <gsl/gsl>
@@ -51,9 +52,20 @@ struct Loop {
     Loop* enclosing;
 };
 
+enum struct FunctionType {
+    FUNCTION,
+    SCRIPT
+};
+
+struct ObjFunction;
+
 struct Compiler {
     using LocalArray = FixedCapacityArray<Local, size_t, 256>;
 
+    Compiler* enclosing{nullptr};
+    ObjFunction* function{nullptr};
+    FunctionType function_type;
+    ValueMap constant_indices{};
     LocalArray locals;
     i32 scope_depth{0};
     Loop* innermost_loop = nullptr;
@@ -67,25 +79,21 @@ class Parser {
     bool had_error{false};
     bool panic_mode{false};
     Compiler* current_compiler{nullptr};
-    // TODO: move to Compiler? go in pair whith chunk
-    ValueMap constant_indices{};
-    Chunk& chunk_;
 
   public:
-    constexpr Parser(VM& tvm, std::string_view source, Chunk& chunk) noexcept
+    constexpr Parser(VM& tvm, std::string_view source) noexcept
             : parent_vm(tvm)
-            , scanner(parent_vm, source)
-            , chunk_(chunk) {}
+            , scanner(parent_vm, source) {}
 
-    Parser(const Parser&) = delete;
-    Parser(Parser&&) = delete;
+    // Parser(const Parser&) = delete;
+    // Parser(Parser&&) = delete;
+    //
+    // constexpr ~Parser() = default;
+    //
+    // Parser& operator=(const Parser&) = delete;
+    // Parser& operator=(Parser&&) = delete;
 
-    constexpr ~Parser() { constant_indices.destroy(parent_vm); }
-
-    Parser& operator=(const Parser&) = delete;
-    Parser& operator=(Parser&&) = delete;
-
-    constexpr bool compile() noexcept;
+    [[nodiscard]] ObjFunction* compile() noexcept;
 
   private:
     constexpr void error_at(Token& token, std::string_view message) noexcept;
@@ -111,16 +119,17 @@ class Parser {
     [[nodiscard]] constexpr size_t emit_jump(OpCode instruction) noexcept;
     constexpr void emit_loop(size_t loop_start) noexcept;
     constexpr void patch_jump(i32 offset) noexcept;
-    constexpr void begin_compiler(Compiler& compiler) noexcept;
-    constexpr void end_compiler() noexcept;
+    void begin_compiler(Compiler& compiler, FunctionType type) noexcept;
+    [[nodiscard]] constexpr ObjFunction* end_compiler() noexcept;
     constexpr void begin_scope() noexcept;
     constexpr void patch_jumps_in_innermost_loop() noexcept;
     constexpr void end_scope() noexcept;
-    constexpr void begin_loop(Loop& loop, bool is_loop_expr=false) noexcept;
+    constexpr void begin_loop(Loop& loop, bool is_loop_expr = false) noexcept;
     constexpr void end_loop() noexcept;
 
   public:
     constexpr void binary(bool) noexcept;
+    constexpr void call(bool) noexcept;
     constexpr void grouping(bool) noexcept;
     constexpr void literal(bool) noexcept;
     constexpr void named_variable(const Token& name, bool) noexcept;
@@ -142,7 +151,7 @@ class Parser {
     [[nodiscard]] constexpr i32
     resolve_local(Compiler& compiler, const Token& name) noexcept;
 
-    [[nodiscard]] constexpr size_t identifier_global_index(const Token& name
+    [[nodiscard]] size_t identifier_global_index(const Token& name
     ) noexcept;
 
     constexpr void add_local(Token name, bool is_const) noexcept;
@@ -153,12 +162,16 @@ class Parser {
 
     constexpr void mark_initialized() noexcept;
     constexpr void define_variable(size_t global) noexcept;
+    [[nodiscard]] constexpr u8 argument_list();
 
     constexpr void expression() noexcept;
+    void function(FunctionType type) noexcept;
+    void fn_declaration() noexcept;
     constexpr void var_declaration() noexcept;
     constexpr void while_statement() noexcept;
     constexpr void break_statement() noexcept;
     constexpr void continue_statement() noexcept;
+    constexpr void return_statement() noexcept;
     [[nodiscard]] constexpr bool check_block_expression() const noexcept;
     constexpr void expression_statement() noexcept;
     constexpr void synchronize() noexcept;
@@ -181,7 +194,7 @@ class ParseRules {
     // clang-format off
     // NOLINTNEXTLINE(*-avoid-c-arrays)
     __extension__ static constexpr ParseRule rules[] = {
-        [LEFT_PAREN]      = {&p::grouping,   nullptr,    P::NONE},
+        [LEFT_PAREN]      = {&p::grouping,   &p::call,   P::CALL},
         [RIGHT_PAREN]     = {nullptr,        nullptr,    P::NONE},
         [LEFT_BRACE]      = {&p::block,      nullptr,    P::NONE},
         [RIGHT_BRACE]     = {nullptr,        nullptr,    P::NONE},

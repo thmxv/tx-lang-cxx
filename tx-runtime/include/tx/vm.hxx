@@ -27,17 +27,31 @@ struct VMOptions {
     bool allow_global_redefinition = false;
 };
 
-class Parser;
+struct CallFrame {
+    ObjFunction* function;
+    const ByteCode* instruction_ptr;
+    Value* slots;
 
+    [[nodiscard]] constexpr ByteCode read_byte() noexcept;
+    [[nodiscard]] constexpr size_t read_multibyte_index(bool is_long) noexcept;
+    [[nodiscard]] constexpr u16 read_short() noexcept;
+    [[nodiscard]] constexpr Value read_constant(bool is_long) noexcept;
+    void print_instruction() const noexcept;
+};
+
+class Parser;
+using CallFrames = FixedCapacityArray<CallFrame, size_t, FRAMES_MAX>;
 using Stack = FixedCapacityArray<Value, size_t, STACK_MAX>;
 using Allocator = std::pmr::polymorphic_allocator<std::byte>;
+
+Value std_cpu_clock_native(VM& tvm, std::span<Value> args);
+Value std_now_native(VM& tvm, std::span<Value> args);
 
 class VM {
     VMOptions options{};
     Allocator allocator{};
     Parser* parser = nullptr;
-    const Chunk* chunk_ptr = nullptr;
-    const ByteCode* instruction_ptr = nullptr;
+    CallFrames frames{};
     Stack stack;
     ValueMap global_indices;
     ValueArray global_values;
@@ -45,17 +59,10 @@ class VM {
     gsl::owner<Obj*> objects = nullptr;
 
   public:
-    // constexpr
-    VM() noexcept = default;
+    VM() = delete;
 
-    // constexpr
-    explicit VM(VMOptions opts) noexcept : options(opts) {}
-
-    constexpr explicit VM(const Allocator& alloc) noexcept : allocator(alloc) {}
-    constexpr VM(VMOptions opts, const Allocator& alloc) noexcept
-            : options(opts)
-            , allocator(alloc) {}
-
+    // TODO: move declaration in _inl file
+    VM(VMOptions opts, const Allocator& alloc) noexcept;
     VM(const VM& other) = delete;
     VM(VM&& other) = delete;
 
@@ -75,15 +82,12 @@ class VM {
         return options;
     }
 
-    TX_VM_CONSTEXPR InterpretResult interpret(std::string_view source) noexcept;
-    TX_VM_CONSTEXPR InterpretResult run(const Chunk& chunk) noexcept;
+    // TX_VM_CONSTEXPR
+    InterpretResult interpret(std::string_view source) noexcept;
+
+    [[gnu::flatten]] TX_VM_CONSTEXPR InterpretResult run() noexcept;
 
   private:
-    constexpr ByteCode read_byte() noexcept;
-    constexpr size_t read_multibyte_index(bool is_long) noexcept;
-    [[nodiscard]] constexpr u16 read_short() noexcept;
-    constexpr Value read_constant(bool is_long) noexcept;
-
     constexpr void push(Value value) noexcept { stack.push_back_unsafe(value); }
     constexpr Value pop() noexcept {
         assert(!stack.empty());
@@ -107,19 +111,29 @@ class VM {
         runtime_error_impl();
     }
 
+    void print_stack() const noexcept;
+    constexpr void debug_trace() const noexcept;
+
+    constexpr size_t
+    define_global(Value name, Value val) noexcept;
+
+    void define_native(std::string_view name, NativeFn fun) noexcept;
+    [[nodiscard]] constexpr bool call(ObjFunction& fun, size_t arg_c) noexcept;
+
+    [[nodiscard]] constexpr bool
+    call_value(Value callee, size_t arg_c) noexcept;
+
     [[nodiscard]] constexpr bool negate_op() noexcept;
 
     template <template <typename> typename Op>
     [[nodiscard]] constexpr bool binary_op() noexcept;
 
-    void print_stack() const noexcept;
-    void print_instruction() const noexcept;
-    constexpr void debug_trace() const noexcept;
-
+    // Friends
     template <typename T, typename... Args>
-    friend T* allocate_object(VM& tvm, size_t extra, Args&&... args) noexcept;
+    friend T*
+    allocate_object_extra_size(VM& tvm, size_t extra, Args&&... args) noexcept;
 
-    friend constexpr ObjString*
+    friend ObjString*
     make_string(VM& tvm, bool copy, std::string_view strv) noexcept;
 
     friend class Parser;

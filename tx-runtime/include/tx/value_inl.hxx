@@ -19,7 +19,7 @@ operator<=>(const Value& lhs, const Value& rhs) noexcept {
         case INT: return lhs.as_int() <=> rhs.as_int();
         case FLOAT: return lhs.as_float() <=> rhs.as_float();
         case CHAR: return lhs.as_char() <=> rhs.as_char();
-        case OBJECT: return lhs.as_object() <=> rhs.as_object();
+        case OBJECT: break;
     }
     unreachable();
 }

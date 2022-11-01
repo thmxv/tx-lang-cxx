@@ -31,6 +31,7 @@ TX_OPCODE(NEGATE, 		0, 0)
 TX_OPCODE(JUMP, 		2, 0)
 TX_OPCODE(JUMP_IF_FALSE, 	2, 0)
 TX_OPCODE(LOOP, 		2, 0)
+TX_OPCODE(CALL, 		1, 0)
 TX_OPCODE(END_SCOPE, 		1, X) // Stack effect is in the operand
 TX_OPCODE(RETURN, 		0, X)
 TX_OPCODE(END, 			0, 0)

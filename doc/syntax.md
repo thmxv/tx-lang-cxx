@@ -12,7 +12,7 @@ This is a list of all the keywords in Tx.
 
     and as async await break continue else false for fn if import impl in
     inout is let loop nil match out or return self struct super trait
-    true var while Any Array Bool Char Float Int Map Nil Self Str
+    true var while Any Array Bool Char Float Int Map Nil Self Str Tuple
 
 ## Identifiers
 

@@ -5,9 +5,6 @@
 
 namespace tx {
 
-// TODO: using bool instead of value would lower memory during execution
-// investigate cost in binary bloat
-// public HashMap<T, bool, EMPTY_VALUE, false, true, Hash, Equal> {
 template <
     typename T,
     T EMPTY_VALUE,

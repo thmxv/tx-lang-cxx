@@ -9,9 +9,9 @@
 
 Tx is inspired by Lua. The code base and implementation is inspired by the 
 book "Crafting Interpreters" by Robert Nystrom. The syntax and feature set
-are inspired by languages such as Python, Rust and Swift among others.
+are inspired by languages such as Python, Rust, Wren and Swift among others.
 
-Tx design desitions are supposed to be oriented towards safety, speed, power 
+Tx design decisions are supposed to be oriented towards safety, speed, power 
 and minimalism.
 
 The code base is written, as much as possible, in modern C++. Trying to be 
@@ -23,6 +23,13 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Fix native clock function
+- Allow fn expression (without identifier?)
+- Better hash function
+- Reword Value::as_xxx() as a template
+- fix let for globals
+- flatten hot loops/functions
+- print tokens as they are consumed instead of dedicated pass
 - allow to use break to break out of a block (using labels only)
 - skip first and last newline if present in raw stings literals
 - fix cast of opcode multibyte values to u32?
@@ -39,11 +46,10 @@ Tx is still very much a work in progress.
 - forbid global redefinition, unless specifically specified (REPL)
 - allow "var a = a;" in the case of shadowing and not assigning to self
 - remove undefined global runtime errors by checking at compile time
-- better and more conform error messages
+- better and more conform error messages. compile errors and runtime with stack trace
 - clean up utf8 conv, utf8 lenght, resize once
 - String concatenation
 - String interpolation
-- Tests
 - Use gsl::narrow_cast where necessary
 - Ensure enough stack space
 - Add OP CODES for common constant values (0,1,2,-1,"")
@@ -65,7 +71,8 @@ Tx is still very much a work in progress.
 - [X] Global variables
 - [X] Local variables
 - [X] Jumping
-- [ ] Functions and call
+- [X] Functions and call
+- [ ] Tests
 - [ ] Closure
 - [ ] Garbage collection
 - [ ] Struct and instances
@@ -76,18 +83,19 @@ Tx is still very much a work in progress.
 ## Minimum target for realease candidate
 
 - [ ] Type checking
-- [ ] Documentation
 - [ ] Array and Map values (generic types)
-- [ ] Tuples (need variadic generic types)
 - [ ] Traits
+- [ ] Documentation
+- [ ] Tuples (need variadic generic types)
 - [ ] Pattern matching
-- [ ] Type checker
 - [ ] Modules
 - [ ] Final syntax/grammar
-- [ ] Resereve all future keywords
+- [ ] Reserve all future keywords
 - [ ] Editors support
+- [ ] Modules for core and std
 
 ## Later versions
+- [ ] Syntax colors/highlights and completion in REPL
 - [ ] Fibers
 - [ ] Threads
 - [ ] Async and await

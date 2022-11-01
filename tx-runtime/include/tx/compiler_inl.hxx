@@ -19,14 +19,13 @@ identifiers_equal(const Token& lhs, const Token& rhs) {
     return lhs.lexeme == rhs.lexeme;
 }
 
-inline constexpr bool Parser::compile() noexcept {
+[[nodiscard]] inline ObjFunction* Parser::compile() noexcept {
     Compiler comp{};
-    begin_compiler(comp);
+    begin_compiler(comp, FunctionType::SCRIPT);
     advance();
     while (!match(TokenType::END_OF_FILE)) { statement(); }
-    end_compiler();
-    constant_indices.clear();
-    return !had_error;
+    auto* fun = end_compiler();
+    return had_error ? nullptr : fun;
 }
 
 inline constexpr void
@@ -83,17 +82,18 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
 }
 
 [[nodiscard]] inline constexpr Chunk& Parser::current_chunk() const noexcept {
-    return chunk_;
+    return current_compiler->function->chunk;
 }
 
 [[nodiscard]] inline constexpr size_t Parser::add_constant(Value value
 ) noexcept {
     if (had_error) { return -1; }
-    const auto* existing = constant_indices.get(value);
+    const auto* existing = current_compiler->constant_indices.get(value);
     if (existing != nullptr) { return static_cast<size_t>(existing->as_int()); }
     // TODO: error if too much constants
     auto idx = current_chunk().add_constant(parent_vm, value);
-    constant_indices.set(parent_vm, value, Value{static_cast<int_t>(idx)});
+    current_compiler->constant_indices
+        .set(parent_vm, value, Value{static_cast<int_t>(idx)});
     return idx;
 }
 
@@ -104,7 +104,7 @@ inline constexpr void Parser::emit_bytes(Ts... bytes) noexcept {
 }
 
 inline constexpr void Parser::emit_return() noexcept {
-    emit_bytes(OpCode::RETURN);
+    emit_bytes(OpCode::NIL, OpCode::RETURN);
 }
 
 inline constexpr void
@@ -148,23 +148,35 @@ inline constexpr void Parser::patch_jump(i32 offset) noexcept {
     current_chunk().code[offset + 1].value = static_cast<u8>(jump_16 & 0xffU);
 }
 
-constexpr void Parser::begin_compiler(Compiler& compiler) noexcept {
+inline void
+Parser::begin_compiler(Compiler& compiler, FunctionType type) noexcept {
+    compiler.enclosing = current_compiler;
+    compiler.function_type = type;
+    compiler.function = allocate_object<ObjFunction>(parent_vm);
     current_compiler = &compiler;
+    if (type != FunctionType::SCRIPT) {
+        current_compiler->function->name = make_string(
+            parent_vm,
+            !parent_vm.options.allow_pointer_to_souce_content,
+            previous.lexeme
+        );
+    }
+    current_compiler->locals.push_back(Local(Token{.lexeme = ""}, 0, true));
 }
 
-// [[nodiscard]]
-inline constexpr void Parser::end_compiler() noexcept {
+[[nodiscard]] inline constexpr ObjFunction* Parser::end_compiler() noexcept {
     emit_return();
+    auto* fun = current_compiler->function;
     if constexpr (HAS_DEBUG_FEATURES) {
         if (parent_vm.get_options().print_bytecode) {
             if (!had_error) {
-                // disassemble_chunk(current_chunk(), function->get_name());
-                disassemble_chunk(current_chunk(), "code");
+                disassemble_chunk(current_chunk(), fun->get_name());
             }
         }
     }
-    current_compiler = nullptr;
-    // return function;
+    current_compiler->constant_indices.destroy(parent_vm);
+    current_compiler = current_compiler->enclosing;
+    return fun;
 }
 
 inline constexpr void Parser::begin_scope() noexcept {
@@ -232,6 +244,23 @@ inline constexpr void Parser::binary(bool /*can_assign*/) noexcept {
         case SLASH: emit_bytes(OpCode::DIVIDE); break;
         default: unreachable();
     }
+}
+
+[[nodiscard]] inline constexpr u8 Parser::argument_list() {
+    u8 arg_count = 0;
+    do {
+        if (check(RIGHT_PAREN)) { break; }
+        expression();
+        if (arg_count == 255) { error("Can't have more than 255 arguments."); }
+        ++arg_count;
+    } while (match(COMMA));
+    consume(RIGHT_PAREN, "Expect ')' after argumentts.");
+    return arg_count;
+}
+
+inline constexpr void Parser::call(bool /*can_assign*/) noexcept {
+    auto arg_count = argument_list();
+    emit_bytes(OpCode::CALL, arg_count);
 }
 
 inline constexpr void Parser::grouping(bool /*can_assign*/) noexcept {
@@ -407,7 +436,7 @@ inline constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
     }
 }
 
-inline constexpr size_t Parser::identifier_global_index(const Token& name
+inline size_t Parser::identifier_global_index(const Token& name
 ) noexcept {
     auto identifier = Value{make_string(
         parent_vm,
@@ -416,11 +445,7 @@ inline constexpr size_t Parser::identifier_global_index(const Token& name
     )};
     auto* index = parent_vm.global_indices.get(identifier);
     if (index != nullptr) { return static_cast<size_t>(index->as_int()); }
-    auto new_index = parent_vm.global_values.size();
-    parent_vm.global_values.push_back(parent_vm, Value{val_none});
-    parent_vm.global_indices
-        .set(parent_vm, identifier, Value{static_cast<int_t>(new_index)});
-    return new_index;
+    return parent_vm.define_global(identifier, Value{val_none});
 }
 
 inline constexpr void Parser::add_local(Token name, bool is_const) noexcept {
@@ -461,6 +486,7 @@ inline constexpr size_t Parser::parse_variable(const char* error_message
 }
 
 inline constexpr void Parser::mark_initialized() noexcept {
+    if (current_compiler->scope_depth == 0) { return; }
     current_compiler->locals.back().depth = current_compiler->scope_depth;
 }
 
@@ -474,6 +500,41 @@ inline constexpr void Parser::define_variable(size_t global) noexcept {
 
 inline constexpr void Parser::expression() noexcept {
     parse_precedence(Precedence::ASSIGNMENT);
+}
+
+inline void Parser::function(FunctionType type) noexcept {
+    Compiler compiler;
+    begin_compiler(compiler, type);
+    begin_scope();
+    consume(LEFT_PAREN, "Expect '(' after function name.");
+    if (!check(RIGHT_PAREN)) {
+        do {
+            ++current_compiler->function->arity;
+            if (current_compiler->function->arity > 255) {
+                error_at_current("Can't have more than 255 parameters.");
+            }
+            // TODO: need in out or inout
+            auto constant = parse_variable("Expect parameter name.");
+            define_variable(constant);
+        } while (match(COMMA));
+    }
+    consume(RIGHT_PAREN, "Expect '(' after parameters.");
+    consume(LEFT_BRACE, "Expect '{' before function body.");
+    // TODO: make sure we can pass true here
+    block(true);
+    // end_scope(); // TODO: not necessary?
+    auto* function = end_compiler();
+    emit_var_length_instruction(
+        OpCode::CONSTANT,
+        add_constant(Value{function})
+    );
+}
+
+inline void Parser::fn_declaration() noexcept {
+    auto global_idx = parse_variable("Expect funtion name.");
+    mark_initialized();
+    function(FunctionType::FUNCTION);
+    define_variable(global_idx);
 }
 
 inline constexpr void Parser::var_declaration() noexcept {
@@ -577,6 +638,19 @@ inline constexpr void Parser::expression_statement() noexcept {
     emit_bytes(OpCode::POP);
 }
 
+inline constexpr void Parser::return_statement() noexcept {
+    if (current_compiler->function_type == FunctionType::SCRIPT) {
+        error("Can't return from top-level code.");
+    }
+    if (match(SEMICOLON)) {
+        emit_return();
+    } else {
+        expression();
+        consume(SEMICOLON, "Expect ';' after return value.");
+        emit_bytes(OpCode::RETURN);
+    }
+}
+
 inline constexpr void Parser::synchronize() noexcept {
     panic_mode = false;
     while (current.type != TokenType::END_OF_FILE) {
@@ -602,8 +676,16 @@ inline constexpr void Parser::synchronize() noexcept {
 
 inline constexpr bool Parser::statement_no_expression() noexcept {
     if (match(SEMICOLON)) { return true; }
+    if (match(FN)) {
+        fn_declaration();
+        return true;
+    }
     if (match(VAR) || match(LET)) {
         var_declaration();
+        return true;
+    }
+    if (match(RETURN)) {
+        return_statement();
         return true;
     }
     if (match(WHILE)) {

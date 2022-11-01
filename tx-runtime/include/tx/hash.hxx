@@ -21,34 +21,13 @@ constexpr u32 hash_function(const std::span<const char> span) noexcept {
 }
 
 template <typename Key>
-struct Hash;
-
-template <>
-struct Hash<char32_t> {
-    constexpr u32 operator()(const char32_t& val) const noexcept {
+struct Hash {
+    template <typename T>
+    // TODO: requires trival type with no padding. primitive only?
+    constexpr u32 operator()(const T& val) const noexcept {
         return hash_function(std::span<const char>(
             static_cast<const char*>(static_cast<const void*>(&val)),
-            sizeof(char32_t)
-        ));
-    }
-};
-
-template <>
-struct Hash<int_t> {
-    constexpr u32 operator()(const int_t& val) const noexcept {
-        return hash_function(std::span<const char>(
-            static_cast<const char*>(static_cast<const void*>(&val)),
-            sizeof(int_t)
-        ));
-    }
-};
-
-template <>
-struct Hash<float_t> {
-    constexpr u32 operator()(const float_t& val) const noexcept {
-        return hash_function(std::span<const char>(
-            static_cast<const char*>(static_cast<const void*>(&val)),
-            sizeof(float_t)
+            sizeof(T)
         ));
     }
 };
@@ -60,19 +39,22 @@ struct Hash<std::string_view> {
     }
 };
 
-template <>
-struct Hash<ObjString*> {
-    constexpr u32 operator()(const ObjString* const& obj) const noexcept {
-        return obj->hash;
-    }
-};
+// template <>
+// struct Hash<ObjString*> {
+//     constexpr u32 operator()(const ObjString* const& obj) const noexcept {
+//         return obj->hash;
+//     }
+// };
 
 template <>
 struct Hash<Obj> {
     constexpr u32 operator()(Obj const& obj) const noexcept {
         switch (obj.type) {
             using enum ObjType;
-            case STRING: return Hash<ObjString*>()(&obj.as<ObjString>());
+            // case STRING: return Hash<ObjString*>()(&obj.as<ObjString>());
+            case STRING: return obj.as<ObjString>().hash;
+            case FUNCTION:
+            case NATIVE: return Hash<Obj*>()(&obj);
         }
         unreachable();
     }
