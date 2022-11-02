@@ -6,11 +6,9 @@ project(CmakeConfigPackageTests LANGUAGES CXX)
 
 if(PROJECT_IS_TOP_LEVEL OR TEST_INSTALLED_VERSION)
   enable_testing()
-
   find_package(tx-lang CONFIG REQUIRED) # for tx , project_options, ...
-
   if(NOT TARGET tx-lang::project_options)
-    message(FATAL_ERROR "Requiered config package not found!")
+    message(FATAL_ERROR "Required config package not found!")
     return() # be strictly paranoid for Template Janitor github action! CK
   endif()
 endif()
@@ -25,20 +23,49 @@ add_library(catch_main OBJECT catch_main.cxx)
 target_link_libraries(catch_main PUBLIC Catch2::Catch2)
 target_link_libraries(catch_main PRIVATE tx-lang::project_options)
 
+# CLI Tests
+
 # Provide a simple smoke test to make sure that the CLI works and can display
 # a --help message
-add_test(NAME cli.has_help COMMAND tx --help)
+add_test(NAME cli.has_help COMMAND ../tx-cli/tx --help)
 
 # Provide a test to verify that the version being reported from the application
 # matches the version given to CMake. This will be important once you package
 # your program. Real world shows that this is the kind of simple mistake that
 # is easy to make, but also easy to test for.
-add_test(NAME cli.version_matches COMMAND tx --version)
+add_test(NAME cli.version_matches COMMAND ../tx-cli/tx --version)
 set_tests_properties(
   cli.version_matches
   PROPERTIES
     PASS_REGULAR_EXPRESSION "${PROJECT_VERSION}"
 )
+
+# Test Suit
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tx
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_CURRENT_SOURCE_DIR}/tx
+    ${CMAKE_CURRENT_BINARY_DIR}/tx
+)
+add_custom_target(
+  copy_test_suite ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/tx
+)
+set_property(
+  TARGET copy_test_suite
+  APPEND PROPERTY ADDITIONAL_CLEAN_FILES ${CMAKE_CURRENT_BINARY_DIR}/tx
+)
+add_test(
+  NAME cli.test_suite
+  COMMAND ../scripts/run_tests.py --no_colors ../tx-cli/tx
+)
+set_tests_properties(
+  cli.test_suite
+  PROPERTIES
+  PASS_REGULAR_EXPRESSION "All [0-9]+ tests passed [(][0-9]+ expectations[)]."
+)
+
+# C++ tests
 
 add_executable(tests tests.cxx)
 target_link_libraries(

@@ -150,6 +150,7 @@ add_library(tx-lang::project_warnings INTERFACE IMPORTED)
 
 # configure files based on CMake configuration options
 # add_subdirectory(configured_files)
+add_subdirectory(scripts)
 add_subdirectory(tx-runtime)
 add_subdirectory(tx-cli)
 

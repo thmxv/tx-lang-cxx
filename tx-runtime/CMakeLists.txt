@@ -27,7 +27,6 @@ add_library(
     include/tx/memory_inl.hxx
     include/tx/object_inl.hxx
     include/tx/scanner_inl.hxx
-    include/tx/table_inl.hxx
     include/tx/value_inl.hxx
     include/tx/vm_inl.hxx
     #
