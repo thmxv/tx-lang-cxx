@@ -23,9 +23,9 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Chapter 24 challenges (functions)
 - Fix native clock function
 - Allow fn expression (without identifier?)
-- Better hash function
 - Reword Value::as_xxx() as a template
 - fix let for globals
 - flatten hot loops/functions
@@ -77,24 +77,25 @@ Tx is still very much a work in progress.
 - [ ] Garbage collection
 - [ ] Struct and instances
 - [ ] Methods and initializer
+- [ ] Type checking
+- [ ] Traits
 - [ ] Inheritance
+- [ ] Array and Map values (generic types)
+- [ ] Tuples (need variadic generic types)
+- [ ] Pattern matching
+- [ ] Modules
 - [ ] Optimizations
 
 ## Minimum target for realease candidate
 
-- [ ] Type checking
-- [ ] Array and Map values (generic types)
-- [ ] Traits
 - [ ] Documentation
-- [ ] Tuples (need variadic generic types)
-- [ ] Pattern matching
-- [ ] Modules
 - [ ] Final syntax/grammar
 - [ ] Reserve all future keywords
 - [ ] Editors support
 - [ ] Modules for core and std
 
 ## Later versions
+
 - [ ] Syntax colors/highlights and completion in REPL
 - [ ] Fibers
 - [ ] Threads

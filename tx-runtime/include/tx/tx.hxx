@@ -10,6 +10,7 @@
 #include "tx/formatting.hxx"
 #include "tx/hash.hxx"
 #include "tx/hash_map.hxx"
+#include "tx/hash_murmur.hxx"
 #include "tx/hash_set.hxx"
 #include "tx/memory.hxx"
 #include "tx/object.hxx"
