@@ -23,10 +23,11 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Separate test suite from ctest
+- Fix tests not updating in build directory
 - Chapter 24 challenges (functions)
 - Fix native clock function
 - Allow fn expression (without identifier?)
-- Reword Value::as_xxx() as a template
 - fix let for globals
 - flatten hot loops/functions
 - print tokens as they are consumed instead of dedicated pass
@@ -45,8 +46,8 @@ Tx is still very much a work in progress.
 - error when assigning to constant golbal
 - forbid global redefinition, unless specifically specified (REPL)
 - allow "var a = a;" in the case of shadowing and not assigning to self
-- remove undefined global runtime errors by checking at compile time
-- better and more conform error messages. compile errors and runtime with stack trace
+- replace runtime errors by compile time (keep runtime error in degug and REPL)
+- better and more conform error messages. compile and runtime
 - clean up utf8 conv, utf8 lenght, resize once
 - String concatenation
 - String interpolation

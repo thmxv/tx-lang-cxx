@@ -31,15 +31,15 @@ inline Value std_now_native(VM& tvm, std::span<Value> /*args*/) {
     return Value{make_string(tvm, true, "Not implemented!")};
 }
 
-inline Value std_print_native(VM& /*tvm*/, std::span<Value> args) {
-    fmt::print("{}", args[0]);
+inline Value std_println_native(VM& /*tvm*/, std::span<Value> args) {
+    fmt::print("{}\n", args[0]);
     return Value{val_nil};
 }
 
 inline VM::VM(VMOptions opts, const Allocator& alloc) noexcept
         : options(opts)
         , allocator(alloc) {
-    define_native("std_print", std_print_native);
+    define_native("std_println", std_println_native);
     define_native("std_cpu_clock", std_cpu_clock_native);
     define_native("std_now", std_now_native);
 }

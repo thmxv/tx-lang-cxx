@@ -254,7 +254,7 @@ inline constexpr void Parser::binary(bool /*can_assign*/) noexcept {
         if (arg_count == 255) { error("Can't have more than 255 arguments."); }
         ++arg_count;
     } while (match(COMMA));
-    consume(RIGHT_PAREN, "Expect ')' after argumentts.");
+    consume(RIGHT_PAREN, "Expect ')' after arguments.");
     return arg_count;
 }
 
