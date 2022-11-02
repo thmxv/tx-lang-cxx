@@ -22,13 +22,15 @@ import term
 
 parser = ArgumentParser()
 parser.add_argument("cli_app")
+parser.add_argument("suite_root")
 parser.add_argument("--no_colors", action="store_true")
 parser.add_argument("filter", nargs="?")
 args = parser.parse_args(sys.argv[1:])
 
 BUILD_DIR = dirname(dirname(realpath(__file__)))
 CLI_APP = args.cli_app
-TESTS_DIR = join(BUILD_DIR, "test_suite")
+# TESTS_DIR = join(BUILD_DIR, "test_suite")
+TESTS_DIR = args.suite_root
 
 CLI_APP_WITH_EXT = CLI_APP
 # if platform.system() == "Windows":
