@@ -5,96 +5,78 @@ A full build has different steps:
 2) Configuring the project
 3) Building the project
 
-For the subsequent builds, in case you change the source code, you only need to repeat the last step.
+For the subsequent builds, in case you change the source code, you only need 
+to repeat the last step.
 
 ### (1) Specify the compiler using environment variables
 
-By default (if you don't set environment variables `CC` and `CXX`), the system default compiler will be used.
+By default (if you don't set environment variables `CC` and `CXX`), the 
+system default compiler will be used.
 
-Conan and CMake use the environment variables CC and CXX to decide which compiler to use. So to avoid the conflict issues only specify the compilers using these variables.
+Conan and CMake use the environment variables CC and CXX to decide which 
+compiler to use. So to avoid the conflict issues only specify the compilers 
+using these variables.
 
-CMake will detect which compiler was used to build each of the Conan targets. If you build all of your Conan targets with one compiler, and then build your CMake targets with a different compiler, the project may fail to build.
+CMake will detect which compiler was used to build each of the Conan targets. 
+If you build all of your Conan targets with one compiler, and then build your 
+CMake targets with a different compiler, the project may fail to build.
 
 <details>
 <summary>Commands for setting the compilers </summary>
 
-- Debian/Ubuntu/MacOS:
-
-	Set your desired compiler (`clang`, `gcc`, etc):
-
-	- Temporarily (only for the current shell)
-
-		Run one of the followings in the terminal:
-
-		- clang
-
-				CC=clang CXX=clang++
-
-		- gcc
-
-				CC=gcc CXX=g++
-
-	- Permanent:
-
-		Open `~/.bashrc` using your text editor:
-
-			gedit ~/.bashrc
-
-		Add `CC` and `CXX` to point to the compilers:
-
-			export CC=clang
-			export CXX=clang++
-
-		Save and close the file.
+- Unix like OSs (GNU/Linux, MacOS, BSDs):
+    Set your desired compiler (`clang`, `gcc`, etc):
+    - Temporarily (only for the current shell)
+        - clang
+            CC=clang CXX=clang++
+        - gcc
+            CC=gcc CXX=g++
+    - Permanent:
+        Open `~/.bashrc` using your text editor:
+            gedit ~/.bashrc
+        Add `CC` and `CXX` to point to the compilers:
+            export CC=clang
+            export CXX=clang++
+        Save and close the file.
 
 - Windows:
-
-	- Permanent:
-
-		Run one of the followings in PowerShell:
-
-		- Visual Studio generator and compiler (cl)
-
-				[Environment]::SetEnvironmentVariable("CC", "cl.exe", "User")
-				[Environment]::SetEnvironmentVariable("CXX", "cl.exe", "User")
-				refreshenv
-
-		  Set the architecture using [vcvarsall](https://docs.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=vs-2019#vcvarsall-syntax):
-
-				vcvarsall.bat x64
-
-		- clang
-
-				[Environment]::SetEnvironmentVariable("CC", "clang.exe", "User")
-				[Environment]::SetEnvironmentVariable("CXX", "clang++.exe", "User")
-				refreshenv
-
-		- gcc
-
-				[Environment]::SetEnvironmentVariable("CC", "gcc.exe", "User")
-				[Environment]::SetEnvironmentVariable("CXX", "g++.exe", "User")
-				refreshenv
-
-
+    - Permanent:
+        Run one of the followings in PowerShell:
+        - Visual Studio generator and compiler (cl)
+                [Environment]::SetEnvironmentVariable("CC", "cl.exe", "User")
+                [Environment]::SetEnvironmentVariable("CXX", "cl.exe", "User")
+                refreshenv
+          Set the architecture using [vcvarsall](https://docs.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=vs-2019#vcvarsall-syntax):
+                vcvarsall.bat x64
+        - clang
+                [Environment]::SetEnvironmentVariable("CC", "clang.exe", "User")
+                [Environment]::SetEnvironmentVariable("CXX", "clang++.exe", "User")
+                refreshenv
+        - gcc
+            [Environment]::SetEnvironmentVariable("CC", "gcc.exe", "User")
+            [Environment]::SetEnvironmentVariable("CXX", "g++.exe", "User")
+            refreshenv
   - Temporarily (only for the current shell):
-
-			$Env:CC="clang.exe"
-			$Env:CXX="clang++.exe"
+            $Env:CC="clang.exe"
+            $Env:CXX="clang++.exe"
 
 </details>
 
 ### (2) Configure your build
 
-To configure the project, you could use `cmake`, or `ccmake` or `cmake-gui`. Each of them are explained in the following:
+To configure the project, you could use `cmake`, or `ccmake` or `cmake-gui`. 
+Each of them are explained in the following:
 
 #### (2.a) Configuring via cmake:
 With Cmake directly:
 
-    cmake -S . -B ./build
+    cmake -S . -B ./out/build
 
-Cmake will automatically create the `./build` folder if it does not exist, and it wil configure the project.
+Cmake will automatically create the `./build` folder if it does not exist, 
+and it wil configure the project.
 
-Instead, if you have CMake version 3.21+, you can use one of the configuration presets that are listed in the CmakePresets.json file.
+Instead, if you have CMake version 3.21+, you can use one of the configuration 
+presets that are listed in the CmakePresets.json file.
 
     cmake . --preset <configure-preset>
     cmake --build
@@ -103,7 +85,7 @@ Instead, if you have CMake version 3.21+, you can use one of the configuration p
 
 With the Cmake Curses Dialog Command Line tool:
 
-    ccmake -S . -B ./build
+    ccmake -S . -B ./out/build
 
 Once `ccmake` has finished setting up, press 'c' to configure the project,
 press 'g' to generate, and 'q' to quit.
@@ -182,11 +164,16 @@ For Visual Studio, give the build configuration (Release, RelWithDeb, Debug, etc
 
 ### Running the tests
 
-You can use the `ctest` command run the tests.
+You can use the `ninja test_suite` or `make test_suite` command to run the Tx 
+test suite with the `tx` CLI binary.
+
+You can use the `ctest` command to run the tests.
 
 ```shell
 cd ./build
-ctest -C Debug
+ninja test_suite  # run the Tx test suite
+ctest -C Debug    # cmake test driver for C++ code unit tests
+ninja test        # also run ctest
 cd ../
 ```
 
