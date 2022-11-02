@@ -54,95 +54,6 @@ void print_usage() noexcept { fmt::print(usage_str); }
 
 void print_debug_usage() noexcept { fmt::print(stderr, usage_debug_str); }
 
-[[nodiscard]] std::string read_file(const char* path) noexcept {
-    gsl::owner<std::FILE*> file = std::fopen(path, "rb");
-    if (file == nullptr) {
-        fmt::print(
-            stderr,
-            FMT_STRING("Could not open file \"{:s}\": {}\n"),
-            path,
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            std::strerror(errno)
-        );
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::IO_ERROR);
-    }
-    auto is_error = std::fseek(file, 0L, SEEK_END);
-    if (is_error != 0) {
-        fmt::print(
-            stderr,
-            FMT_STRING("Could not seek in file \"{:s}\":{}\n"),
-            path,
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            std::strerror(errno)
-        );
-        (void)std::fclose(file);
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::IO_ERROR);
-    }
-    const auto file_size = static_cast<std::size_t>(std::ftell(file));
-    std::rewind(file);
-    std::string result;
-    result.resize(static_cast<std::size_t>(file_size));
-    const auto bytes_read = std::fread(
-        result.data(),
-        sizeof(char),
-        static_cast<std::size_t>(file_size),
-        file
-    );
-    is_error = std::fclose(file);
-    if (is_error != 0) {
-        fmt::print(
-            stderr,
-            FMT_STRING("Could not close file \"{:s}\": {}\n"),
-            path,
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            std::strerror(errno)
-        );
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::IO_ERROR);
-    }
-    if (bytes_read < file_size) {
-        fmt::print(
-            stderr,
-            FMT_STRING("Could not read file \"{:s}\": {}\n"),
-            path,
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            std::strerror(errno)
-        );
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::IO_ERROR);
-    }
-    return result;
-}
-
-void run_repl(VM& tvm) {
-    print_greeting();
-    std::array<char, REPL_LINE_MAX_LEN> line{};
-    while (true) {
-        fmt::print("\n> ");
-        if (std::fgets(line.begin(), line.size(), stdin) == nullptr) {
-            fmt::print("\n");
-            break;
-        }
-        const std::string_view source{line.data()};
-        (void)tvm.interpret(source);
-    }
-}
-
-void run_file(VM& tvm, const char* path) {
-    const auto source = read_file(path);
-    const InterpretResult result = tvm.interpret(source);
-    if (result == InterpretResult::COMPILE_ERROR) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::DATA_ERROR);
-    }
-    if (result == InterpretResult::RUNTIME_ERROR) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::SOFTWARE_INTERNAL_ERROR);
-    }
-}
-
 struct ArgsOptions {
     bool args_help = false;
     bool args_version = false;
@@ -228,6 +139,95 @@ parse_arguments(int argc, const char** argv) {
     return options;
 }
 
+[[nodiscard]] std::string read_file(const char* path) noexcept {
+    gsl::owner<std::FILE*> file = std::fopen(path, "rb");
+    if (file == nullptr) {
+        fmt::print(
+            stderr,
+            FMT_STRING("Could not open file \"{:s}\": {}\n"),
+            path,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            std::strerror(errno)
+        );
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        std::exit(ExitCode::IO_ERROR);
+    }
+    auto is_error = std::fseek(file, 0L, SEEK_END);
+    if (is_error != 0) {
+        fmt::print(
+            stderr,
+            FMT_STRING("Could not seek in file \"{:s}\":{}\n"),
+            path,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            std::strerror(errno)
+        );
+        (void)std::fclose(file);
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        std::exit(ExitCode::IO_ERROR);
+    }
+    const auto file_size = static_cast<std::size_t>(std::ftell(file));
+    std::rewind(file);
+    std::string result;
+    result.resize(static_cast<std::size_t>(file_size));
+    const auto bytes_read = std::fread(
+        result.data(),
+        sizeof(char),
+        static_cast<std::size_t>(file_size),
+        file
+    );
+    is_error = std::fclose(file);
+    if (is_error != 0) {
+        fmt::print(
+            stderr,
+            FMT_STRING("Could not close file \"{:s}\": {}\n"),
+            path,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            std::strerror(errno)
+        );
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        std::exit(ExitCode::IO_ERROR);
+    }
+    if (bytes_read < file_size) {
+        fmt::print(
+            stderr,
+            FMT_STRING("Could not read file \"{:s}\": {}\n"),
+            path,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            std::strerror(errno)
+        );
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        std::exit(ExitCode::IO_ERROR);
+    }
+    return result;
+}
+
+void run_file(VM& tvm, const char* path) {
+    const auto source = read_file(path);
+    const InterpretResult result = tvm.interpret(source);
+    if (result == InterpretResult::COMPILE_ERROR) {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        std::exit(ExitCode::DATA_ERROR);
+    }
+    if (result == InterpretResult::RUNTIME_ERROR) {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        std::exit(ExitCode::SOFTWARE_INTERNAL_ERROR);
+    }
+}
+
+void run_repl(VM& tvm) {
+    print_greeting();
+    std::array<char, REPL_LINE_MAX_LEN> line{};
+    while (true) {
+        fmt::print("\n> ");
+        if (std::fgets(line.begin(), line.size(), stdin) == nullptr) {
+            fmt::print("\n");
+            break;
+        }
+        const std::string_view source{line.data()};
+        (void)tvm.interpret(source);
+    }
+}
+
 }  // namespace tx
 
 // NOLINTNEXTLINE(bugprone-exception-escape)
@@ -254,8 +254,10 @@ int main(int argc, const char** argv) noexcept {
         tx::run_repl(tvm);
     } else {
         if (options.args_use_stdin) {
-            fmt::print(FMT_STRING("UNIMPLEMENTED: shoud read from stdin\n"));
+            fmt::print(FMT_STRING("UNIMPLEMENTED: cannot read from stdin\n"));
         } else {
+            // tvm.get_options().allow_pointer_to_souce_content = false;
+            // tvm.get_options().allow_global_redefinition = true;
             tx::run_file(tvm, options.args_file_path);
         }
     }
