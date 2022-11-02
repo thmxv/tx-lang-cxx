@@ -128,8 +128,7 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
         case SET_LOCAL_LONG:
             return var_length_instruction(name, chunk, offset, true);
         case JUMP:
-        case JUMP_IF_FALSE:
-         return jump_instruction(name, 1, chunk, offset);
+        case JUMP_IF_FALSE: return jump_instruction(name, 1, chunk, offset);
         case LOOP: return jump_instruction(name, -1, chunk, offset);
     }
     unreachable();
@@ -144,23 +143,29 @@ inline constexpr std::array token_name_table = {
 };
 // clang-format on
 
+inline void print_token(const Token& token) noexcept {
+    static int line = -1;
+    if (token.line != line) {
+        fmt::print(FMT_STRING("{:4d} "), token.line);
+        line = token.line;
+    } else {
+        fmt::print("   | ");
+    }
+    // TODO: remove newlines and other perturbing chars
+    fmt::print(
+        FMT_STRING("{:16s} '{:s}' "),
+        std::string_view(token_name_table[to_underlying(token.type)]),
+        token.lexeme
+    );
+    if (!token.value.is_none()) { fmt::print(FMT_STRING("{}"), token.value); }
+    fmt::print("\n");
+}
+
 inline void print_tokens(VM& tvm, std::string_view source) noexcept {
     Scanner scanner(tvm, source);
-    int line = -1;
     for (;;) {
-        Token token = scanner.scan_token();
-        if (token.line != line) {
-            fmt::print(FMT_STRING("{:4d} "), token.line);
-            line = token.line;
-        } else {
-            fmt::print("   | ");
-        }
-        fmt::print(
-            FMT_STRING("{:16s} '{:s}' {}\n"),
-            std::string_view(token_name_table[to_underlying(token.type)]),
-            token.lexeme,
-            token.value
-        );
+        const Token token = scanner.scan_token();
+        print_token(token);
         if (token.type == TokenType::END_OF_FILE) { break; }
     }
 }

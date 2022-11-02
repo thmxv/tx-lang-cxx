@@ -1,3 +1,4 @@
+#include "tx/common.hxx"
 #include "tx/tx.hxx"
 
 #include <fmt/format.h>
@@ -245,16 +246,24 @@ int main(int argc, const char** argv) noexcept {
         return tx::ExitCode::SUCCESS;
     }
 
-    // std::pmr::unsynchronized_pool_resource mem_res;
-    auto& mem_res = *std::pmr::get_default_resource();
-    tx::VM tvm(options.args_vm_options, &mem_res);
+    std::pmr::unsynchronized_pool_resource mem_res;
+    std::pmr::memory_resource* mem_res_ptr = nullptr;
+    // TODO make option
+    if constexpr (tx::IS_DEBUG_BUILD) {
+        mem_res_ptr = std::pmr::get_default_resource();
+    } else {
+        mem_res_ptr = &mem_res;
+    }
+    tx::VM tvm(options.args_vm_options, mem_res_ptr);
     if (options.args_file_path == nullptr) {
         tvm.get_options().allow_pointer_to_souce_content = false;
         tvm.get_options().allow_global_redefinition = true;
         tx::run_repl(tvm);
     } else {
         if (options.args_use_stdin) {
-            fmt::print(FMT_STRING("UNIMPLEMENTED: cannot read from stdin\n"));
+            fmt::print(
+                FMT_STRING("UNIMPLEMENTED: Cannot read from <stdin> yet.\n")
+            );
         } else {
             // tvm.get_options().allow_pointer_to_souce_content = false;
             // tvm.get_options().allow_global_redefinition = true;

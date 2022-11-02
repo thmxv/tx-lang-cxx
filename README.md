@@ -31,7 +31,6 @@ Tx is still very much a work in progress.
 - Allow fn expression (without identifier?)
 - fix let for globals
 - flatten hot loops/functions
-- print tokens as they are consumed instead of dedicated pass
 - allow to use break to break out of a block (using labels only)
 - skip first and last newline if present in raw stings literals
 - fix cast of opcode multibyte values to u32?
@@ -63,6 +62,8 @@ Tx is still very much a work in progress.
 
 ## Roadmap/TODO list
 
+### v0.1.0
+
 - [X] Bytecode array
 - [X] Interpret bytecode
 - [X] Scanning tokens
@@ -77,6 +78,10 @@ Tx is still very much a work in progress.
 - [ ] Tests
 - [ ] Closure
 - [ ] Garbage collection
+- [ ] Documentation
+
+### v0.2.0
+
 - [ ] Struct and instances
 - [ ] Methods and initializer
 - [ ] Type checking
@@ -85,23 +90,31 @@ Tx is still very much a work in progress.
 - [ ] Array and Map values (generic types)
 - [ ] Tuples (need variadic generic types)
 - [ ] Pattern matching
+- [ ] Documentation
+
+### v0.3.0
+
 - [ ] Modules
 - [ ] Optimizations
+- [ ] Documentation
 
 ## Minimum target for realease candidate
 
-- [ ] Documentation
 - [ ] Final syntax/grammar
 - [ ] Reserve all future keywords
+- [ ] Benchmarks
 - [ ] Editors support
 - [ ] Modules for core and std
+- [ ] Type alias
+- [ ] Documentation
 
 ## Later versions
 
-- [ ] Syntax colors/highlights and completion in REPL
+- [ ] Syntax highlighting and completion in REPL
 - [ ] Fibers
 - [ ] Threads
 - [ ] Async and await
-- [ ] Package manager
+- [ ] Package/dependency manager
+- [ ] Tools
 - [ ] Virtual env
 

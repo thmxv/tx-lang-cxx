@@ -109,10 +109,6 @@ inline void VM::runtime_error_impl() noexcept {
 
 // TX_VM_CONSTEXPR
 inline InterpretResult VM::interpret(std::string_view source) noexcept {
-    // TODO: print tokens as they are consumed
-    if constexpr (HAS_DEBUG_FEATURES) {
-        if (options.print_tokens) { print_tokens(*this, source); }
-    }
     Parser current_parser(*this, source);
     parser = &current_parser;
     ObjFunction* function = parser->compile();

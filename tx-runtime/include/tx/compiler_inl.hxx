@@ -56,6 +56,9 @@ inline constexpr void Parser::advance() noexcept {
     previous = current;
     for (;;) {
         current = scanner.scan_token();
+        if constexpr (HAS_DEBUG_FEATURES) {
+            if (parent_vm.options.print_tokens) { print_token(current); }
+        }
         if (current.type != TokenType::ERROR) { break; }
         error_at_current(current.lexeme.cbegin());
     }
@@ -436,8 +439,7 @@ inline constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
     }
 }
 
-inline size_t Parser::identifier_global_index(const Token& name
-) noexcept {
+inline size_t Parser::identifier_global_index(const Token& name) noexcept {
     auto identifier = Value{make_string(
         parent_vm,
         !parent_vm.get_options().allow_pointer_to_souce_content,
