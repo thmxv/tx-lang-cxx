@@ -150,7 +150,6 @@ add_library(tx-lang::project_warnings INTERFACE IMPORTED)
 
 # configure files based on CMake configuration options
 # add_subdirectory(configured_files)
-add_subdirectory(scripts)
 add_subdirectory(tx-runtime)
 add_subdirectory(tx-cli)
 
@@ -163,6 +162,8 @@ if(ENABLE_TESTING)
     "Building Tests. Be sure to check out test/constexpr_tests.cpp for constexpr testing"
   )
   add_subdirectory(test)
+  add_subdirectory(scripts)
+  add_subdirectory(test_suite)
 endif()
 
 option(ENABLE_FUZZING "Enable the fuzz tests" OFF)

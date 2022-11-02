@@ -28,7 +28,7 @@ args = parser.parse_args(sys.argv[1:])
 
 BUILD_DIR = dirname(dirname(realpath(__file__)))
 CLI_APP = args.cli_app
-TESTS_DIR = join(BUILD_DIR, "test/tx")
+TESTS_DIR = join(BUILD_DIR, "test_suite")
 
 CLI_APP_WITH_EXT = CLI_APP
 # if platform.system() == "Windows":

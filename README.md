@@ -23,6 +23,7 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- move existing test to tx/language subdir
 - Separate test suite from ctest
 - Fix tests not updating in build directory
 - Chapter 24 challenges (functions)

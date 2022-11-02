@@ -40,32 +40,7 @@ set_tests_properties(
     PASS_REGULAR_EXPRESSION "${PROJECT_VERSION}"
 )
 
-# Test Suit
-add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tx
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_CURRENT_SOURCE_DIR}/tx
-    ${CMAKE_CURRENT_BINARY_DIR}/tx
-)
-add_custom_target(
-  copy_test_suite ALL
-  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/tx
-)
-set_property(
-  TARGET copy_test_suite
-  APPEND PROPERTY ADDITIONAL_CLEAN_FILES ${CMAKE_CURRENT_BINARY_DIR}/tx
-)
-add_test(
-  NAME cli.test_suite
-  COMMAND ../scripts/run_tests.py --no_colors ../tx-cli/tx
-)
-set_tests_properties(
-  cli.test_suite
-  PROPERTIES
-  PASS_REGULAR_EXPRESSION "All [0-9]+ tests passed [(][0-9]+ expectations[)]."
-)
-
-# C++ tests
+# C++ Tests
 
 add_executable(tests tests.cxx)
 target_link_libraries(
