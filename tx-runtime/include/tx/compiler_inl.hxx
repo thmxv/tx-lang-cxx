@@ -160,7 +160,7 @@ Parser::begin_compiler(Compiler& compiler, FunctionType type) noexcept {
     if (type != FunctionType::SCRIPT) {
         current_compiler->function->name = make_string(
             parent_vm,
-            !parent_vm.options.allow_pointer_to_souce_content,
+            !parent_vm.options.allow_pointer_to_source_content,
             previous.lexeme
         );
     }
@@ -442,7 +442,7 @@ inline constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
 inline size_t Parser::identifier_global_index(const Token& name) noexcept {
     auto identifier = Value{make_string(
         parent_vm,
-        !parent_vm.get_options().allow_pointer_to_souce_content,
+        !parent_vm.get_options().allow_pointer_to_source_content,
         name.lexeme
     )};
     auto* index = parent_vm.global_indices.get(identifier);

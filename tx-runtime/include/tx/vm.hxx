@@ -23,7 +23,7 @@ struct VMOptions {
     bool trace_gc = false;
     bool stress_gc = false;
     // REPL specific options
-    bool allow_pointer_to_souce_content = true;
+    bool allow_pointer_to_source_content = true;
     bool allow_global_redefinition = false;
 };
 

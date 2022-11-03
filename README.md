@@ -7,12 +7,11 @@
 
 ## About Tx
 
+Tx aims to be oriented towards safety, speed, power and minimalism.
+
 Tx is inspired by Lua. The code base and implementation is inspired by the 
 book "Crafting Interpreters" by Robert Nystrom. The syntax and feature set
 are inspired by languages such as Python, Rust, Wren and Swift among others.
-
-Tx design decisions are supposed to be oriented towards safety, speed, power 
-and minimalism.
 
 The code base is written, as much as possible, in modern C++. Trying to be 
 almost completely constexpr.
@@ -23,6 +22,7 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- make read_multibyte_index and read_short more consistant
 - move existing test to tx/language subdir
 - Separate test suite from ctest
 - Fix tests not updating in build directory

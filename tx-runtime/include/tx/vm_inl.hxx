@@ -21,7 +21,7 @@
 namespace tx {
 
 inline Value std_cpu_clock_native(VM& /*tvm*/, std::span<Value> /*args*/) {
-    // TODO: only differences in clock are meaningful do not devide here
+    // TODO: only differences in clock are meaningful do not divide here
     return Value{static_cast<float_t>(std::clock()) / CLOCKS_PER_SEC};
 }
 
@@ -91,7 +91,6 @@ inline constexpr void VM::reset_stack() noexcept {
 
 inline void VM::runtime_error_impl() noexcept {
     fmt::print(stderr, "\n");
-    // for (const auto& frame : frames | std::views::reverse) {
     for (size_t i = frames.size() - 1; i >= 0; --i) {
         const auto& frame = frames[i];
         const auto& function = *frame.function;
@@ -128,6 +127,7 @@ inline constexpr size_t VM::define_global(Value name, Value val) noexcept {
 }
 
 inline void VM::define_native(std::string_view name, NativeFn fun) noexcept {
+    assert(stack.empty());
     push(Value{make_string(*this, true, name)});
     push(Value{allocate_object<ObjNative>(*this, fun)});
     define_global(stack[0], stack[1]);
@@ -499,9 +499,9 @@ inline constexpr void VM::debug_trace() const noexcept {
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
 // clang-format off
-    #undef TX_VM_LOOP
+    #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
-    #undef TX_VM_CONTINUE
+    #undef TX_VM_BREAK
     // clang-format on
 }
 

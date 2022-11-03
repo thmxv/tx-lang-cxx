@@ -1,0 +1,24 @@
+# One byte UTF-8 Sequences.
+std_println("\u0041");     # expect: A
+std_println("\u007e");     # expect: ~
+
+# Two byte sequences.
+std_println("\u00b6");     # expect: ¶
+std_println("\u00de");     # expect: Þ
+
+# Three byte sequences.
+std_println("\u0950");     # expect: ॐ
+std_println("\u0b83");     # expect: ஃ
+
+# Capitalized hex.
+std_println("\u00B6");     # expect: ¶
+std_println("\u00DE");     # expect: Þ
+
+# Big escapes:
+var smile = "\U0001F603";
+let byteSmile = "\xf0\x9f\x98\x83";
+std_println(byteSmile == smile); # expect: true
+
+std_println("<\U0001F64A>");       # expect: <🙊>
+std_println("<\U0001F680>");       # expect: <🚀>
+std_println("<\U00010318>");       # expect: <𐌘>

@@ -256,7 +256,7 @@ int main(int argc, const char** argv) noexcept {
     }
     tx::VM tvm(options.args_vm_options, mem_res_ptr);
     if (options.args_file_path == nullptr) {
-        tvm.get_options().allow_pointer_to_souce_content = false;
+        tvm.get_options().allow_pointer_to_source_content = false;
         tvm.get_options().allow_global_redefinition = true;
         tx::run_repl(tvm);
     } else {

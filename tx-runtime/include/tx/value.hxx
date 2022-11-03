@@ -63,36 +63,36 @@ struct Value {
             , as{.obj = val} {}
 
     [[nodiscard]] constexpr bool as_bool() const noexcept {
-        assert(type == BOOL);
+        assert(is_bool());
         // NOLINTNEXTLINE(*-union-access)
         return as.boolean;
     }
 
     [[nodiscard]] constexpr int_t as_int() const noexcept {
-        assert(type == INT);
+        assert(is_int());
         // NOLINTNEXTLINE(*-union-access)
         return as.integer;
     }
 
     [[nodiscard]] constexpr float_t as_float() const noexcept {
-        assert(type == FLOAT);
+        assert(is_float());
         // NOLINTNEXTLINE(*-union-access)
         return as.scalar;
     }
 
     [[nodiscard]] constexpr float_t as_float_force() const noexcept {
-        assert(type == INT || type == FLOAT);
+        assert(is_int()|| is_float());
         return type == INT ? static_cast<float_t>(as_int()) : as_float();
     }
 
     [[nodiscard]] constexpr char32_t as_char() const noexcept {
-        assert(type == CHAR);
+        assert(is_char());
         // NOLINTNEXTLINE(*-union-access)
         return as.chr;
     }
 
     [[nodiscard]] constexpr Obj& as_object() const noexcept {
-        assert(type == OBJECT);
+        assert(is_object());
         // NOLINTNEXTLINE(*-union-access)
         return *as.obj;
     }

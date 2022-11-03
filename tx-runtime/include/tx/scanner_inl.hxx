@@ -317,7 +317,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
         // NOLINTNEXTLINE(*-magic-numbers)
         Value(make_string(
             parent_vm,
-            !parent_vm.get_options().allow_pointer_to_souce_content,
+            !parent_vm.get_options().allow_pointer_to_source_content,
             lex.substr(3, lex.length() - 6)
         ));
     return token;
