@@ -62,7 +62,7 @@ class HashMap {
         return MAX_LOAD_FACTOR;
     }
 
-    constexpr void clear() noexcept{
+    constexpr void clear() noexcept {
         std::destroy_n(data_ptr, capacity);
         count = 0;
         capacity = 0;
@@ -118,17 +118,21 @@ class HashMap {
             new_cap,
             Entry(EMPTY_KEY, EMPTY_VALUE)
         );
-        count = 0;
-        for (i32 i = 0; i < capacity; ++i) {
-            Entry& entry = data_ptr[i];
-            if (is_entry_empty(entry)) { continue; }
-            Entry& dest = find_entry(entry.first);
-            dest = std::move(entry);
-            ++count;
-        }
-        if (data_ptr != nullptr) { free_array<Entry>(tvm, data_ptr, capacity); }
+        auto* old_ptr = data_ptr;
+        auto old_capacity = capacity;
         data_ptr = entries;
         capacity = new_cap;
+        count = 0;
+        for (i32 i = 0; i < old_capacity; ++i) {
+            Entry& src = old_ptr[i];
+            if (is_entry_empty(src)) { continue; }
+            Entry& dest = find_entry(src.first);
+            dest = std::move(src);
+            ++count;
+        }
+        if (old_ptr != nullptr) {
+            free_array<Entry>(tvm, old_ptr, old_capacity);
+        }
     }
 
     template <typename F>
