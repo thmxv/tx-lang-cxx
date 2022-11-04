@@ -1,0 +1,4 @@
+std_println("a string"); # expect: a string
+
+# Non-ASCII.
+std_println("A~¶Þॐஃ"); # expect: A~¶Þॐஃ

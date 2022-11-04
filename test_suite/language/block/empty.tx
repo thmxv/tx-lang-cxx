@@ -1,0 +1,12 @@
+{} # By itself.
+
+# In a statement.
+if (true) {}
+if (false) {} else {}
+
+std_println("ok"); # expect: ok
+
+# As expression
+std_println({});  # expect: nil
+std_println(if(true) {});  # expect: nil
+std_println(if(false) {} else{});  # expect: nil

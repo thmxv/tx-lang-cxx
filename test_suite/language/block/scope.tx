@@ -1,0 +1,8 @@
+var a = "outer";
+
+{
+  var a = "inner";
+  std_println(a);  # expect: inner
+}
+
+std_println(a);  # expect: outer

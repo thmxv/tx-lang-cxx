@@ -1,0 +1,10 @@
+{
+  var a = "before";
+  std_println(a); # expect: before
+
+  a = "after";
+  std_println(a); # expect: after
+
+  std_println(a = "arg"); # expect: arg
+  std_println(a); # expect: arg
+}
