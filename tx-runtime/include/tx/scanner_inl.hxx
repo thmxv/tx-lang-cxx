@@ -1,8 +1,9 @@
 #pragma once
 
+#include "tx/scanner.hxx"
+//
 #include "tx/fixed_array.hxx"
 #include "tx/object.hxx"
-#include "tx/scanner.hxx"
 #include "tx/unicode.hxx"
 #include "tx/utils.hxx"
 #include "tx/vm.hxx"

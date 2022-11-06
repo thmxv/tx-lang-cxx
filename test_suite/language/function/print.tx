@@ -1,0 +1,4 @@
+fn foo() {}
+std_println(foo); # expect: <fn foo>
+
+std_println(std_println); # expect: <native fn>

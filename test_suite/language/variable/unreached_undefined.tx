@@ -1,0 +1,5 @@
+if (false) {
+  std_println(notDefined);
+}
+
+std_println("ok"); # expect: ok

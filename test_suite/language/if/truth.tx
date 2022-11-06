@@ -1,0 +1,10 @@
+# False and nil are false.
+if (false) { std_println("bad"); } else { std_println("false"); } # expect: false
+if (nil) { std_println("bad"); } else { std_println("nil"); } # expect: nil
+
+# Everything else is true.
+if (true) { std_println(true); } # expect: true
+if (0) { std_println(0); } # expect: 0
+if (0.0) { std_println(0.0); } # expect: 0.0
+if (-0.0) { std_println(-0.0); } # expect: -0.0
+if ("") { std_println("empty"); } # expect: empty

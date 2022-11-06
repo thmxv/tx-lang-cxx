@@ -1,0 +1,9 @@
+{
+  var a = "first";
+  std_println(a); # expect: first
+}
+
+{
+  var a = "second";
+  std_println(a); # expect: second
+}

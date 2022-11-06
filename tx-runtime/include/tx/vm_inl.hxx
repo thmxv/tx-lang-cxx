@@ -20,18 +20,12 @@
 
 namespace tx {
 
-inline Value std_cpu_clock_native(VM& /*tvm*/, std::span<Value> /*args*/) {
-    // TODO: only differences in clock are meaningful do not divide here
+inline Value std_clock_native(VM& /*tvm*/, std::span<Value> /*args*/) {
     return Value{static_cast<float_t>(std::clock()) / CLOCKS_PER_SEC};
 }
 
-// wall clock?
-inline Value std_now_native(VM& tvm, std::span<Value> /*args*/) {
-    // XXX
-    return Value{make_string(tvm, true, "Not implemented!")};
-}
-
 inline Value std_println_native(VM& /*tvm*/, std::span<Value> args) {
+    assert(args.size()==1);
     fmt::print("{}\n", args[0]);
     return Value{val_nil};
 }
@@ -40,8 +34,7 @@ inline VM::VM(VMOptions opts, const Allocator& alloc) noexcept
         : options(opts)
         , allocator(alloc) {
     define_native("std_println", std_println_native);
-    define_native("std_cpu_clock", std_cpu_clock_native);
-    define_native("std_now", std_now_native);
+    define_native("std_clock", std_clock_native);
 }
 
 inline constexpr VM::~VM() noexcept {
@@ -126,9 +119,12 @@ inline constexpr size_t VM::define_global(Value name, Value val) noexcept {
     return new_index;
 }
 
-inline void VM::define_native(std::string_view name, NativeFn fun) noexcept {
+inline void VM::define_native(
+    std::string_view name,
+    NativeFn fun
+) noexcept {
     assert(stack.empty());
-    push(Value{make_string(*this, true, name)});
+    push(Value{make_string(*this, false, name)});
     push(Value{allocate_object<ObjNative>(*this, fun)});
     define_global(stack[0], stack[1]);
     pop();
@@ -182,7 +178,7 @@ VM::call_value(Value callee, size_t arg_c) noexcept {
         }
     }
     // TODO: make this a compile time error
-    runtime_error("Can't only call functions and classes.");
+    runtime_error("Can only call functions.");
     return false;
 }
 
@@ -193,6 +189,7 @@ VM::call_value(Value callee, size_t arg_c) noexcept {
     } else if (peek(0).is_float()) {
         result = Value(-pop().as_float());
     } else {
+        // TODO: make this a compile time error
         runtime_error("Operand must be a number.");
         return true;
     }
@@ -203,6 +200,7 @@ VM::call_value(Value callee, size_t arg_c) noexcept {
 template <template <typename> typename Op>
 [[nodiscard]] constexpr bool VM::binary_op() noexcept {
     if (!peek(0).is_number() || !peek(1).is_number()) {
+        // TODO: make this a compile time error
         runtime_error("Operands must be numbers.");
         return true;
     }
@@ -247,7 +245,7 @@ inline constexpr void VM::debug_trace() const noexcept {
 }
 
 [[gnu::flatten]] inline TX_VM_CONSTEXPR InterpretResult VM::run() noexcept {
-    // clang-format off
+// clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -429,6 +427,11 @@ inline constexpr void VM::debug_trace() const noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(DIVIDE) : {
+                if (peek(0).is_int() && peek(1).is_int()
+                    && peek(0).as_int() == 0) {
+                    runtime_error("Division by zero.");
+                    return InterpretResult::RUNTIME_ERROR;
+                }
                 if (binary_op<std::divides>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
@@ -498,7 +501,7 @@ inline constexpr void VM::debug_trace() const noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-// clang-format off
+    // clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK

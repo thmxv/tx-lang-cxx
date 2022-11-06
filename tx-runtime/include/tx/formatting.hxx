@@ -5,6 +5,9 @@
 #include "tx/object.hxx"
 
 #include <fmt/format.h>
+#include <math.h>
+
+#include <cmath>
 
 template <>
 struct fmt::formatter<tx::Value> : formatter<string_view> {
@@ -15,9 +18,16 @@ struct fmt::formatter<tx::Value> : formatter<string_view> {
             case NONE: return fmt::format_to(ctx.out(), "none");
             case NIL: return fmt::format_to(ctx.out(), "nil");
             case BOOL: return fmt::format_to(ctx.out(), "{}", value.as_bool());
-            case INT: return fmt::format_to(ctx.out(), "{}", value.as_int());
-            case FLOAT:
-                return fmt::format_to(ctx.out(), "{}", value.as_float());
+            case INT: return fmt::format_to(ctx.out(), "{:d}", value.as_int());
+            case FLOAT: {
+                // TODO: create utility has_integer_value(float val);
+                tx::float_t val = value.as_float();
+                tx::float_t int_part = 0.0;
+                tx::float_t fract_part = std::modf(val, &int_part);
+                bool is_int = (fract_part == 0.0 && !std::isinf(int_part));
+                if (is_int) { return fmt::format_to(ctx.out(), "{:.1f}", val); }
+                return fmt::format_to(ctx.out(), "{:g}", val);
+            }
             case CHAR: {
                 auto char_array = tx::utf8_encode_single(value.as_char());
                 std::string_view strv{

@@ -1,0 +1,8 @@
+{
+  var a = "local";
+  {
+    var a = "shadow";
+    std_println(a); # expect: shadow
+  }
+  std_println(a); # expect: local
+}

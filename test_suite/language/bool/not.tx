@@ -1,0 +1,3 @@
+std_println(!true);    # expect: false
+std_println(!false);   # expect: true
+std_println(!!true);   # expect: true

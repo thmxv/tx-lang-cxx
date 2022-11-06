@@ -1,0 +1,23 @@
+std_println(true == true);    # expect: true
+std_println(true == false);   # expect: false
+std_println(false == true);   # expect: false
+std_println(false == false);  # expect: true
+
+# Not equal to other types.
+std_println(true == 1);        # expect: false
+std_println(false == 0);       # expect: false
+std_println(true == "true");   # expect: false
+std_println(false == "false"); # expect: false
+std_println(false == "");      # expect: false
+
+std_println(true != true);    # expect: false
+std_println(true != false);   # expect: true
+std_println(false != true);   # expect: true
+std_println(false != false);  # expect: false
+
+# Not equal to other types.
+std_println(true != 1);        # expect: true
+std_println(false != 0);       # expect: true
+std_println(true != "true");   # expect: true
+std_println(false != "false"); # expect: true
+std_println(false != "");      # expect: true

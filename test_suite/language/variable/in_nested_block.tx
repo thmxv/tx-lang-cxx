@@ -1,0 +1,6 @@
+{
+  var a = "outer";
+  {
+    std_println(a); # expect: outer
+  }
+}

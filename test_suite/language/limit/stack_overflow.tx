@@ -1,0 +1,21 @@
+fn foo() {
+  var a1 = nil;
+  var a2 = nil;
+  var a3 = nil;
+  var a4 = nil;
+  var a5 = nil;
+  var a6 = nil;
+  var a7 = nil;
+  var a8 = nil;
+  var a9 = nil;
+  var a10 = nil;
+  var a11 = nil;
+  var a12 = nil;
+  var a13 = nil;
+  var a14 = nil;
+  var a15 = nil;
+  var a16 = nil;
+  foo(); # expect runtime error: Stack overflow.
+}
+
+foo();

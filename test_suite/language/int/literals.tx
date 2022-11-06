@@ -1,0 +1,8 @@
+std_println(123);     # expect: 123
+std_println(987654);  # expect: 987654
+std_println(0);       # expect: 0
+std_println(-0);      # expect: 0
+
+std_println(1_000_000); # expect: 1000000
+
+std_println(0x00ff); # expect: 255

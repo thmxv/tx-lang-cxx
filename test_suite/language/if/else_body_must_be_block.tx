@@ -1,0 +1,2 @@
+# [line 2] Error at '456': Expect '{' before body.
+if(true){} else 456;

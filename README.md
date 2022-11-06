@@ -22,15 +22,15 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- allow ... else if {...} and not force ... else { if {} }, same for other expression with block
+- allow trailing comas everywhere (missing fn decl and call)
+- allow function overload with diff arities
+- allow native fn to generate runtime error
+- check arity of native fn
 - make read_multibyte_index and read_short more consistant
-- move existing test to tx/language subdir
-- Separate test suite from ctest
-- Fix tests not updating in build directory
 - Chapter 24 challenges (functions)
-- Fix native clock function
-- Allow fn expression (without identifier?)
+- Allow fn expression
 - fix let for globals
-- flatten hot loops/functions
 - allow to use break to break out of a block (using labels only)
 - skip first and last newline if present in raw stings literals
 - fix cast of opcode multibyte values to u32?

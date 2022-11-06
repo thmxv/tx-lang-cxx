@@ -1,0 +1,3 @@
+var a = "value";
+var a = a;
+std_println(a); # expect: value

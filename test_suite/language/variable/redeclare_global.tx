@@ -1,0 +1,3 @@
+var a = "1";
+var a;
+std_println(a); # expect: nil

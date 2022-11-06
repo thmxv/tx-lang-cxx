@@ -1,0 +1,12 @@
+fn isEven(n) {
+  if (n == 0) { return true; }
+  return isOdd(n - 1);
+}
+
+fn isOdd(n) {
+  if (n == 0) { return false; }
+  return isEven(n - 1);
+}
+
+std_println(isEven(4)); # expect: true
+std_println(isOdd(3)); # expect: true

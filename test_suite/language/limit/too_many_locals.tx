@@ -1,0 +1,53 @@
+fn f() {
+  # var v00=nil; First slot already taken.
+
+  var v01=nil; var v02=nil; var v03=nil; var v04=nil; var v05=nil; var v06=nil; var v07=nil;
+  var v08=nil; var v09=nil; var v0a=nil; var v0b=nil; var v0c=nil; var v0d=nil; var v0e=nil; var v0f=nil;
+
+  var v10=nil; var v11=nil; var v12=nil; var v13=nil; var v14=nil; var v15=nil; var v16=nil; var v17=nil;
+  var v18=nil; var v19=nil; var v1a=nil; var v1b=nil; var v1c=nil; var v1d=nil; var v1e=nil; var v1f=nil;
+
+  var v20=nil; var v21=nil; var v22=nil; var v23=nil; var v24=nil; var v25=nil; var v26=nil; var v27=nil;
+  var v28=nil; var v29=nil; var v2a=nil; var v2b=nil; var v2c=nil; var v2d=nil; var v2e=nil; var v2f=nil;
+
+  var v30=nil; var v31=nil; var v32=nil; var v33=nil; var v34=nil; var v35=nil; var v36=nil; var v37=nil;
+  var v38=nil; var v39=nil; var v3a=nil; var v3b=nil; var v3c=nil; var v3d=nil; var v3e=nil; var v3f=nil;
+
+  var v40=nil; var v41=nil; var v42=nil; var v43=nil; var v44=nil; var v45=nil; var v46=nil; var v47=nil;
+  var v48=nil; var v49=nil; var v4a=nil; var v4b=nil; var v4c=nil; var v4d=nil; var v4e=nil; var v4f=nil;
+
+  var v50=nil; var v51=nil; var v52=nil; var v53=nil; var v54=nil; var v55=nil; var v56=nil; var v57=nil;
+  var v58=nil; var v59=nil; var v5a=nil; var v5b=nil; var v5c=nil; var v5d=nil; var v5e=nil; var v5f=nil;
+
+  var v60=nil; var v61=nil; var v62=nil; var v63=nil; var v64=nil; var v65=nil; var v66=nil; var v67=nil;
+  var v68=nil; var v69=nil; var v6a=nil; var v6b=nil; var v6c=nil; var v6d=nil; var v6e=nil; var v6f=nil;
+
+  var v70=nil; var v71=nil; var v72=nil; var v73=nil; var v74=nil; var v75=nil; var v76=nil; var v77=nil;
+  var v78=nil; var v79=nil; var v7a=nil; var v7b=nil; var v7c=nil; var v7d=nil; var v7e=nil; var v7f=nil;
+
+  var v80=nil; var v81=nil; var v82=nil; var v83=nil; var v84=nil; var v85=nil; var v86=nil; var v87=nil;
+  var v88=nil; var v89=nil; var v8a=nil; var v8b=nil; var v8c=nil; var v8d=nil; var v8e=nil; var v8f=nil;
+
+  var v90=nil; var v91=nil; var v92=nil; var v93=nil; var v94=nil; var v95=nil; var v96=nil; var v97=nil;
+  var v98=nil; var v99=nil; var v9a=nil; var v9b=nil; var v9c=nil; var v9d=nil; var v9e=nil; var v9f=nil;
+
+  var va0=nil; var va1=nil; var va2=nil; var va3=nil; var va4=nil; var va5=nil; var va6=nil; var va7=nil;
+  var va8=nil; var va9=nil; var vaa=nil; var vab=nil; var vac=nil; var vad=nil; var vae=nil; var vaf=nil;
+
+  var vb0=nil; var vb1=nil; var vb2=nil; var vb3=nil; var vb4=nil; var vb5=nil; var vb6=nil; var vb7=nil;
+  var vb8=nil; var vb9=nil; var vba=nil; var vbb=nil; var vbc=nil; var vbd=nil; var vbe=nil; var vbf=nil;
+
+  var vc0=nil; var vc1=nil; var vc2=nil; var vc3=nil; var vc4=nil; var vc5=nil; var vc6=nil; var vc7=nil;
+  var vc8=nil; var vc9=nil; var vca=nil; var vcb=nil; var vcc=nil; var vcd=nil; var vce=nil; var vcf=nil;
+
+  var vd0=nil; var vd1=nil; var vd2=nil; var vd3=nil; var vd4=nil; var vd5=nil; var vd6=nil; var vd7=nil;
+  var vd8=nil; var vd9=nil; var vda=nil; var vdb=nil; var vdc=nil; var vdd=nil; var vde=nil; var vdf=nil;
+
+  var ve0=nil; var ve1=nil; var ve2=nil; var ve3=nil; var ve4=nil; var ve5=nil; var ve6=nil; var ve7=nil;
+  var ve8=nil; var ve9=nil; var vea=nil; var veb=nil; var vec=nil; var ved=nil; var vee=nil; var vef=nil;
+
+  var vf0=nil; var vf1=nil; var vf2=nil; var vf3=nil; var vf4=nil; var vf5=nil; var vf6=nil; var vf7=nil;
+  var vf8=nil; var vf9=nil; var vfa=nil; var vfb=nil; var vfc=nil; var vfd=nil; var vfe=nil; var vff=nil;
+
+  var oops=nil; # Error at 'oops': Too many local variables in function.
+}

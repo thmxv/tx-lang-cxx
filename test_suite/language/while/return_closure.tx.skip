@@ -1,0 +1,10 @@
+fn f() {
+  while (true) {
+    var i = "i";
+    fn g() { std_println(i); }
+    return g;
+  }
+}
+
+var h = f();
+h(); # expect: i

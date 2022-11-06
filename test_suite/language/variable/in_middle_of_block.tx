@@ -1,0 +1,10 @@
+{
+  var a = 69;
+  std_println(a); # expect: 69
+  var b = a + 420;
+  std_println(b); # expect: 489
+  var c = a + 666;
+  std_println(c); # expect: 735
+  var d = b + 999;
+  std_println(d); # expect: 1488
+}

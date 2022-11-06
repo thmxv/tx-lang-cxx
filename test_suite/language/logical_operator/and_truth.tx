@@ -1,0 +1,8 @@
+# False and nil are false.
+std_println(false and "bad"); # expect: false
+std_println(nil and "bad"); # expect: nil
+
+# Everything else is true.
+std_println(true and "ok"); # expect: ok
+std_println(0 and "ok"); # expect: ok
+std_println("" and "ok"); # expect: ok

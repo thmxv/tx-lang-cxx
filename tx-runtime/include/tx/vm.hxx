@@ -89,6 +89,7 @@ class VM {
 
   private:
     constexpr void push(Value value) noexcept { stack.push_back_unsafe(value); }
+
     constexpr Value pop() noexcept {
         assert(!stack.empty());
         auto value = stack.back();
@@ -112,12 +113,15 @@ class VM {
     }
 
     void print_stack() const noexcept;
+
     constexpr void debug_trace() const noexcept;
 
-    constexpr size_t
-    define_global(Value name, Value val) noexcept;
+    constexpr size_t define_global(Value name, Value val) noexcept;
 
-    void define_native(std::string_view name, NativeFn fun) noexcept;
+    // TODO: pass full signature, for the compiler to verify calls
+    void
+    define_native(std::string_view name, NativeFn fun) noexcept;
+
     [[nodiscard]] constexpr bool call(ObjFunction& fun, size_t arg_c) noexcept;
 
     [[nodiscard]] constexpr bool

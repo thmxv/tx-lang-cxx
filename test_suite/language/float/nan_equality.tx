@@ -1,0 +1,8 @@
+var nan = 0.0/0.0;
+
+std_println(nan == 0); # expect: false
+std_println(nan != 1); # expect: true
+
+# NaN is not equal to self.
+std_println(nan == nan); # expect: false
+std_println(nan != nan); # expect: true

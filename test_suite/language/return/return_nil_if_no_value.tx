@@ -1,0 +1,6 @@
+fn f() {
+  return;
+  std_println("bad");
+}
+
+std_println(f()); # expect: nil

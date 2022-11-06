@@ -1,8 +1,9 @@
 #pragma once
 
+#include "tx/compiler.hxx"
+//
 #include "tx/chunk.hxx"
 #include "tx/common.hxx"
-#include "tx/compiler.hxx"
 #include "tx/debug.hxx"
 #include "tx/object.hxx"
 #include "tx/scanner.hxx"
@@ -90,7 +91,7 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
 
 [[nodiscard]] inline constexpr size_t Parser::add_constant(Value value
 ) noexcept {
-    if (had_error) { return -1; }
+    // if (had_error) { return -1; }
     const auto* existing = current_compiler->constant_indices.get(value);
     if (existing != nullptr) { return static_cast<size_t>(existing->as_int()); }
     // TODO: error if too much constants
@@ -196,7 +197,9 @@ inline constexpr void Parser::end_scope() noexcept {
         ++scope_local_count;
         current_compiler->locals.pop_back();
     }
-    emit_var_length_instruction(OpCode::END_SCOPE, scope_local_count);
+    if (scope_local_count > 0) {
+        emit_var_length_instruction(OpCode::END_SCOPE, scope_local_count);
+    }
 }
 
 inline constexpr void
@@ -372,14 +375,14 @@ inline constexpr void Parser::if_expr(bool can_assign) noexcept {
     consume(RIGHT_PAREN, "Expect ')' after condition.");
     auto then_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     emit_bytes(OpCode::POP);
-    consume(LEFT_BRACE, "Expect '{' after 'if (...)'.");
+    consume(LEFT_BRACE, "Expect '{' before body.");
     // TODO: should we realy pass can_assign? or save and restore
     block(can_assign);
     auto else_jump = emit_jump(OpCode::JUMP);
     patch_jump(then_jump);
     emit_bytes(OpCode::POP);
     if (match(ELSE)) {
-        consume(LEFT_BRACE, "Expect '{' after 'else'.");
+        consume(LEFT_BRACE, "Expect '{' before body.");
         // TODO: should we realy pass can_assign?
         block(can_assign);
     } else {
@@ -520,7 +523,7 @@ inline void Parser::function(FunctionType type) noexcept {
             define_variable(constant);
         } while (match(COMMA));
     }
-    consume(RIGHT_PAREN, "Expect '(' after parameters.");
+    consume(RIGHT_PAREN, "Expect ')' after parameters.");
     consume(LEFT_BRACE, "Expect '{' before function body.");
     // TODO: make sure we can pass true here
     block(true);
@@ -602,7 +605,7 @@ inline constexpr void Parser::break_statement() noexcept {
         if (!is_loop_expr) { emit_bytes(OpCode::POP); }
         ++loop_local_count;
     }
-    if (is_loop_expr) {
+    if (is_loop_expr && loop_local_count > 0) {
         emit_var_length_instruction(OpCode::END_SCOPE, loop_local_count);
     }
     // jump with placeholder opcode that will need patching later
