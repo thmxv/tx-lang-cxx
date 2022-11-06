@@ -512,17 +512,16 @@ inline void Parser::function(FunctionType type) noexcept {
     begin_compiler(compiler, type);
     begin_scope();
     consume(LEFT_PAREN, "Expect '(' after function name.");
-    if (!check(RIGHT_PAREN)) {
-        do {
-            ++current_compiler->function->arity;
-            if (current_compiler->function->arity > 255) {
-                error_at_current("Can't have more than 255 parameters.");
-            }
-            // TODO: need in out or inout
-            auto constant = parse_variable("Expect parameter name.");
-            define_variable(constant);
-        } while (match(COMMA));
-    }
+    do {
+        if (check(RIGHT_PAREN)) { break; }
+        ++current_compiler->function->arity;
+        if (current_compiler->function->arity > 255) {
+            error_at_current("Can't have more than 255 parameters.");
+        }
+        // TODO: need in out or inout
+        auto constant = parse_variable("Expect parameter name.");
+        define_variable(constant);
+    } while (match(COMMA));
     consume(RIGHT_PAREN, "Expect ')' after parameters.");
     consume(LEFT_BRACE, "Expect '{' before function body.");
     // TODO: make sure we can pass true here
