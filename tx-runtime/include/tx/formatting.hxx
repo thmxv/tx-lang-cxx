@@ -53,7 +53,6 @@ struct fmt::formatter<tx::Obj> : formatter<string_view> {
             // }
             case tx::ObjType::FUNCTION: {
                 const auto& function = obj.as<tx::ObjFunction>();
-                // return format_function(function, ctx);
                 return fmt::format_to(
                     ctx.out(),
                     "<fn {:s}>",

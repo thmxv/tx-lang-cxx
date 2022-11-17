@@ -11,6 +11,10 @@
 
 namespace tx {
 
+struct TypeInfo {
+    // TODO
+};
+
 enum class Precedence {
     NONE,
     ASSIGNMENT,  // =
@@ -25,12 +29,26 @@ enum class Precedence {
     PRIMARY,
 };
 
+enum struct StatementType {
+    STATEMENT,
+    EXPRESSION_WITH_BLOCK,
+    EXPRESSION_WITHOUT_BLOCK,
+};
+
+struct ParseResult {
+    TokenType token_type;
+    TypeInfo type_info;
+
+    [[nodiscard]] constexpr bool is_block_expr() const noexcept;
+};
+
 class Parser;
-using ParseFn = void (Parser::*)(bool);
+using ParsePrefixFn = TypeInfo (Parser::*)(bool can_assign);
+using ParseInfixFn = TypeInfo (Parser::*)(TypeInfo lhs, bool can_assign);
 
 struct ParseRule {
-    ParseFn prefix;
-    ParseFn infix;
+    ParsePrefixFn prefix;
+    ParseInfixFn infix;
     Precedence precedence;
 };
 
@@ -116,69 +134,73 @@ class Parser {
     constexpr void emit_constant(Value value) noexcept;
     constexpr void emit_return() noexcept;
     constexpr void emit_var_length_instruction(OpCode opc, size_t idx) noexcept;
+
     [[nodiscard]] constexpr size_t emit_jump(OpCode instruction) noexcept;
+
     constexpr void emit_loop(size_t loop_start) noexcept;
     constexpr void patch_jump(i32 offset) noexcept;
-    void begin_compiler(Compiler& compiler, FunctionType type) noexcept;
+
+    void
+    begin_compiler(Compiler& compiler, FunctionType type, Token* name) noexcept;
+
     [[nodiscard]] constexpr ObjFunction* end_compiler() noexcept;
+
     constexpr void begin_scope() noexcept;
     constexpr void patch_jumps_in_innermost_loop() noexcept;
     constexpr void end_scope() noexcept;
     constexpr void begin_loop(Loop& loop, bool is_loop_expr = false) noexcept;
     constexpr void end_loop() noexcept;
 
-  public:
-    constexpr void binary(bool) noexcept;
-    constexpr void call(bool) noexcept;
-    constexpr void grouping(bool) noexcept;
-    constexpr void literal(bool) noexcept;
-    constexpr void named_variable(const Token& name, bool) noexcept;
-    constexpr void variable(bool) noexcept;
-    constexpr void unary(bool) noexcept;
-    constexpr void block(bool) noexcept;
-    constexpr void if_expr(bool) noexcept;
-    constexpr void loop_expr(bool) noexcept;
-    constexpr void and_(bool) noexcept;
-    constexpr void or_(bool) noexcept;
+    [[nodiscard]] constexpr i32
+    resolve_local(Compiler& compiler, const Token& name) noexcept;
 
-  private:
+    [[nodiscard]] size_t identifier_global_index(const Token& name) noexcept;
+
+    constexpr void add_local(Token name, bool is_const) noexcept;
+    constexpr void declare_variable(bool is_const) noexcept;
+    constexpr void mark_initialized() noexcept;
+    constexpr void define_variable(size_t global) noexcept;
+
     [[nodiscard]] static constexpr const ParseRule& get_rule(
         TokenType token_type
     ) noexcept;
 
-    constexpr void parse_precedence(Precedence) noexcept;
+  public:
+    constexpr TypeInfo grouping(bool) noexcept;
+    constexpr TypeInfo literal(bool) noexcept;
+    constexpr TypeInfo named_variable(const Token& name, bool) noexcept;
+    constexpr TypeInfo variable(bool) noexcept;
+    constexpr TypeInfo unary(bool) noexcept;
+    constexpr TypeInfo block(bool) noexcept;
+    constexpr TypeInfo if_expr(bool) noexcept;
+    constexpr TypeInfo loop_expr(bool) noexcept;
+    TypeInfo fn_expr(bool) noexcept;
 
-    [[nodiscard]] constexpr i32
-    resolve_local(Compiler& compiler, const Token& name) noexcept;
+    constexpr TypeInfo binary(TypeInfo, bool) noexcept;
+    constexpr TypeInfo call(TypeInfo, bool) noexcept;
+    constexpr TypeInfo and_(TypeInfo, bool) noexcept;
+    constexpr TypeInfo or_(TypeInfo, bool) noexcept;
 
-    [[nodiscard]] size_t identifier_global_index(const Token& name
-    ) noexcept;
-
-    constexpr void add_local(Token name, bool is_const) noexcept;
-    constexpr void declare_variable(bool is_const) noexcept;
+  private:
+    constexpr ParseResult parse_precedence(Precedence) noexcept;
 
     [[nodiscard]] constexpr size_t parse_variable(const char* error_message
     ) noexcept;
 
-    constexpr void mark_initialized() noexcept;
-    constexpr void define_variable(size_t global) noexcept;
     [[nodiscard]] constexpr u8 argument_list();
 
-    constexpr void expression() noexcept;
-    void function(FunctionType type) noexcept;
+    constexpr ParseResult expression() noexcept;
+    void function(FunctionType type, Token* name) noexcept;
     void fn_declaration() noexcept;
     constexpr void var_declaration() noexcept;
     constexpr void while_statement() noexcept;
     constexpr void break_statement() noexcept;
     constexpr void continue_statement() noexcept;
     constexpr void return_statement() noexcept;
-    [[nodiscard]] constexpr bool check_block_expression() const noexcept;
     constexpr void expression_statement() noexcept;
     constexpr void synchronize() noexcept;
     constexpr void statement() noexcept;
-    [[nodiscard]] constexpr bool statement_no_expression() noexcept;
-
-    // friend class ParseRules;
+    [[nodiscard]] constexpr StatementType statement_or_expression() noexcept;
 };
 
 #ifdef __clang__
@@ -231,7 +253,7 @@ class ParseRules {
         [ELSE]            = {nullptr,        nullptr,    P::NONE},
         [FALSE]           = {&p::literal,    nullptr,    P::NONE},
         [FOR]             = {nullptr,        nullptr,    P::NONE},
-        [FN]              = {nullptr,        nullptr,    P::NONE},
+        [FN]              = {&p::fn_expr,    nullptr,    P::NONE},
         [IF]              = {&p::if_expr,    nullptr,    P::NONE},
         [IN]              = {nullptr,        nullptr,    P::NONE},
         [INOUT]           = {nullptr,        nullptr,    P::NONE},
@@ -264,7 +286,7 @@ class ParseRules {
 
   public:
     static constexpr const ParseRule& get_rule(TokenType token_type) noexcept {
-        return gsl::at(rules, to_underlying(token_type));
+        return rules[to_underlying(token_type)];
     }
 };
 

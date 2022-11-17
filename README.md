@@ -22,21 +22,20 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- fix function name for script (make nullptr) and anonimous function (make empty string) and fix make_string copy parameter acording to case
+- Test for loop, block expr, if expr, fn expr
 - allow ... else if {...} and not force ... else { if {} }, same for other expression with block
-- allow trailing comas everywhere (missing fn decl and call)
 - allow function overload with diff arities
 - allow native fn to generate runtime error
-- check arity of native fn
+- check arity/signature of native fn
 - make read_multibyte_index and read_short more consistant
 - Chapter 24 challenges (functions)
-- Allow fn expression
 - fix let for globals
 - allow to use break to break out of a block (using labels only)
 - skip first and last newline if present in raw stings literals
 - fix cast of opcode multibyte values to u32?
 - more work to allow more than 256 locals in compiler 
-- remove END_SCOPE opcode? or at least make a long version (see when return
-  is implemented)
+- add END_SCOPE_LONG
 - use get_byte_count_for_opcode in more places
 - for loops (range based)
 - match expression
@@ -57,7 +56,6 @@ Tx is still very much a work in progress.
 
 ### To consider
 - Fix 'could be const' warnings with containers when elements are const
-- constexpr (needs support from stdlib for allocation, codecvt and from_char)
 - use char8_t and u8string_view (needs libfmt support)
 
 ## Roadmap/TODO list

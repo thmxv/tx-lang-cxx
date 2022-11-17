@@ -20,9 +20,18 @@ identifiers_equal(const Token& lhs, const Token& rhs) {
     return lhs.lexeme == rhs.lexeme;
 }
 
+inline constexpr bool ParseResult::is_block_expr() const noexcept {
+    switch (token_type) {
+        case LEFT_BRACE:
+        case IF:
+        case LOOP: return true;
+        default: return false;
+    };
+}
+
 [[nodiscard]] inline ObjFunction* Parser::compile() noexcept {
     Compiler comp{};
-    begin_compiler(comp, FunctionType::SCRIPT);
+    begin_compiler(comp, FunctionType::SCRIPT, nullptr);
     advance();
     while (!match(TokenType::END_OF_FILE)) { statement(); }
     auto* fun = end_compiler();
@@ -152,19 +161,23 @@ inline constexpr void Parser::patch_jump(i32 offset) noexcept {
     current_chunk().code[offset + 1].value = static_cast<u8>(jump_16 & 0xffU);
 }
 
-inline void
-Parser::begin_compiler(Compiler& compiler, FunctionType type) noexcept {
+inline void Parser::begin_compiler(
+    Compiler& compiler,
+    FunctionType type,
+    Token* name
+) noexcept {
     compiler.enclosing = current_compiler;
     compiler.function_type = type;
     compiler.function = allocate_object<ObjFunction>(parent_vm);
     current_compiler = &compiler;
-    if (type != FunctionType::SCRIPT) {
+    if (type != FunctionType::SCRIPT && name != nullptr) {
         current_compiler->function->name = make_string(
             parent_vm,
             !parent_vm.options.allow_pointer_to_source_content,
-            previous.lexeme
+            name->lexeme
         );
     }
+    // Reserve first local for methods, use empty string as name to prevent use
     current_compiler->locals.push_back(Local(Token{.lexeme = ""}, 0, true));
 }
 
@@ -231,11 +244,15 @@ inline constexpr void Parser::end_loop() noexcept {
                                            ->enclosing;
 }
 
-inline constexpr void Parser::binary(bool /*can_assign*/) noexcept {
+inline constexpr TypeInfo
+Parser::binary(TypeInfo lhs, bool /*can_assign*/) noexcept {
     auto token_type = previous.type;
     auto rule = get_rule(token_type);
-    parse_precedence(static_cast<Precedence>(to_underlying(rule.precedence) + 1)
+    auto rhs = parse_precedence(
+        static_cast<Precedence>(to_underlying(rule.precedence) + 1)
     );
+    (void)lhs;
+    (void)rhs;
     switch (token_type) {
         using enum TokenType;
         case BANG_EQUAL: emit_bytes(OpCode::NOT_EQUAL); break;
@@ -250,6 +267,7 @@ inline constexpr void Parser::binary(bool /*can_assign*/) noexcept {
         case SLASH: emit_bytes(OpCode::DIVIDE); break;
         default: unreachable();
     }
+    return TypeInfo{};
 }
 
 [[nodiscard]] inline constexpr u8 Parser::argument_list() {
@@ -264,17 +282,22 @@ inline constexpr void Parser::binary(bool /*can_assign*/) noexcept {
     return arg_count;
 }
 
-inline constexpr void Parser::call(bool /*can_assign*/) noexcept {
+inline constexpr TypeInfo
+Parser::call(TypeInfo lhs, bool /*can_assign*/) noexcept {
     auto arg_count = argument_list();
     emit_bytes(OpCode::CALL, arg_count);
+    (void)lhs;
+    return TypeInfo{};
 }
 
-inline constexpr void Parser::grouping(bool /*can_assign*/) noexcept {
-    expression();
+inline constexpr TypeInfo Parser::grouping(bool /*can_assign*/) noexcept {
+    auto result = expression();
+    (void)result;
     consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+    return TypeInfo{};
 }
 
-inline constexpr void Parser::literal(bool /*can_assign*/) noexcept {
+inline constexpr TypeInfo Parser::literal(bool /*can_assign*/) noexcept {
     switch (previous.type) {
         case NIL: emit_bytes(OpCode::NIL); break;
         case FALSE: emit_bytes(OpCode::FALSE); break;
@@ -284,6 +307,7 @@ inline constexpr void Parser::literal(bool /*can_assign*/) noexcept {
         case STRING_LITERAL: emit_constant(previous.value); break;
         default: unreachable();
     }
+    return TypeInfo{};
 }
 
 inline constexpr i32
@@ -302,7 +326,7 @@ Parser::resolve_local(Compiler& compiler, const Token& name) noexcept {
     return -1;
 }
 
-inline constexpr void
+inline constexpr TypeInfo
 Parser::named_variable(const Token& name, bool can_assign) noexcept {
     OpCode get_op{};
     OpCode set_op{};
@@ -318,36 +342,39 @@ Parser::named_variable(const Token& name, bool can_assign) noexcept {
         set_op = OpCode::SET_GLOBAL;
         is_const = false;
     }
-    if (can_assign && match(TokenType::EQUAL)) {
+    if (can_assign && match(EQUAL)) {
+        auto rhs = expression();
         if (is_const) { error("Immutable assignment target."); }
-        expression();
+        (void)rhs;
         emit_var_length_instruction(set_op, idx);
     } else {
         emit_var_length_instruction(get_op, idx);
     }
+    return TypeInfo{};
 }
 
-inline constexpr void Parser::variable(bool can_assign) noexcept {
-    named_variable(previous, can_assign);
+inline constexpr TypeInfo Parser::variable(bool can_assign) noexcept {
+    return named_variable(previous, can_assign);
 }
 
-inline constexpr void Parser::unary(bool /*can_assign*/) noexcept {
+inline constexpr TypeInfo Parser::unary(bool /*can_assign*/) noexcept {
     auto token_type = previous.type;
-    parse_precedence(Precedence::UNARY);
+    auto rhs = parse_precedence(Precedence::UNARY);
     switch (token_type) {
         case TokenType::BANG: emit_bytes(OpCode::NOT); break;
         case TokenType::MINUS: emit_bytes(OpCode::NEGATE); break;
         default: unreachable();
     }
+    (void)rhs;
+    return TypeInfo{};
 }
 
-inline constexpr void Parser::block(bool /*can_assign*/) noexcept {
+inline constexpr TypeInfo Parser::block(bool /*can_assign*/) noexcept {
     begin_scope();
     bool has_final_expression = false;
     while (!check(RIGHT_BRACE) && !check(END_OF_FILE)) {
-        if (!statement_no_expression()) {
-            const bool is_block_expr = check_block_expression();
-            expression();
+        const auto last = statement_or_expression();
+        if (last != StatementType::STATEMENT) {
             switch (current.type) {
                 case RIGHT_BRACE: has_final_expression = true; break;
                 case SEMICOLON:
@@ -355,7 +382,7 @@ inline constexpr void Parser::block(bool /*can_assign*/) noexcept {
                     emit_bytes(OpCode::POP);
                     continue;
                 default:
-                    if (is_block_expr) {
+                    if (last == StatementType::EXPRESSION_WITH_BLOCK) {
                         emit_bytes(OpCode::POP);
                         continue;
                     }
@@ -366,10 +393,10 @@ inline constexpr void Parser::block(bool /*can_assign*/) noexcept {
     consume(RIGHT_BRACE, "Expect '}' after block.");
     if (!has_final_expression) { emit_bytes(OpCode::NIL); }
     end_scope();
-    // TODO: expression result should be below scope local on the stack
+    return TypeInfo{};
 }
 
-inline constexpr void Parser::if_expr(bool can_assign) noexcept {
+inline constexpr TypeInfo Parser::if_expr(bool can_assign) noexcept {
     consume(LEFT_PAREN, "Expect '(' after 'if'.");
     expression();
     consume(RIGHT_PAREN, "Expect ')' after condition.");
@@ -377,45 +404,63 @@ inline constexpr void Parser::if_expr(bool can_assign) noexcept {
     emit_bytes(OpCode::POP);
     consume(LEFT_BRACE, "Expect '{' before body.");
     // TODO: should we realy pass can_assign? or save and restore
-    block(can_assign);
+    auto then_result = block(can_assign);
+    (void)then_result;
     auto else_jump = emit_jump(OpCode::JUMP);
     patch_jump(then_jump);
     emit_bytes(OpCode::POP);
     if (match(ELSE)) {
         consume(LEFT_BRACE, "Expect '{' before body.");
         // TODO: should we realy pass can_assign?
-        block(can_assign);
+        auto else_result = block(can_assign);
+        (void)else_result;
     } else {
         emit_bytes(OpCode::NIL);
     }
     patch_jump(else_jump);
+    return TypeInfo{};
 }
 
-inline constexpr void Parser::loop_expr(bool can_assign) noexcept {
+inline constexpr TypeInfo Parser::loop_expr(bool can_assign) noexcept {
     Loop loop{};
     begin_loop(loop, true);
     consume(LEFT_BRACE, "Expect '{' after 'loop'.");
     // TODO: should we realy pass can_assign? or save and restore
-    block(can_assign);
+    auto result = block(can_assign);
+    (void)result;  // TODO: make sure no final expression as it is meaningless
     emit_bytes(OpCode::POP);
     emit_loop(loop.start);
     end_loop();
+    return TypeInfo{};
 }
 
-inline constexpr void Parser::and_(bool /*can_assign*/) noexcept {
+inline TypeInfo Parser::fn_expr(bool /*can_assign*/) noexcept {
+    function(FunctionType::FUNCTION, nullptr);
+    return TypeInfo{};
+}
+
+inline constexpr TypeInfo
+Parser::and_(TypeInfo lhs, bool /*can_assign*/) noexcept {
     auto end_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     emit_bytes(OpCode::POP);
-    parse_precedence(Precedence::AND);
+    auto rhs = parse_precedence(Precedence::AND);
+    (void)lhs;
+    (void)rhs;
     patch_jump(end_jump);
+    return TypeInfo{};
 }
 
-inline constexpr void Parser::or_(bool /*can_assign*/) noexcept {
+inline constexpr TypeInfo
+Parser::or_(TypeInfo lhs, bool /*can_assign*/) noexcept {
     auto else_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     auto end_jump = emit_jump(OpCode::JUMP);
     patch_jump(else_jump);
     emit_bytes(OpCode::POP);
-    parse_precedence(Precedence::OR);
+    auto rhs = parse_precedence(Precedence::OR);
+    (void)lhs;
+    (void)rhs;
     patch_jump(end_jump);
+    return TypeInfo{};
 }
 
 inline constexpr const ParseRule& Parser::get_rule(TokenType token_type
@@ -423,23 +468,27 @@ inline constexpr const ParseRule& Parser::get_rule(TokenType token_type
     return ParseRules::get_rule(token_type);
 }
 
-inline constexpr void Parser::parse_precedence(Precedence precedence) noexcept {
+inline constexpr ParseResult Parser::parse_precedence(Precedence precedence
+) noexcept {
     advance();
-    const ParseFn prefix_rule = get_rule(previous.type).prefix;
+    auto token_type = previous.type;
+    const ParsePrefixFn prefix_rule = get_rule(previous.type).prefix;
     if (prefix_rule == nullptr) {
         error("Expect expression.");
-        return;
+        return ParseResult{.token_type = ERROR, .type_info = {}};
     }
     const bool can_assign = precedence <= Precedence::ASSIGNMENT;
-    std::invoke(prefix_rule, *this, can_assign);
+    auto result = std::invoke(prefix_rule, *this, can_assign);
     while (precedence <= get_rule(current.type).precedence) {
         advance();
-        const ParseFn infix_rule = get_rule(previous.type).infix;
-        std::invoke(infix_rule, *this, can_assign);
+        token_type = previous.type;
+        const ParseInfixFn infix_rule = get_rule(previous.type).infix;
+        result = std::invoke(infix_rule, *this, result, can_assign);
     }
-    if (can_assign && match(TokenType::EQUAL)) {
+    if (can_assign && match(EQUAL)) {
         error("Invalid assignment target.");
     }
+    return ParseResult{.token_type = token_type, .type_info = result};
 }
 
 inline size_t Parser::identifier_global_index(const Token& name) noexcept {
@@ -503,13 +552,13 @@ inline constexpr void Parser::define_variable(size_t global) noexcept {
     emit_var_length_instruction(OpCode::DEFINE_GLOBAL, global);
 }
 
-inline constexpr void Parser::expression() noexcept {
-    parse_precedence(Precedence::ASSIGNMENT);
+inline constexpr ParseResult Parser::expression() noexcept {
+    return parse_precedence(Precedence::ASSIGNMENT);
 }
 
-inline void Parser::function(FunctionType type) noexcept {
+inline void Parser::function(FunctionType type, Token* name) noexcept {
     Compiler compiler;
-    begin_compiler(compiler, type);
+    begin_compiler(compiler, type, name);
     begin_scope();
     consume(LEFT_PAREN, "Expect '(' after function name.");
     do {
@@ -525,7 +574,8 @@ inline void Parser::function(FunctionType type) noexcept {
     consume(RIGHT_PAREN, "Expect ')' after parameters.");
     consume(LEFT_BRACE, "Expect '{' before function body.");
     // TODO: make sure we can pass true here
-    block(true);
+    auto block_result = block(true);
+    (void)block_result;
     // end_scope(); // TODO: not necessary?
     auto* function = end_compiler();
     emit_var_length_instruction(
@@ -537,7 +587,7 @@ inline void Parser::function(FunctionType type) noexcept {
 inline void Parser::fn_declaration() noexcept {
     auto global_idx = parse_variable("Expect funtion name.");
     mark_initialized();
-    function(FunctionType::FUNCTION);
+    function(FunctionType::FUNCTION, &previous);
     define_variable(global_idx);
 }
 
@@ -568,10 +618,8 @@ inline constexpr void Parser::while_statement() noexcept {
     consume(LEFT_BRACE, "Expect '{' after 'while (...)'.");
     // TODO: make sure it is ok to pass true for can_assign. I beleive the
     // passed value is irelevant.
-    // TODO: maybe optimize for runtime by handling block_expre and
-    // block_statement separately in the compiler and avoiding END_SCOPE and POP
-    // instructions
-    block(true);
+    const auto block_result = block(true);
+    (void)block_result;
     emit_bytes(OpCode::POP);
     emit_loop(loop.start);
     patch_jump(exit_jump);
@@ -583,7 +631,7 @@ inline constexpr void Parser::break_statement() noexcept {
     if (current_compiler->innermost_loop == nullptr) {
         error("Can't use 'break' outside of a loop.");
     }
-    bool is_loop_expr = current_compiler->innermost_loop->is_loop_expr;
+    const bool is_loop_expr = current_compiler->innermost_loop->is_loop_expr;
     if (is_loop_expr) {
         if (match(SEMICOLON)) {
             emit_bytes(OpCode::NIL);
@@ -594,7 +642,7 @@ inline constexpr void Parser::break_statement() noexcept {
     } else {
         consume(SEMICOLON, "Expect ; after 'break'.");
     }
-    // TODO: make reusable in emit_pop_innermost_loop_locals()
+    // TODO: extract to emit_pop_innermost_loop_locals()
     size_t loop_local_count = 0;
     for (size_t i = current_compiler->locals.size() - 1;
          i >= 0
@@ -627,20 +675,16 @@ inline constexpr void Parser::continue_statement() noexcept {
     emit_loop(current_compiler->innermost_loop->start);
 }
 
-inline constexpr bool Parser::check_block_expression() const noexcept {
-    return check(LEFT_BRACE) || check(IF) || check(LOOP);
-}
-
-inline constexpr void Parser::expression_statement() noexcept {
-    const bool is_block_expr = check_block_expression();
-    expression();
-    if (is_block_expr) {
-        (void)match(SEMICOLON);
-    } else {
-        consume(TokenType::SEMICOLON, "Expect ';' after expression.");
-    }
-    emit_bytes(OpCode::POP);
-}
+// inline constexpr void Parser::expression_statement() noexcept {
+//     const bool is_block_expr = check_block_expression();
+//     expression();
+//     if (is_block_expr) {
+//         (void)match(SEMICOLON);
+//     } else {
+//         consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+//     }
+//     emit_bytes(OpCode::POP);
+// }
 
 inline constexpr void Parser::return_statement() noexcept {
     if (current_compiler->function_type == FunctionType::SCRIPT) {
@@ -678,37 +722,56 @@ inline constexpr void Parser::synchronize() noexcept {
     }
 }
 
-inline constexpr bool Parser::statement_no_expression() noexcept {
-    if (match(SEMICOLON)) { return true; }
+inline constexpr StatementType Parser::statement_or_expression() noexcept {
+    using enum StatementType;
+    if (match(SEMICOLON)) { return STATEMENT; }
     if (match(FN)) {
-        fn_declaration();
-        return true;
+        if (check(IDENTIFIER)) {
+            fn_declaration();
+            return STATEMENT;
+        }
+        fn_expr(true);
+        return EXPRESSION_WITHOUT_BLOCK;
     }
     if (match(VAR) || match(LET)) {
         var_declaration();
-        return true;
+        return STATEMENT;
     }
     if (match(RETURN)) {
         return_statement();
-        return true;
+        return STATEMENT;
     }
     if (match(WHILE)) {
         while_statement();
-        return true;
+        return STATEMENT;
     }
     if (match(BREAK)) {
         break_statement();
-        return true;
+        return STATEMENT;
     }
     if (match(CONTINUE)) {
         continue_statement();
-        return true;
+        return STATEMENT;
     }
-    return false;
+    auto result = expression();
+    return result.is_block_expr() ? EXPRESSION_WITH_BLOCK
+                                  : EXPRESSION_WITHOUT_BLOCK;
 }
 
 inline constexpr void Parser::statement() noexcept {
-    if (!statement_no_expression()) { expression_statement(); }
+    auto parsed = statement_or_expression();
+    switch (parsed) {
+        using enum StatementType;
+        case STATEMENT: break;
+        case EXPRESSION_WITHOUT_BLOCK:
+            consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+            emit_bytes(OpCode::POP);
+            break;
+        case EXPRESSION_WITH_BLOCK:
+            (void)match(TokenType::SEMICOLON);
+            emit_bytes(OpCode::POP);
+            break;
+    }
     if (panic_mode) { synchronize(); }
 }
 
