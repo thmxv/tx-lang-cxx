@@ -22,6 +22,7 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Handle statement_no_expressio followed by expression(false) in dedicated function
 - fix function name for script (make nullptr) and anonimous function (make empty string) and fix make_string copy parameter acording to case
 - Test for loop, block expr, if expr, fn expr
 - allow ... else if {...} and not force ... else { if {} }, same for other expression with block

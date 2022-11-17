@@ -182,14 +182,15 @@ class Parser {
     constexpr TypeInfo or_(TypeInfo, bool) noexcept;
 
   private:
-    constexpr ParseResult parse_precedence(Precedence) noexcept;
+    constexpr ParseResult
+    parse_precedence(Precedence, bool do_advance = true) noexcept;
 
     [[nodiscard]] constexpr size_t parse_variable(const char* error_message
     ) noexcept;
 
     [[nodiscard]] constexpr u8 argument_list();
 
-    constexpr ParseResult expression() noexcept;
+    constexpr ParseResult expression(bool do_advance = true) noexcept;
     void function(FunctionType type, Token* name) noexcept;
     void fn_declaration() noexcept;
     constexpr void var_declaration() noexcept;
@@ -200,7 +201,7 @@ class Parser {
     constexpr void expression_statement() noexcept;
     constexpr void synchronize() noexcept;
     constexpr void statement() noexcept;
-    [[nodiscard]] constexpr StatementType statement_or_expression() noexcept;
+    [[nodiscard]] constexpr bool statement_no_expression() noexcept;
 };
 
 #ifdef __clang__

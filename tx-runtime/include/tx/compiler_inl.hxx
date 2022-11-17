@@ -373,8 +373,8 @@ inline constexpr TypeInfo Parser::block(bool /*can_assign*/) noexcept {
     begin_scope();
     bool has_final_expression = false;
     while (!check(RIGHT_BRACE) && !check(END_OF_FILE)) {
-        const auto last = statement_or_expression();
-        if (last != StatementType::STATEMENT) {
+        if (!statement_no_expression()) {
+            auto expr = expression(false);
             switch (current.type) {
                 case RIGHT_BRACE: has_final_expression = true; break;
                 case SEMICOLON:
@@ -382,7 +382,7 @@ inline constexpr TypeInfo Parser::block(bool /*can_assign*/) noexcept {
                     emit_bytes(OpCode::POP);
                     continue;
                 default:
-                    if (last == StatementType::EXPRESSION_WITH_BLOCK) {
+                    if (expr.is_block_expr()) {
                         emit_bytes(OpCode::POP);
                         continue;
                     }
@@ -468,9 +468,9 @@ inline constexpr const ParseRule& Parser::get_rule(TokenType token_type
     return ParseRules::get_rule(token_type);
 }
 
-inline constexpr ParseResult Parser::parse_precedence(Precedence precedence
-) noexcept {
-    advance();
+inline constexpr ParseResult
+Parser::parse_precedence(Precedence precedence, bool do_advance) noexcept {
+    if (do_advance) { advance(); }
     auto token_type = previous.type;
     const ParsePrefixFn prefix_rule = get_rule(previous.type).prefix;
     if (prefix_rule == nullptr) {
@@ -485,9 +485,7 @@ inline constexpr ParseResult Parser::parse_precedence(Precedence precedence
         const ParseInfixFn infix_rule = get_rule(previous.type).infix;
         result = std::invoke(infix_rule, *this, result, can_assign);
     }
-    if (can_assign && match(EQUAL)) {
-        error("Invalid assignment target.");
-    }
+    if (can_assign && match(EQUAL)) { error("Invalid assignment target."); }
     return ParseResult{.token_type = token_type, .type_info = result};
 }
 
@@ -552,8 +550,8 @@ inline constexpr void Parser::define_variable(size_t global) noexcept {
     emit_var_length_instruction(OpCode::DEFINE_GLOBAL, global);
 }
 
-inline constexpr ParseResult Parser::expression() noexcept {
-    return parse_precedence(Precedence::ASSIGNMENT);
+inline constexpr ParseResult Parser::expression(bool do_advance) noexcept {
+    return parse_precedence(Precedence::ASSIGNMENT, do_advance);
 }
 
 inline void Parser::function(FunctionType type, Token* name) noexcept {
@@ -567,7 +565,8 @@ inline void Parser::function(FunctionType type, Token* name) noexcept {
         if (current_compiler->function->arity > 255) {
             error_at_current("Can't have more than 255 parameters.");
         }
-        // TODO: need in out or inout
+        // TODO: need in out or inout (in by default)
+        // what about out for immutable types? -> error
         auto constant = parse_variable("Expect parameter name.");
         define_variable(constant);
     } while (match(COMMA));
@@ -675,17 +674,6 @@ inline constexpr void Parser::continue_statement() noexcept {
     emit_loop(current_compiler->innermost_loop->start);
 }
 
-// inline constexpr void Parser::expression_statement() noexcept {
-//     const bool is_block_expr = check_block_expression();
-//     expression();
-//     if (is_block_expr) {
-//         (void)match(SEMICOLON);
-//     } else {
-//         consume(TokenType::SEMICOLON, "Expect ';' after expression.");
-//     }
-//     emit_bytes(OpCode::POP);
-// }
-
 inline constexpr void Parser::return_statement() noexcept {
     if (current_compiler->function_type == FunctionType::SCRIPT) {
         error("Can't return from top-level code.");
@@ -722,56 +710,76 @@ inline constexpr void Parser::synchronize() noexcept {
     }
 }
 
-inline constexpr StatementType Parser::statement_or_expression() noexcept {
+inline constexpr bool Parser::statement_no_expression() noexcept {
     using enum StatementType;
-    if (match(SEMICOLON)) { return STATEMENT; }
-    if (match(FN)) {
-        if (check(IDENTIFIER)) {
-            fn_declaration();
-            return STATEMENT;
-        }
-        fn_expr(true);
-        return EXPRESSION_WITHOUT_BLOCK;
-    }
+    // NOTE: Do not allow useless ; for now
+    // if (match(SEMICOLON)) { return true; }
     if (match(VAR) || match(LET)) {
         var_declaration();
-        return STATEMENT;
+        return true;
     }
     if (match(RETURN)) {
         return_statement();
-        return STATEMENT;
+        return true;
     }
     if (match(WHILE)) {
         while_statement();
-        return STATEMENT;
+        return true;
     }
     if (match(BREAK)) {
         break_statement();
-        return STATEMENT;
+        return true;
     }
     if (match(CONTINUE)) {
         continue_statement();
-        return STATEMENT;
+        return true;
     }
-    auto result = expression();
-    return result.is_block_expr() ? EXPRESSION_WITH_BLOCK
-                                  : EXPRESSION_WITHOUT_BLOCK;
+    if (match(FN)) {
+        if (check(IDENTIFIER)) {
+            fn_declaration();
+            return true;
+        }
+        // TODO: do not work, we should parse an full expression
+        // becaue the fn expression might be followed by an operator
+        // like a valid call operator or an invalid binary operator
+        // but even for invalid syntax the error messages should be
+        // consistant
+        // fn_expr(true);
+        // return EXPRESSION_WITHOUT_BLOCK;
+    } else {
+        advance();
+    }
+    return false;
+    // auto result = expression();
+    // return result.is_block_expr() ? EXPRESSION_WITH_BLOCK
+    //                               : EXPRESSION_WITHOUT_BLOCK;
+}
+
+inline constexpr void Parser::expression_statement() noexcept {
+    auto expr = expression(false);
+    if (expr.is_block_expr()) {
+        (void)match(SEMICOLON);
+    } else {
+        consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+    }
+    emit_bytes(OpCode::POP);
 }
 
 inline constexpr void Parser::statement() noexcept {
-    auto parsed = statement_or_expression();
-    switch (parsed) {
-        using enum StatementType;
-        case STATEMENT: break;
-        case EXPRESSION_WITHOUT_BLOCK:
-            consume(TokenType::SEMICOLON, "Expect ';' after expression.");
-            emit_bytes(OpCode::POP);
-            break;
-        case EXPRESSION_WITH_BLOCK:
-            (void)match(TokenType::SEMICOLON);
-            emit_bytes(OpCode::POP);
-            break;
-    }
+    if (!statement_no_expression()) { expression_statement(); }
+    // auto parsed = statement_or_expression();
+    // switch (parsed) {
+    //     using enum StatementType;
+    //     case STATEMENT: break;
+    //     case EXPRESSION_WITHOUT_BLOCK:
+    //         consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+    //         emit_bytes(OpCode::POP);
+    //         break;
+    //     case EXPRESSION_WITH_BLOCK:
+    //         (void)match(TokenType::SEMICOLON);
+    //         emit_bytes(OpCode::POP);
+    //         break;
+    // }
     if (panic_mode) { synchronize(); }
 }
 
