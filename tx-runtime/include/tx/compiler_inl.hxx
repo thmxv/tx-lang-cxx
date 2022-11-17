@@ -373,8 +373,8 @@ inline constexpr TypeInfo Parser::block(bool /*can_assign*/) noexcept {
     begin_scope();
     bool has_final_expression = false;
     while (!check(RIGHT_BRACE) && !check(END_OF_FILE)) {
-        if (!statement_no_expression()) {
-            auto expr = expression(false);
+        auto expr_opt = statement_or_expression();
+        if (expr_opt.has_value()) {
             switch (current.type) {
                 case RIGHT_BRACE: has_final_expression = true; break;
                 case SEMICOLON:
@@ -382,7 +382,7 @@ inline constexpr TypeInfo Parser::block(bool /*can_assign*/) noexcept {
                     emit_bytes(OpCode::POP);
                     continue;
                 default:
-                    if (expr.is_block_expr()) {
+                    if (expr_opt.value().is_block_expr()) {
                         emit_bytes(OpCode::POP);
                         continue;
                     }
@@ -710,76 +710,50 @@ inline constexpr void Parser::synchronize() noexcept {
     }
 }
 
-inline constexpr bool Parser::statement_no_expression() noexcept {
-    using enum StatementType;
+inline constexpr std::optional<ParseResult> Parser::statement_or_expression(
+) noexcept {
     // NOTE: Do not allow useless ; for now
     // if (match(SEMICOLON)) { return true; }
-    if (match(VAR) || match(LET)) {
-        var_declaration();
-        return true;
-    }
-    if (match(RETURN)) {
-        return_statement();
-        return true;
-    }
-    if (match(WHILE)) {
-        while_statement();
-        return true;
-    }
-    if (match(BREAK)) {
-        break_statement();
-        return true;
-    }
-    if (match(CONTINUE)) {
-        continue_statement();
-        return true;
-    }
     if (match(FN)) {
         if (check(IDENTIFIER)) {
             fn_declaration();
-            return true;
+            return std::nullopt;
         }
-        // TODO: do not work, we should parse an full expression
-        // becaue the fn expression might be followed by an operator
-        // like a valid call operator or an invalid binary operator
-        // but even for invalid syntax the error messages should be
-        // consistant
-        // fn_expr(true);
-        // return EXPRESSION_WITHOUT_BLOCK;
-    } else {
-        advance();
+        return expression(false);
     }
-    return false;
-    // auto result = expression();
-    // return result.is_block_expr() ? EXPRESSION_WITH_BLOCK
-    //                               : EXPRESSION_WITHOUT_BLOCK;
-}
-
-inline constexpr void Parser::expression_statement() noexcept {
-    auto expr = expression(false);
-    if (expr.is_block_expr()) {
-        (void)match(SEMICOLON);
-    } else {
-        consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+    if (match(VAR) || match(LET)) {
+        var_declaration();
+        return std::nullopt;
     }
-    emit_bytes(OpCode::POP);
+    if (match(RETURN)) {
+        return_statement();
+        return std::nullopt;
+    }
+    if (match(WHILE)) {
+        while_statement();
+        return std::nullopt;
+    }
+    if (match(BREAK)) {
+        break_statement();
+        return std::nullopt;
+    }
+    if (match(CONTINUE)) {
+        continue_statement();
+        return std::nullopt;
+    }
+    return expression();
 }
 
 inline constexpr void Parser::statement() noexcept {
-    if (!statement_no_expression()) { expression_statement(); }
-    // auto parsed = statement_or_expression();
-    // switch (parsed) {
-    //     using enum StatementType;
-    //     case STATEMENT: break;
-    //     case EXPRESSION_WITHOUT_BLOCK:
-    //         consume(TokenType::SEMICOLON, "Expect ';' after expression.");
-    //         emit_bytes(OpCode::POP);
-    //         break;
-    //     case EXPRESSION_WITH_BLOCK:
-    //         (void)match(TokenType::SEMICOLON);
-    //         emit_bytes(OpCode::POP);
-    //         break;
-    // }
+    auto expr_opt = statement_or_expression();
+    if (expr_opt.has_value()) {
+        if (expr_opt.value().is_block_expr()) {
+            (void)match(SEMICOLON);
+        } else {
+            consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+        }
+        emit_bytes(OpCode::POP);
+    }
     if (panic_mode) { synchronize(); }
 }
 

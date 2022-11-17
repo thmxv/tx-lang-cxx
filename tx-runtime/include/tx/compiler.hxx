@@ -29,12 +29,6 @@ enum class Precedence {
     PRIMARY,
 };
 
-enum struct StatementType {
-    STATEMENT,
-    EXPRESSION_WITH_BLOCK,
-    EXPRESSION_WITHOUT_BLOCK,
-};
-
 struct ParseResult {
     TokenType token_type;
     TypeInfo type_info;
@@ -125,6 +119,7 @@ class Parser {
     [[nodiscard]] constexpr bool match(TokenType type) noexcept;
 
     [[nodiscard]] constexpr Chunk& current_chunk() const noexcept;
+
     [[nodiscard]] constexpr size_t add_constant(Value value) noexcept;
 
     template <typename... Ts>
@@ -200,8 +195,9 @@ class Parser {
     constexpr void return_statement() noexcept;
     constexpr void expression_statement() noexcept;
     constexpr void synchronize() noexcept;
+
+    constexpr std::optional<ParseResult> statement_or_expression() noexcept;
     constexpr void statement() noexcept;
-    [[nodiscard]] constexpr bool statement_no_expression() noexcept;
 };
 
 #ifdef __clang__
