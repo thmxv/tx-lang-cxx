@@ -23,8 +23,8 @@ Tx is still very much a work in progress.
 ## Backlog
 
 - fix function name for script (make nullptr) and anonimous function (make empty string) and fix make_string copy parameter acording to case
-- Test for loop, block expr, if expr, fn expr
-- allow ... else if {...} and not force ... else { if {} }, same for other expression with block
+- Test for let, loop, block expr, if expr, fn expr
+- allow ... else if {...} and not force ... else { if {} }
 - allow function overload with diff arities
 - allow native fn to generate runtime error
 - check arity/signature of native fn
@@ -40,8 +40,6 @@ Tx is still very much a work in progress.
 - for loops (range based)
 - match expression
 - loop labels with support in break and continue
-- investigate what "can_assign" value to pass to block from conditionals/loop
-  that requires a block;
 - error when assigning to constant golbal
 - forbid global redefinition, unless specifically specified (REPL)
 - allow "var a = a;" in the case of shadowing and not assigning to self

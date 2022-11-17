@@ -127,7 +127,6 @@ class Parser {
     constexpr void emit_bytes(Ts... bytes) noexcept;
 
     constexpr void emit_constant(Value value) noexcept;
-    constexpr void emit_return() noexcept;
     constexpr void emit_var_length_instruction(OpCode opc, size_t idx) noexcept;
 
     [[nodiscard]] constexpr size_t emit_jump(OpCode instruction) noexcept;
@@ -160,23 +159,6 @@ class Parser {
         TokenType token_type
     ) noexcept;
 
-  public:
-    constexpr TypeInfo grouping(bool) noexcept;
-    constexpr TypeInfo literal(bool) noexcept;
-    constexpr TypeInfo named_variable(const Token& name, bool) noexcept;
-    constexpr TypeInfo variable(bool) noexcept;
-    constexpr TypeInfo unary(bool) noexcept;
-    constexpr TypeInfo block(bool) noexcept;
-    constexpr TypeInfo if_expr(bool) noexcept;
-    constexpr TypeInfo loop_expr(bool) noexcept;
-    TypeInfo fn_expr(bool) noexcept;
-
-    constexpr TypeInfo binary(TypeInfo, bool) noexcept;
-    constexpr TypeInfo call(TypeInfo, bool) noexcept;
-    constexpr TypeInfo and_(TypeInfo, bool) noexcept;
-    constexpr TypeInfo or_(TypeInfo, bool) noexcept;
-
-  private:
     constexpr ParseResult
     parse_precedence(Precedence, bool do_advance = true) noexcept;
 
@@ -185,6 +167,7 @@ class Parser {
 
     [[nodiscard]] constexpr u8 argument_list();
 
+    constexpr TypeInfo block_no_scope() noexcept;
     constexpr ParseResult expression(bool do_advance = true) noexcept;
     void function(FunctionType type, Token* name) noexcept;
     void fn_declaration() noexcept;
@@ -198,6 +181,22 @@ class Parser {
 
     constexpr std::optional<ParseResult> statement_or_expression() noexcept;
     constexpr void statement() noexcept;
+
+  public:
+    constexpr TypeInfo grouping(bool) noexcept;
+    constexpr TypeInfo literal(bool) noexcept;
+    constexpr TypeInfo named_variable(const Token& name, bool) noexcept;
+    constexpr TypeInfo variable(bool can_assign) noexcept;
+    constexpr TypeInfo unary(bool) noexcept;
+    constexpr TypeInfo block(bool = false) noexcept;
+    constexpr TypeInfo if_expr(bool) noexcept;
+    constexpr TypeInfo loop_expr(bool) noexcept;
+    TypeInfo fn_expr(bool) noexcept;
+
+    constexpr TypeInfo binary(TypeInfo, bool) noexcept;
+    constexpr TypeInfo call(TypeInfo, bool) noexcept;
+    constexpr TypeInfo and_(TypeInfo, bool) noexcept;
+    constexpr TypeInfo or_(TypeInfo, bool) noexcept;
 };
 
 #ifdef __clang__

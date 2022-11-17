@@ -34,6 +34,7 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
     begin_compiler(comp, FunctionType::SCRIPT, nullptr);
     advance();
     while (!match(TokenType::END_OF_FILE)) { statement(); }
+    emit_bytes(OpCode::NIL);
     auto* fun = end_compiler();
     return had_error ? nullptr : fun;
 }
@@ -116,10 +117,6 @@ inline constexpr void Parser::emit_bytes(Ts... bytes) noexcept {
     current_chunk().write(parent_vm, previous.line, bytes...);
 }
 
-inline constexpr void Parser::emit_return() noexcept {
-    emit_bytes(OpCode::NIL, OpCode::RETURN);
-}
-
 inline constexpr void
 Parser::emit_var_length_instruction(OpCode opc, size_t idx) noexcept {
     current_chunk().write_constant(parent_vm, previous.line, opc, idx);
@@ -182,7 +179,7 @@ inline void Parser::begin_compiler(
 }
 
 [[nodiscard]] inline constexpr ObjFunction* Parser::end_compiler() noexcept {
-    emit_return();
+    emit_bytes(OpCode::RETURN);
     auto* fun = current_compiler->function;
     if constexpr (HAS_DEBUG_FEATURES) {
         if (parent_vm.get_options().print_bytecode) {
@@ -369,8 +366,7 @@ inline constexpr TypeInfo Parser::unary(bool /*can_assign*/) noexcept {
     return TypeInfo{};
 }
 
-inline constexpr TypeInfo Parser::block(bool /*can_assign*/) noexcept {
-    begin_scope();
+inline constexpr TypeInfo Parser::block_no_scope() noexcept {
     bool has_final_expression = false;
     while (!check(RIGHT_BRACE) && !check(END_OF_FILE)) {
         auto expr_opt = statement_or_expression();
@@ -392,27 +388,31 @@ inline constexpr TypeInfo Parser::block(bool /*can_assign*/) noexcept {
     }
     consume(RIGHT_BRACE, "Expect '}' after block.");
     if (!has_final_expression) { emit_bytes(OpCode::NIL); }
-    end_scope();
     return TypeInfo{};
 }
 
-inline constexpr TypeInfo Parser::if_expr(bool can_assign) noexcept {
+inline constexpr TypeInfo Parser::block(bool /*can_assign*/) noexcept {
+    begin_scope();
+    auto result = block_no_scope();
+    end_scope();
+    return result;
+}
+
+inline constexpr TypeInfo Parser::if_expr(bool /*can_assign*/) noexcept {
     consume(LEFT_PAREN, "Expect '(' after 'if'.");
     expression();
     consume(RIGHT_PAREN, "Expect ')' after condition.");
     auto then_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     emit_bytes(OpCode::POP);
-    consume(LEFT_BRACE, "Expect '{' before body.");
-    // TODO: should we realy pass can_assign? or save and restore
-    auto then_result = block(can_assign);
+    consume(LEFT_BRACE, "Expect '{' before if body.");
+    auto then_result = block();
     (void)then_result;
     auto else_jump = emit_jump(OpCode::JUMP);
     patch_jump(then_jump);
     emit_bytes(OpCode::POP);
     if (match(ELSE)) {
-        consume(LEFT_BRACE, "Expect '{' before body.");
-        // TODO: should we realy pass can_assign?
-        auto else_result = block(can_assign);
+        consume(LEFT_BRACE, "Expect '{' before else body.");
+        auto else_result = block();
         (void)else_result;
     } else {
         emit_bytes(OpCode::NIL);
@@ -421,12 +421,11 @@ inline constexpr TypeInfo Parser::if_expr(bool can_assign) noexcept {
     return TypeInfo{};
 }
 
-inline constexpr TypeInfo Parser::loop_expr(bool can_assign) noexcept {
+inline constexpr TypeInfo Parser::loop_expr(bool  /*can_assign*/) noexcept {
     Loop loop{};
     begin_loop(loop, true);
     consume(LEFT_BRACE, "Expect '{' after 'loop'.");
-    // TODO: should we realy pass can_assign? or save and restore
-    auto result = block(can_assign);
+    auto result = block();
     (void)result;  // TODO: make sure no final expression as it is meaningless
     emit_bytes(OpCode::POP);
     emit_loop(loop.start);
@@ -572,10 +571,9 @@ inline void Parser::function(FunctionType type, Token* name) noexcept {
     } while (match(COMMA));
     consume(RIGHT_PAREN, "Expect ')' after parameters.");
     consume(LEFT_BRACE, "Expect '{' before function body.");
-    // TODO: make sure we can pass true here
-    auto block_result = block(true);
+    auto block_result = block_no_scope();
     (void)block_result;
-    // end_scope(); // TODO: not necessary?
+    // end_scope(); // NOTE: Not necessary
     auto* function = end_compiler();
     emit_var_length_instruction(
         OpCode::CONSTANT,
@@ -615,9 +613,7 @@ inline constexpr void Parser::while_statement() noexcept {
     auto exit_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     emit_bytes(OpCode::POP);
     consume(LEFT_BRACE, "Expect '{' after 'while (...)'.");
-    // TODO: make sure it is ok to pass true for can_assign. I beleive the
-    // passed value is irelevant.
-    const auto block_result = block(true);
+    const auto block_result = block();
     (void)block_result;
     emit_bytes(OpCode::POP);
     emit_loop(loop.start);
@@ -679,7 +675,7 @@ inline constexpr void Parser::return_statement() noexcept {
         error("Can't return from top-level code.");
     }
     if (match(SEMICOLON)) {
-        emit_return();
+        emit_bytes(OpCode::NIL, OpCode::RETURN);
     } else {
         expression();
         consume(SEMICOLON, "Expect ';' after return value.");
