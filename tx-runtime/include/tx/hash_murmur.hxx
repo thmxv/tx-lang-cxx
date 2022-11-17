@@ -15,13 +15,9 @@ inline constexpr uint32_t MX_ = 0xe6546b64;
 inline constexpr uint32_t F1_ = 0x85ebca6b;
 inline constexpr uint32_t F2_ = 0xc2b2ae35;
 
-inline constexpr u32 murmur_32_rotate_left(u32 val, u8 amount) {
-    return (val << amount) | (val >> (32U - amount));
-}
-
 [[gnu::flatten]] inline constexpr u32 murmur_32_scramble(u32 val) {
     val *= C1_;
-    val = murmur_32_rotate_left(val, 15U);
+    val = std::rotl(val, 15U);
     val *= C2_;
     return val;
 }
@@ -51,7 +47,7 @@ murmur3_32(const std::span<const std::byte> key, u32 seed = 0) {
         u32 blk = 0;
         std::memcpy(&blk, &*iter, BLOCK_SIZE);
         hash ^= murmur_32_scramble(blk);
-        hash = murmur_32_rotate_left(hash, 13U);
+        hash = std::rotl(hash, 13U);
         hash = hash * 5U + MX_;
         iter += BLOCK_SIZE;
     }
