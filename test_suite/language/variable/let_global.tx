@@ -1,2 +1,2 @@
 let a = 42;
-a = 420;         # [line 2] Error at '420': Immutable assignment target.
+a = 420;         # [line 2] Error at '=': Immutable assignment target.

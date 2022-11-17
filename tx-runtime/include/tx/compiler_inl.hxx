@@ -31,7 +31,7 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
 
 [[nodiscard]] inline ObjFunction* Parser::compile() noexcept {
     Compiler comp{};
-    begin_compiler(comp, FunctionType::SCRIPT, nullptr);
+    begin_compiler(comp, FunctionType::SCRIPT, std::nullopt);
     advance();
     while (!match(TokenType::END_OF_FILE)) { statement(); }
     emit_bytes(OpCode::NIL);
@@ -161,17 +161,17 @@ inline constexpr void Parser::patch_jump(i32 offset) noexcept {
 inline void Parser::begin_compiler(
     Compiler& compiler,
     FunctionType type,
-    Token* name
+    std::optional<std::string_view> name_opt
 ) noexcept {
     compiler.enclosing = current_compiler;
     compiler.function_type = type;
     compiler.function = allocate_object<ObjFunction>(parent_vm);
     current_compiler = &compiler;
-    if (type != FunctionType::SCRIPT && name != nullptr) {
+    if (type != FunctionType::SCRIPT && name_opt.has_value()) {
         current_compiler->function->name = make_string(
             parent_vm,
             !parent_vm.options.allow_pointer_to_source_content,
-            name->lexeme
+            name_opt.value()
         );
     }
     // Reserve first local for methods, use empty string as name to prevent use
@@ -184,7 +184,10 @@ inline void Parser::begin_compiler(
     if constexpr (HAS_DEBUG_FEATURES) {
         if (parent_vm.get_options().print_bytecode) {
             if (!had_error) {
-                disassemble_chunk(current_chunk(), fun->get_name());
+                disassemble_chunk(
+                    current_chunk(),
+                    fun->get_display_name()
+                );
             }
         }
     }
@@ -340,8 +343,8 @@ Parser::named_variable(const Token& name, bool can_assign) noexcept {
         is_const = false;
     }
     if (can_assign && match(EQUAL)) {
-        auto rhs = expression();
         if (is_const) { error("Immutable assignment target."); }
+        auto rhs = expression();
         (void)rhs;
         emit_var_length_instruction(set_op, idx);
     } else {
@@ -408,18 +411,29 @@ inline constexpr TypeInfo Parser::if_expr(bool /*can_assign*/) noexcept {
     auto else_jump = emit_jump(OpCode::JUMP);
     patch_jump(then_jump);
     emit_bytes(OpCode::POP);
+    TypeInfo else_result;
     if (match(ELSE)) {
-        consume(LEFT_BRACE, "Expect '{' before else body.");
-        auto else_result = block();
-        (void)else_result;
+        switch (current.type) {
+            case IF:
+                advance();
+                else_result = if_expr();
+                break;
+            case LEFT_BRACE:
+                advance();
+                else_result = block();
+                break;
+            default: error_at_current("Expect '{' before else body.");
+        }
     } else {
+        else_result = TypeInfo{};
         emit_bytes(OpCode::NIL);
     }
+    (void)else_result;
     patch_jump(else_jump);
     return TypeInfo{};
 }
 
-inline constexpr TypeInfo Parser::loop_expr(bool  /*can_assign*/) noexcept {
+inline constexpr TypeInfo Parser::loop_expr(bool /*can_assign*/) noexcept {
     Loop loop{};
     begin_loop(loop, true);
     consume(LEFT_BRACE, "Expect '{' after 'loop'.");
@@ -432,7 +446,7 @@ inline constexpr TypeInfo Parser::loop_expr(bool  /*can_assign*/) noexcept {
 }
 
 inline TypeInfo Parser::fn_expr(bool /*can_assign*/) noexcept {
-    function(FunctionType::FUNCTION, nullptr);
+    function(FunctionType::FUNCTION, "");
     return TypeInfo{};
 }
 
@@ -551,11 +565,16 @@ inline constexpr ParseResult Parser::expression(bool do_advance) noexcept {
     return parse_precedence(Precedence::ASSIGNMENT, do_advance);
 }
 
-inline void Parser::function(FunctionType type, Token* name) noexcept {
+inline void
+Parser::function(FunctionType type, std::string_view name) noexcept {
     Compiler compiler;
     begin_compiler(compiler, type, name);
     begin_scope();
-    consume(LEFT_PAREN, "Expect '(' after function name.");
+    consume(
+        LEFT_PAREN,
+        name.empty() ? "Expect '(' after 'fn'."
+                     : "Expect '(' after function name."
+    );
     do {
         if (check(RIGHT_PAREN)) { break; }
         ++current_compiler->function->arity;
@@ -582,7 +601,7 @@ inline void Parser::function(FunctionType type, Token* name) noexcept {
 inline void Parser::fn_declaration() noexcept {
     auto global_idx = parse_variable("Expect funtion name.");
     mark_initialized();
-    function(FunctionType::FUNCTION, &previous);
+    function(FunctionType::FUNCTION, previous.lexeme);
     define_variable(global_idx);
 }
 

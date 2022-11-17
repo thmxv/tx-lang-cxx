@@ -22,16 +22,13 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
-- fix function name for script (make nullptr) and anonimous function (make empty string) and fix make_string copy parameter acording to case
 - Test for let, loop, block expr, if expr, fn expr
-- allow ... else if {...} and not force ... else { if {} }
 - allow function overload with diff arities
 - allow native fn to generate runtime error
 - check arity/signature of native fn
 - make read_multibyte_index and read_short more consistant
 - Chapter 24 challenges (functions)
 - fix let for globals
-- allow to use break to break out of a block (using labels only)
 - skip first and last newline if present in raw stings literals
 - fix cast of opcode multibyte values to u32?
 - more work to allow more than 256 locals in compiler 
@@ -39,7 +36,6 @@ Tx is still very much a work in progress.
 - use get_byte_count_for_opcode in more places
 - for loops (range based)
 - match expression
-- loop labels with support in break and continue
 - error when assigning to constant golbal
 - forbid global redefinition, unless specifically specified (REPL)
 - allow "var a = a;" in the case of shadowing and not assigning to self
@@ -48,11 +44,12 @@ Tx is still very much a work in progress.
 - clean up utf8 conv, utf8 lenght, resize once
 - String concatenation
 - String interpolation
-- Use gsl::narrow_cast where necessary
 - Ensure enough stack space
 - Add OP CODES for common constant values (0,1,2,-1,"")
 
 ### To consider
+- loop labels with support in break and continue
+- allow to use break to break out of a block (using labels only)
 - Fix 'could be const' warnings with containers when elements are const
 - use char8_t and u8string_view (needs libfmt support)
 

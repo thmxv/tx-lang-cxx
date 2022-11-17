@@ -53,11 +53,14 @@ struct fmt::formatter<tx::Obj> : formatter<string_view> {
             // }
             case tx::ObjType::FUNCTION: {
                 const auto& function = obj.as<tx::ObjFunction>();
-                return fmt::format_to(
-                    ctx.out(),
-                    "<fn {:s}>",
-                    function.get_name()
-                );
+                if (function.name == nullptr) {
+                    return fmt::format_to(ctx.out(), "<script>");
+                }
+                auto result = std::string_view(*function.name);
+                if (result.empty()) {
+                    return fmt::format_to(ctx.out(), "<fn>");
+                }
+                return fmt::format_to(ctx.out(), "<fn {:s}>", result);
             }
             case tx::ObjType::NATIVE:
                 return fmt::format_to(ctx.out(), "<native fn>");

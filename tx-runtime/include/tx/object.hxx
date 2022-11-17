@@ -11,6 +11,7 @@
 #include <string_view>
 #include <type_traits>
 #include <cassert>
+#include <optional>
 
 namespace tx {
 
@@ -146,9 +147,18 @@ struct ObjFunction : Obj {
 
     constexpr void destroy(VM& tvm) noexcept { chunk.destroy(tvm); }
 
-    [[nodiscard]] constexpr std::string_view get_name() const noexcept {
-        return name == nullptr ? std::string_view("script")
-                               : std::string_view(*name);
+    // [[nodiscard]] constexpr std::string_view get_debug_name() const noexcept {
+    //     if (name == nullptr) { return "<script>"; }
+    //     auto result = std::string_view(*name);
+    //     if (result.empty()) { return "<fn>"; }
+    //     return fmt::format_to(ctx.out(), "<fn {:s}>", result);
+    // }
+
+    [[nodiscard]] constexpr std::string_view get_display_name() const noexcept {
+        if (name == nullptr) { return "<script>"; }
+        auto result = std::string_view(*name);
+        if (result.empty()) { return "<anonymous>"; }
+        return result;
     }
 };
 

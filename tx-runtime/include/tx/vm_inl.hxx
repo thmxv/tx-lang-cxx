@@ -25,7 +25,7 @@ inline Value std_clock_native(VM& /*tvm*/, std::span<Value> /*args*/) {
 }
 
 inline Value std_println_native(VM& /*tvm*/, std::span<Value> args) {
-    assert(args.size()==1);
+    assert(args.size() == 1);
     fmt::print("{}\n", args[0]);
     return Value{val_nil};
 }
@@ -93,7 +93,7 @@ inline void VM::runtime_error_impl() noexcept {
             stderr,
             "[line {:d}] in {:s}\n",
             function.chunk.get_line(static_cast<i32>(instruction)),
-            function.get_name()
+            function.get_display_name()
         );
     }
     reset_stack();
@@ -119,10 +119,7 @@ inline constexpr size_t VM::define_global(Value name, Value val) noexcept {
     return new_index;
 }
 
-inline void VM::define_native(
-    std::string_view name,
-    NativeFn fun
-) noexcept {
+inline void VM::define_native(std::string_view name, NativeFn fun) noexcept {
     assert(stack.empty());
     push(Value{make_string(*this, false, name)});
     push(Value{allocate_object<ObjNative>(*this, fun)});
@@ -245,7 +242,7 @@ inline constexpr void VM::debug_trace() const noexcept {
 }
 
 [[gnu::flatten]] inline TX_VM_CONSTEXPR InterpretResult VM::run() noexcept {
-// clang-format off
+    // clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -501,7 +498,7 @@ inline constexpr void VM::debug_trace() const noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-    // clang-format off
+// clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK

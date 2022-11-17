@@ -134,8 +134,11 @@ class Parser {
     constexpr void emit_loop(size_t loop_start) noexcept;
     constexpr void patch_jump(i32 offset) noexcept;
 
-    void
-    begin_compiler(Compiler& compiler, FunctionType type, Token* name) noexcept;
+    void begin_compiler(
+        Compiler& compiler,
+        FunctionType type,
+        std::optional<std::string_view> name_opt
+    ) noexcept;
 
     [[nodiscard]] constexpr ObjFunction* end_compiler() noexcept;
 
@@ -169,7 +172,7 @@ class Parser {
 
     constexpr TypeInfo block_no_scope() noexcept;
     constexpr ParseResult expression(bool do_advance = true) noexcept;
-    void function(FunctionType type, Token* name) noexcept;
+    void function(FunctionType type, std::string_view name) noexcept;
     void fn_declaration() noexcept;
     constexpr void var_declaration() noexcept;
     constexpr void while_statement() noexcept;
@@ -189,7 +192,7 @@ class Parser {
     constexpr TypeInfo variable(bool can_assign) noexcept;
     constexpr TypeInfo unary(bool) noexcept;
     constexpr TypeInfo block(bool = false) noexcept;
-    constexpr TypeInfo if_expr(bool) noexcept;
+    constexpr TypeInfo if_expr(bool = false) noexcept;
     constexpr TypeInfo loop_expr(bool) noexcept;
     TypeInfo fn_expr(bool) noexcept;
 

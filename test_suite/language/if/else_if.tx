@@ -1,0 +1,13 @@
+if false {
+  std_println("bad");
+} else if true {
+  std_println("good");  # expect: good
+}
+
+if false {
+  std_println("bad");
+  } else if false {
+    std_println("bad");
+  } else {
+    std_println("good");  # expect: good
+}
