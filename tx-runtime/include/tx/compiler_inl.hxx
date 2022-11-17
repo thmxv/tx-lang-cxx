@@ -399,9 +399,7 @@ inline constexpr TypeInfo Parser::block(bool /*can_assign*/) noexcept {
 }
 
 inline constexpr TypeInfo Parser::if_expr(bool /*can_assign*/) noexcept {
-    consume(LEFT_PAREN, "Expect '(' after 'if'.");
     expression();
-    consume(RIGHT_PAREN, "Expect ')' after condition.");
     auto then_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     emit_bytes(OpCode::POP);
     consume(LEFT_BRACE, "Expect '{' before if body.");
@@ -607,12 +605,10 @@ inline constexpr void Parser::var_declaration() noexcept {
 inline constexpr void Parser::while_statement() noexcept {
     Loop loop{};
     begin_loop(loop);
-    consume(LEFT_PAREN, "Expect '(' after 'while'.");
     expression();
-    consume(RIGHT_PAREN, "Expect ')' after condition.");
     auto exit_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     emit_bytes(OpCode::POP);
-    consume(LEFT_BRACE, "Expect '{' after 'while (...)'.");
+    consume(LEFT_BRACE, "Expect '{' before while body.");
     const auto block_result = block();
     (void)block_result;
     emit_bytes(OpCode::POP);
