@@ -2,3 +2,15 @@ std_println("a string"); # expect: a string
 
 # Non-ASCII.
 std_println("A~¶Þॐஃ"); # expect: A~¶Þॐஃ
+
+std_println("""a raw string"""); # expect: a raw string
+
+std_println("""
+another raw string
+"""); # expect: another raw string
+
+std_println("""yet another raw string
+"""); # expect: yet another raw string
+
+std_println("""
+last one, I promise"""); # expect: last one, I promise

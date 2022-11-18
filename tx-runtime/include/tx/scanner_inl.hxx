@@ -314,13 +314,13 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     advance();
     auto token = make_token(TokenType::STRING_LITERAL);
     const auto& lex = token.lexeme;
-    token.value =
-        // NOLINTNEXTLINE(*-magic-numbers)
-        Value(make_string(
-            parent_vm,
-            !parent_vm.get_options().allow_pointer_to_source_content,
-            lex.substr(3, lex.length() - 6)
-        ));
+    const std::size_t begin = lex[3] == '\n' ? 4 : 3;
+    const std::size_t end = lex[lex.length() - 4] == '\n' ? 4 : 3;
+    token.value = Value(make_string(
+        parent_vm,
+        !parent_vm.get_options().allow_pointer_to_source_content,
+        lex.substr(begin, lex.length() - begin - end)
+    ));
     return token;
 }
 
