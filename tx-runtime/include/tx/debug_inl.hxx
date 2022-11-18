@@ -121,6 +121,8 @@ disassemble_instruction(const Chunk& chunk, size_t offset) noexcept {
         case CALL:
         case END_SCOPE:
             return var_length_instruction(name, chunk, offset, false);
+        case END_SCOPE_LONG:
+            return var_length_instruction(name, chunk, offset, true);
         case GET_GLOBAL_LONG:
         case SET_GLOBAL_LONG:
         case DEFINE_GLOBAL_LONG:

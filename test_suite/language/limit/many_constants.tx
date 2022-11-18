@@ -31,12 +31,12 @@ fn f() {
   232; 233; 234; 235; 236; 237; 238; 239;
   240; 241; 242; 243; 244; 245; 246; 247;
   248; 249; 250; 251; 252; 253; 254; 255;
-  # More to make sure to pass the 256 limit
+  # More to make sure to pass the 256 soft limit
   256; 257; 258; 259; 260; 261; 262; 263;
   # Reuse previous constants is a different code path, test it
   0; 1; 2; 3; 4; 5; 6; 7;
 
-  1
+  42
 }
 
-std_println(f());  # expect: 1
+std_println(f());  # expect: 42

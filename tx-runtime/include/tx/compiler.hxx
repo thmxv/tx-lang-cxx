@@ -57,6 +57,11 @@ struct Local {
             , is_const(is_constant) {}
 };
 
+template <>
+struct is_trivially_relocatable<Local> : std::__is_bitwise_relocatable<Local> {
+    static constexpr value_type value = true;
+};
+
 struct Loop {
     size_t start;
     size_t scope_depth;
@@ -72,7 +77,8 @@ enum struct FunctionType {
 struct ObjFunction;
 
 struct Compiler {
-    using LocalArray = FixedCapacityArray<Local, size_t, 256>;
+    // using LocalArray = FixedCapacityArray<Local, size_t, 256>;
+    using LocalArray = DynArray<Local, size_t>;
 
     Compiler* enclosing{nullptr};
     ObjFunction* function{nullptr};
@@ -81,6 +87,11 @@ struct Compiler {
     LocalArray locals;
     i32 scope_depth{0};
     Loop* innermost_loop = nullptr;
+
+    constexpr void destroy(VM& tvm) noexcept {
+        constant_indices.destroy(tvm);
+        locals.destroy(tvm);
+    }
 };
 
 class Parser {

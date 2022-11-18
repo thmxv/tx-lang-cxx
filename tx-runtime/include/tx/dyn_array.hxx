@@ -77,6 +77,8 @@ class DynArray {
 
     [[nodiscard]] constexpr SizeT size() const noexcept { return count; }
 
+    [[nodiscard]] constexpr bool empty() const noexcept { return count == 0; }
+
     constexpr void resize(VM& tvm, SizeT new_size) noexcept {
         resize(tvm, new_size, T());
     }
@@ -107,7 +109,21 @@ class DynArray {
         std::construct_at(&data_ptr[count++], value);
     }
 
-    constexpr void pop_back() noexcept { std::destroy_at(data_ptr[--count]); }
+    template <typename... Args>
+    constexpr T& emplace_back(VM& tvm, Args&&... args) noexcept(
+        noexcept(std::construct_at(
+            &data_ptr[count++],
+            std::forward<Args>(args)...
+        ))
+    ) {
+        if (capacity == count) { reserve(tvm, grow_capacity(capacity)); }
+        return *std::construct_at(
+            &data_ptr[count++],
+            std::forward<Args>(args)...
+        );
+    }
+
+    constexpr void pop_back() noexcept { std::destroy_at(&data_ptr[--count]); }
 
     [[nodiscard]] constexpr T& operator[](SizeT idx) noexcept {
         return data_ptr[idx];

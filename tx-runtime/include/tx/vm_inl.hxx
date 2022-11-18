@@ -481,6 +481,13 @@ inline constexpr void VM::debug_trace() const noexcept {
                 push(result);
                 TX_VM_BREAK();
             }
+            TX_VM_CASE(END_SCOPE_LONG) : {
+                const auto slot_count = frame->read_multibyte_index(true);
+                const auto result = pop();
+                for (auto i = 0; i < slot_count; ++i) { pop(); }
+                push(result);
+                TX_VM_BREAK();
+            }
             TX_VM_CASE(RETURN) : {
                 const auto result = pop();
                 frames.pop_back();

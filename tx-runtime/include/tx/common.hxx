@@ -35,6 +35,7 @@ inline constexpr bool HAS_DEBUG_FEATURES = cmake::has_debug_features;
 
 inline constexpr size_t FRAMES_MAX = 64;
 inline constexpr size_t STACK_MAX = FRAMES_MAX * 256;
+inline constexpr size_t LOCALS_MAX = 1U<<24U;
 
 // Usefull short type aliases
 using i8 = std::int8_t;

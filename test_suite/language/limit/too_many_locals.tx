@@ -49,5 +49,8 @@ fn f() {
   var vf0=nil; var vf1=nil; var vf2=nil; var vf3=nil; var vf4=nil; var vf5=nil; var vf6=nil; var vf7=nil;
   var vf8=nil; var vf9=nil; var vfa=nil; var vfb=nil; var vfc=nil; var vfd=nil; var vfe=nil; var vff=nil;
 
-  var oops=nil; # Error at 'oops': Too many local variables in function.
+  var result = "good";
+  result
 }
+
+std_println(f());  # expect: good

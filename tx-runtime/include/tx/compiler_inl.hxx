@@ -175,7 +175,10 @@ inline void Parser::begin_compiler(
         );
     }
     // Reserve first local for methods, use empty string as name to prevent use
-    current_compiler->locals.push_back(Local(Token{.lexeme = ""}, 0, true));
+    current_compiler->locals.push_back(
+        parent_vm,
+        Local(Token{.lexeme = ""}, 0, true)
+    );
 }
 
 [[nodiscard]] inline constexpr ObjFunction* Parser::end_compiler() noexcept {
@@ -184,14 +187,11 @@ inline void Parser::begin_compiler(
     if constexpr (HAS_DEBUG_FEATURES) {
         if (parent_vm.get_options().print_bytecode) {
             if (!had_error) {
-                disassemble_chunk(
-                    current_chunk(),
-                    fun->get_display_name()
-                );
+                disassemble_chunk(current_chunk(), fun->get_display_name());
             }
         }
     }
-    current_compiler->constant_indices.destroy(parent_vm);
+    current_compiler->destroy(parent_vm);
     current_compiler = current_compiler->enclosing;
     return fun;
 }
@@ -512,11 +512,11 @@ inline size_t Parser::identifier_global_index(const Token& name) noexcept {
 }
 
 inline constexpr void Parser::add_local(Token name, bool is_const) noexcept {
-    if (current_compiler->locals.size() == 256) {
+    if (current_compiler->locals.size() == LOCALS_MAX) {
         error("Too many local variables in function.");
         return;
     }
-    current_compiler->locals.emplace_back(name, -1, is_const);
+    current_compiler->locals.emplace_back(parent_vm, name, -1, is_const);
 }
 
 inline constexpr void Parser::declare_variable(bool is_const) noexcept {

@@ -24,7 +24,7 @@ Options:
   -D TXT            Set debug specific option(s). (only works on debug builds)
     The following options are available:
       -D all              Enable all debug options
-      -D print-tokens     Print tokens before compilation
+      -D print-tokens     Print tokens during compilation
       -D print-bytecode   Print bytecode after compilation
       -D trace-execution  Trace bytecode execution
       -D trace-gc         Trace garbage collection
