@@ -6,7 +6,8 @@ namespace tx {
 
 void disassemble_chunk(const Chunk& chunk, std::string_view name) noexcept;
 
-size_t disassemble_instruction(const Chunk& chunk, size_t offset) noexcept;
+inline const ByteCode*
+disassemble_instruction(const Chunk& chunk, const ByteCode* ptr) noexcept;
 
 struct Token;
 void print_token(const Token& token) noexcept;

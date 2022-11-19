@@ -33,9 +33,20 @@ struct CallFrame {
     Value* slots;
 
     [[nodiscard]] constexpr ByteCode read_byte() noexcept;
-    [[nodiscard]] constexpr size_t read_multibyte_index(bool is_long) noexcept;
-    [[nodiscard]] constexpr u16 read_short() noexcept;
-    [[nodiscard]] constexpr Value read_constant(bool is_long) noexcept;
+
+    template<u32 N>
+    [[nodiscard]] constexpr size_t read_multibyte_operand() noexcept {
+        auto result = ::tx::read_multibyte_operand<N>(instruction_ptr);
+        std::advance(instruction_ptr, N);
+        return result;
+    }
+
+    template<size_t N>
+    [[nodiscard]] constexpr Value read_constant() noexcept {
+        const auto constant_idx = read_multibyte_operand<N>();
+        return function->chunk.constants[size_cast(constant_idx)];
+    }
+
     void print_instruction() const noexcept;
 };
 
@@ -119,8 +130,7 @@ class VM {
     constexpr size_t define_global(Value name, Value val) noexcept;
 
     // TODO: pass full signature, for the compiler to verify calls
-    void
-    define_native(std::string_view name, NativeFn fun) noexcept;
+    void define_native(std::string_view name, NativeFn fun) noexcept;
 
     [[nodiscard]] constexpr bool call(ObjFunction& fun, size_t arg_c) noexcept;
 

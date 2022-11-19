@@ -26,8 +26,8 @@ inline constexpr std::array opcode_length_table = {
 };
 // clang-format on
 
-static inline constexpr size_t
-get_byte_count_following_opcode(OpCode opc) noexcept {
+static inline constexpr size_t get_byte_count_following_opcode(OpCode opc
+) noexcept {
     return opcode_length_table[to_underlying(opc)];
 }
 
@@ -53,6 +53,26 @@ struct LineStart {
     size_t offset;
     size_t line;
 };
+
+template <u32 N>
+constexpr inline void
+write_multibyte_operand(ByteCode*& ptr, size_t value) noexcept {
+    static_assert(N <= 3);
+    const auto val = static_cast<u32>(value);
+    for (u32 i = 0; i < N; ++i) {
+        (*std::next(ptr, i)).value = static_cast<u8>((val >> (i * 8U)) & 0xffU);
+    }
+}
+
+template <u32 N>
+constexpr inline size_t read_multibyte_operand(const ByteCode* ptr) noexcept {
+    static_assert(N <= 3);
+    u32 result = 0;
+    for (u32 i = 0; i < N; ++i) {
+        result += static_cast<u32>(std::next(ptr, i)->as_u8()) << (i * 8U);
+    }
+    return size_cast(result);
+}
 
 using ByteCodeArray = DynArray<ByteCode, size_t>;
 using LineStartArray = DynArray<LineStart, size_t>;
@@ -88,35 +108,17 @@ struct Chunk {
         return constants.size() - 1;
     }
 
-    constexpr void write_constant(
-        VM& tvm,
-        size_t line,
-        OpCode opc,
-        size_t constant_index
-    ) noexcept {
-        const u64 index = static_cast<u64>(constant_index);
-        if (index < (1U << 8U)) {  // NOLINT(*-magic-numbers)
-            write(tvm, line, opc, static_cast<u8>(index));
-            return;
-        }
-        if (index < (1U << 24U)) {  // NOLINT(*-magic-numbers)
-            opc = OpCode(to_underlying(opc) + 1);
-            write(
-                tvm,
-                line,
-                opc,
-                // NOLINTNEXTLINE(*-magic-numbers)
-                static_cast<u8>(index & 0xffU),
-                // NOLINTNEXTLINE(*-magic-numbers)
-                static_cast<u8>((index >> 8U) & 0xffU),
-                // NOLINTNEXTLINE(*-magic-numbers)
-                static_cast<u8>((index >> 16U) & 0xffU)
-            );
-            return;
-        }
-        unreachable();
+    template <u32 N>
+    constexpr inline void
+    write_multibyte_operand(VM& tvm, size_t line, size_t value) noexcept {
+        static_assert(N <= 3);
+        write_line(tvm, line);
+        auto offset = code.size();
+        code.resize(tvm, code.size()+size_cast(N), ByteCode(0xffU));
+        auto* ptr = &code[offset];
+        ::tx::write_multibyte_operand<N>(ptr, value);
     }
-
+    
     [[nodiscard]] constexpr size_t get_line(size_t instruction) const noexcept {
         size_t start = 0;
         size_t end = lines.size() - 1;
@@ -136,15 +138,5 @@ struct Chunk {
         }
     }
 };
-
-constexpr inline std::pair<size_t, const ByteCode*>
-read_multibyte_index(const ByteCode* ptr, bool is_long) noexcept {
-    if (!is_long) { return std::make_pair(ptr->as_u8(), std::next(ptr, 1)); }
-    const auto constant_idx =  //
-        static_cast<u32>((ptr)->as_u8())
-        | (static_cast<u32>((std::next(ptr, 1))->as_u8()) << 8U)
-        | (static_cast<u32>((std::next(ptr, 2))->as_u8()) << 16U);
-    return std::make_pair(size_cast(constant_idx), std::next(ptr, 3));
-}
 
 }  // namespace tx

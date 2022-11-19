@@ -22,13 +22,11 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
-- make read_multibyte_index and read_short more consistant
-- use get_byte_count_for_opcode in ALL the places, verify the token type is correct
+- TODOs in the code
 - Test for loop, block expr, if expr, fn expr
 - allow native fn to generate runtime error
 - check arity/signature of native fn
 - Chapter 24 challenges (functions)
-- fix cast of opcode multibyte values to u32?
 - error when assigning to constant golbal
 - forbid global redefinition, unless specifically specified (REPL)
 - allow "var a = a;" in the case of shadowing and not assigning to self
@@ -38,6 +36,7 @@ Tx is still very much a work in progress.
 
 ### To consider
 - Allow function overload with diff arities (if possible)
+- Universal Function Call (UFC)
 - Add OP CODES for common constant values (0,1,2,-1,"")
 - Clean up utf8 conv, utf8 lenght, resize once
 - Loop labels with support in break and continue
@@ -64,6 +63,7 @@ Tx is still very much a work in progress.
 - [ ] Closure
 - [ ] Garbage collection
 - [ ] Documentation
+- [ ] Backlog
 
 ### v0.2.0
 

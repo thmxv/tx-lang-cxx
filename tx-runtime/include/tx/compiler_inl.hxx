@@ -111,15 +111,23 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
     return idx;
 }
 
-template <typename... Ts>
-    requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)
-inline constexpr void Parser::emit_bytes(Ts... bytes) noexcept {
-    current_chunk().write(parent_vm, previous.line, bytes...);
-}
-
 inline constexpr void
 Parser::emit_var_length_instruction(OpCode opc, size_t idx) noexcept {
-    current_chunk().write_constant(parent_vm, previous.line, opc, idx);
+    assert(idx < size_cast(1U << 24U));
+    if (idx < size_cast(1U << 8U)) {
+        assert(1 == get_byte_count_following_opcode(opc));
+        emit_bytes(opc);
+        emit_multibyte_operand<1>(idx);
+        return;
+    }
+    if (idx < size_cast(1U << 24U)) {
+        opc = OpCode(to_underlying(opc) + 1);
+        assert(3 == get_byte_count_following_opcode(opc));
+        emit_bytes(opc);
+        emit_multibyte_operand<3>(idx);
+        return;
+    }
+    unreachable();
 }
 
 inline constexpr void Parser::emit_constant(Value value) noexcept {
@@ -129,7 +137,8 @@ inline constexpr void Parser::emit_constant(Value value) noexcept {
 
 [[nodiscard]] inline constexpr size_t Parser::emit_jump(OpCode instruction
 ) noexcept {
-    emit_bytes(instruction, static_cast<u8>(0xff), static_cast<u8>(0xff));
+    emit_bytes(instruction);
+    emit_multibyte_operand<2>(0xffff);
     return current_chunk().code.size() - 2;
 }
 
@@ -139,11 +148,7 @@ inline constexpr void Parser::emit_loop(size_t loop_start) noexcept {
     if (offset > std::numeric_limits<u16>::max()) {
         error("Loop body too large.");
     }
-    const u16 offset_16 = static_cast<u16>(offset);
-    emit_bytes(
-        static_cast<u8>((offset_16 >> 8U) & 0xffU),
-        static_cast<u8>(offset_16 & 0xffU)
-    );
+    emit_multibyte_operand<2>(offset);
 }
 
 inline constexpr void Parser::patch_jump(i32 offset) noexcept {
@@ -151,11 +156,8 @@ inline constexpr void Parser::patch_jump(i32 offset) noexcept {
     if (jump_distance > std::numeric_limits<u16>::max()) {
         error("Too much code to jump over.");
     }
-    const u16 jump_16 = static_cast<u16>(jump_distance);
-    current_chunk().code[offset].value = static_cast<u8>(
-        (jump_16 >> 8U) & 0xffU
-    );
-    current_chunk().code[offset + 1].value = static_cast<u8>(jump_16 & 0xffU);
+    auto* ptr = &current_chunk().code[offset];
+    ::tx::write_multibyte_operand<2>(ptr, jump_distance);
 }
 
 inline void Parser::begin_compiler(
@@ -231,8 +233,6 @@ inline constexpr void Parser::patch_jumps_in_innermost_loop() noexcept {
         if (btc.as_opcode() == OpCode::END) {
             btc = ByteCode{OpCode::JUMP};
             patch_jump(i + 1);
-            // i += 3;
-            // continue;
         }
         i += 1 + get_byte_count_following_opcode(btc.as_opcode());
     }

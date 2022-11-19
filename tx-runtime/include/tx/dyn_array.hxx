@@ -160,11 +160,11 @@ class DynArray {
     [[nodiscard]] constexpr T* end() noexcept { return &data_ptr[count]; }
 
     [[nodiscard]] constexpr const T* end() const noexcept {
-        return &static_cast<T*>(data_ptr[count]);
+        return &data_ptr[count];
     }
 
     [[nodiscard]] constexpr const T* cend() const noexcept {
-        return &static_cast<T*>(data_ptr[count]);
+        return &data_ptr[count];
     }
 };
 }  // namespace tx

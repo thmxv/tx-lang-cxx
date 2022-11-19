@@ -135,7 +135,16 @@ class Parser {
 
     template <typename... Ts>
         requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)
-    constexpr void emit_bytes(Ts... bytes) noexcept;
+    inline constexpr void emit_bytes(Ts... bytes) noexcept {
+        current_chunk().write(parent_vm, previous.line, bytes...);
+    }
+
+    template <u32 N>
+    inline constexpr void
+    emit_multibyte_operand(size_t value) noexcept {
+        current_chunk()
+            .write_multibyte_operand<N>(parent_vm, previous.line, value);
+    }
 
     constexpr void emit_constant(Value value) noexcept;
     constexpr void emit_var_length_instruction(OpCode opc, size_t idx) noexcept;
