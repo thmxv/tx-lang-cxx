@@ -9,6 +9,8 @@ endif
 let s:cpo_save = &cpo
 set cpo&vim
 
+syn keyword	cTodo		contained TODO FIXME XXX
+
 let s:tx_syntax_keywords = {
     \   'txConditional' :["if"
     \ ,                     "else"
@@ -93,6 +95,7 @@ syntax region txCommentLine start="#" end="$"
 
 
 syntax region txString matchgroup=txStringDelimiter start=+"+ skip=+\\\\\|\\"+ end=+"+ oneline contains=txEscape
+syntax region txString matchgroup=txStringDelimiter start=+"""+ skip=+\\\\\|\\"+ end=+"""+ contains=txEscape
 " syntax region txChar matchgroup=txCharDelimiter start=+'+ skip=+\\\\\|\\'+ end=+'+ oneline contains=txEscape
 syntax match txEscape display contained /\\./
 

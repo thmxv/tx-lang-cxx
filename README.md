@@ -20,13 +20,16 @@ almost completely constexpr.
 
 Tx is still very much a work in progress.
 
+## Documentation
+
+- [Main documentation page](./doc/index.md)
+
 ## Backlog
 
 - TODOs in the code
 - Test for loop, block expr, if expr, fn expr
 - allow native fn to generate runtime error
 - check arity/signature of native fn
-- Chapter 24 challenges (functions)
 - error when assigning to constant golbal
 - forbid global redefinition, unless specifically specified (REPL)
 - allow "var a = a;" in the case of shadowing and not assigning to self
@@ -35,6 +38,7 @@ Tx is still very much a work in progress.
 - Ensure enough stack space
 
 ### To consider
+- Optimize instruction_prt access (chapter 24 challenge) + benchmark
 - Allow function overload with diff arities (if possible)
 - Universal Function Call (UFC)
 - Add OP CODES for common constant values (0,1,2,-1,"")
