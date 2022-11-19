@@ -22,7 +22,7 @@ inline constexpr std::array opcode_name_table = {
 
 inline void
 disassemble_chunk(const Chunk& chunk, std::string_view name) noexcept {
-    fmt::print(FMT_STRING("== {:s} ==\n"), name);
+    fmt::print(FMT_STRING("=={:=^40s}==\n"), name);
     for (const auto* ptr = chunk.code.cbegin(); ptr < chunk.code.cend(); ) {
         ptr = disassemble_instruction(chunk, ptr);
     }

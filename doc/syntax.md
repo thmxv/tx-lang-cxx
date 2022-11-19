@@ -74,7 +74,7 @@ Expressions produces a value, and are parsed using operator precedence.
 Curly braces are used to define blocks. Blocks are expressions and produce a
 value. The last expression in the block is used as the block result
 expression. Unless the last expression is followed by a `;` (which discard 
-the expression result and thus making it a statement) in which case the 
+the expression result by making it a statement) in which case the 
 result value is `nil`.
     
     let x = 5;
