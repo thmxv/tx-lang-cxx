@@ -24,7 +24,6 @@ template <typename T>
     return static_cast<size_t>(val);
 }
 
-
 template <typename Enum>
 [[nodiscard]] inline constexpr std::underlying_type_t<Enum> to_underlying(
     Enum enumeration
@@ -55,6 +54,12 @@ template <typename Enum>
         report_and_abort("This code should have been unreachable", location);
     }
     __builtin_unreachable();
+}
+
+[[nodiscard]] inline constexpr bool has_integer_value(float_t val) {
+    float_t int_part = 0.0;
+    const auto fract_part = std::modf(val, &int_part);
+    return fract_part == 0.0 && !std::isinf(int_part);
 }
 
 }  // namespace tx
