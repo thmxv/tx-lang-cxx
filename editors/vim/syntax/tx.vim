@@ -75,6 +75,9 @@ endfunction
 call s:syntax_keyword(s:tx_syntax_keywords)
 
 syntax match txDecNumber display "\v<\d%(_?\d)*"
+syntax match txDecNumber display "\v<\d%(_?\d)*\.\d%(_?\d)*"
+syntax match txDecNumber display "\v<\d%(_?\d)*[eE][+-]=\d%(_?\d)*"
+syntax match txDecNumber display "\v<\d%(_?\d)*\.\d%(_?\d)*[eE][+-]=\d%(_?\d)*"
 syntax match txHexNumber display "\v<0x\x%(_?\x)*"
 " syntax match txOctNumber display "\v<0o\o%(_?\o)*"
 " syntax match txBinNumber display "\v<0b[01]%(_?[01])*"
@@ -87,7 +90,6 @@ syntax match txFunction /\w\+\s*(/me=e-1,he=e-1
 
 " syntax match txEnumDecl /enum\s\+\w\+/lc=4
 syntax match txStructDecl /struct\s\+\w\+/lc=6
-" syntax match txClassDecl /class\s\+\w\+/lc=5
 
 syntax region txBlock start="{" end="}" transparent fold
 
@@ -109,7 +111,6 @@ highlight default link txWordOperator txOperator
 " highlight default link txRangeOperator txOperator
 
 highlight default link txStructDecl txType
-" highlight default link txClassDecl txType
 " highlight default link txEnumDecl txType
 
 highlight default link txKeyword Keyword
@@ -126,13 +127,10 @@ highlight default link txNumber Number
 highlight default link txOperator Operator
 highlight default link txStructure Structure
 highlight default link txExecution Special
-" highlight default link txMacro Macro
 highlight default link txConditional Conditional
 highlight default link txRepeat Repeat
 highlight default link txVarDecl Define
-" highlight default link txException Exception
 highlight default link txFunction Function
-" highlight default link txVisModifier Label
 " highlight default link txLabel Label
 
 delfunction s:syntax_keyword
