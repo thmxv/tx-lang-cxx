@@ -635,6 +635,7 @@ inline constexpr void Parser::while_statement() noexcept {
     patch_jump(exit_jump);
     emit_bytes(OpCode::POP);
     end_loop();
+    (void)match(SEMICOLON);
 }
 
 inline constexpr void Parser::break_statement() noexcept {
