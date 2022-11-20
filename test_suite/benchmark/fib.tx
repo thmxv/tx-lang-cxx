@@ -3,6 +3,6 @@ fn fib(n) {
   return fib(n - 2) + fib(n - 1);
 }
 
-var start = std_clock();
+var start = std_cpu_clock_read();
 std_println(fib(35) == 9227465);
-std_println(std_clock() - start);
+std_println(std_cpu_clock_elapsed(start));

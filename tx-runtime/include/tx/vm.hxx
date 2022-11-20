@@ -55,9 +55,6 @@ using CallFrames = FixedCapacityArray<CallFrame, size_t, FRAMES_MAX>;
 using Stack = FixedCapacityArray<Value, size_t, STACK_MAX>;
 using Allocator = std::pmr::polymorphic_allocator<std::byte>;
 
-Value std_cpu_clock_native(VM& tvm, std::span<Value> args);
-Value std_now_native(VM& tvm, std::span<Value> args);
-
 class VM {
     VMOptions options{};
     Allocator allocator{};

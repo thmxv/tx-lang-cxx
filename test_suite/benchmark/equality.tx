@@ -1,6 +1,6 @@
 var i = 0;
 
-var loopStart = std_clock();
+var loopStart = std_cpu_clock_read();
 
 while (i < 10000000) {
   i = i + 1;
@@ -11,9 +11,9 @@ while (i < 10000000) {
   "str"; "str"; "str"; "stru"; "str"; 1; "str"; nil; "str"; true;
 }
 
-var loopTime = std_clock() - loopStart;
+var loopTime = std_cpu_clock_elapsed(loopStart);
 
-var start = std_clock();
+var start = std_cpu_clock_read();
 
 i = 0;
 while (i < 10000000) {
@@ -25,7 +25,7 @@ while (i < 10000000) {
   "str" == "str"; "str" == "stru"; "str" == 1; "str" == nil; "str" == true;
 }
 
-var elapsed = std_clock() - start;
+var elapsed = std_cpu_clock_elapsed(start);
 std_println("loop");
 std_println(loopTime);
 std_println("elapsed");

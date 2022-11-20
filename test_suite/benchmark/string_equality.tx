@@ -9,7 +9,7 @@ var a8 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa8";
 
 var i = 0;
 
-var loopStart = std_clock();
+var loopStart = std_cpu_clock_read();
 
 while (i < 100000) {
   i = i + 1;
@@ -105,18 +105,18 @@ while (i < 100000) {
   a8; a1; a8; a2; a8; a3; a8; a4; a8; a5; a8; a6; a8; a7; a8; a8;
 }
 
-var loopTime = std_clock() - loopStart;
+var loopTime = std_cpu_clock_elapsed(loopStart);
 
-var start = std_clock();
+var start = std_cpu_clock_read();
 
 i = 0;
 while (i < 100000) {
   i = i + 1;
 
-  // 1 == 1; 1 == 2; 1 == nil; 1 == "str"; 1 == true;
-  // nil == nil; nil == 1; nil == "str"; nil == true;
-  // true == true; true == 1; true == false; true == "str"; true == nil;
-  // "str" == "str"; "str" == "stru"; "str" == 1; "str" == nil; "str" == true;
+  # 1 == 1; 1 == 2; 1 == nil; 1 == "str"; 1 == true;
+  # nil == nil; nil == 1; nil == "str"; nil == true;
+  # true == true; true == 1; true == false; true == "str"; true == nil;
+  # "str" == "str"; "str" == "stru"; "str" == 1; "str" == nil; "str" == true;
 
   a1 == a1; a1 == a2; a1 == a3; a1 == a4; a1 == a5; a1 == a6; a1 == a7; a1 == a8;
   a2 == a1; a2 == a2; a2 == a3; a2 == a4; a2 == a5; a2 == a6; a2 == a7; a2 == a8;
@@ -210,7 +210,7 @@ while (i < 100000) {
 
 }
 
-var elapsed = std_clock() - start;
+var elapsed = std_cpu_clock_elapsed(start);
 std_println("loop");
 std_println(loopTime);
 std_println("elapsed");
