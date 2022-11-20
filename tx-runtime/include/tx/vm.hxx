@@ -118,8 +118,8 @@ class VM {
 
     template <typename... Args>
     void
-    runtime_error(fmt::format_string<Args...> fmt, Args&&... args) noexcept {
-        fmt::print(stderr, fmt, std::forward<Args>(args)...);
+    runtime_error(std::string_view fmt, Args&&... args) noexcept {
+        fmt::print(stderr, fmt::runtime(fmt), std::forward<Args>(args)...);
         runtime_error_impl();
     }
 

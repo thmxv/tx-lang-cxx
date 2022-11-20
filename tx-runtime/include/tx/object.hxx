@@ -86,8 +86,18 @@ struct ObjString : Obj {
     u32 hash = 0;
     bool owns_chars = false;
     gsl::owner<const char*> data_ptr = nullptr;
+
+    // clang-format off
+    #ifdef __clang__
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wc99-extensions"
+    #endif
     // NOLINTNEXTLINE(*-c-arrays)
     __extension__ char data[];
+    #ifdef __clang__
+    #pragma clang diagnostic pop
+    #endif
+    // clang-format on
 
     constexpr explicit ObjString() noexcept = delete;
 
@@ -147,7 +157,8 @@ struct ObjFunction : Obj {
 
     constexpr void destroy(VM& tvm) noexcept { chunk.destroy(tvm); }
 
-    // [[nodiscard]] constexpr std::string_view get_debug_name() const noexcept {
+    // [[nodiscard]] constexpr std::string_view get_debug_name() const noexcept
+    // {
     //     if (name == nullptr) { return "<script>"; }
     //     auto result = std::string_view(*name);
     //     if (result.empty()) { return "<fn>"; }
@@ -162,7 +173,33 @@ struct ObjFunction : Obj {
     }
 };
 
-using NativeFn = Value (*)(VM& tvm, std::span<Value> args);
+enum struct NativeResult : bool {
+    RUNTIME_ERROR,
+    SUCCESS,
+};
+
+struct NativeInOut {
+    std::span<Value> range;
+
+    constexpr NativeInOut(Value* start, size_t length) noexcept
+            : range(start, static_cast<std::size_t>(length)) {}
+
+    [[nodiscard]] constexpr const Value& return_value() const noexcept {
+        return range[0];
+    }
+
+    [[nodiscard]] constexpr Value& return_value() noexcept { return range[0]; }
+
+    [[nodiscard]] constexpr std::span<const Value> args() const noexcept {
+        return range.subspan(1, range.size() - 1);
+    }
+
+    [[nodiscard]] constexpr std::span<Value> args() noexcept {
+        return range.subspan(1, range.size() - 1);
+    }
+};
+
+using NativeFn = NativeResult (*)(VM& tvm, NativeInOut inout);
 
 struct ObjNative : Obj {
     NativeFn function{nullptr};

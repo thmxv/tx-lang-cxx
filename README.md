@@ -28,7 +28,7 @@ Tx is still very much a work in progress.
 
 - TODOs in the code
 - Test for loop, block expr, if expr, fn expr
-- allow native fn to generate runtime error
+- Fix std_clock_native
 - check arity/signature of native fn
 - error when assigning to constant golbal
 - forbid global redefinition, unless specifically specified (REPL)
@@ -38,12 +38,14 @@ Tx is still very much a work in progress.
 - Ensure enough stack space
 
 ### To consider
+
+- Better float formating: 1e20 instead of 1.e20
 - Optimize instruction_prt access (chapter 24 challenge) + benchmark
 - Allow function overload with diff arities (if possible)
 - Universal Function Call (UFC)
 - Add OP CODES for common constant values (0,1,2,-1,"")
 - Clean up utf8 conv, utf8 lenght, resize once
-- Loop labels with support in break and continue
+- Loop/block labels with support in break and continue
 - Allow to use break to break out of a block (using labels only)
 - Fix 'could be const' warnings with containers when elements are const
 - Use char8_t and u8string_view (needs libfmt support)
@@ -98,6 +100,7 @@ Tx is still very much a work in progress.
 - [ ] Editors support
 - [ ] Modules for core and std
 - [ ] Type alias
+- [ ] Recursive types
 - [ ] Documentation
 
 ## Later versions

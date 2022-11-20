@@ -29,7 +29,7 @@ digits and underscores. Identifiers are case sensitives.
 
 ## Newlines
 
-Newlines are considered as white space and have not significance
+Newlines are considered as white space and have no significance
 
 ## Statements
 
@@ -57,17 +57,17 @@ statements, like:
 
 Expressions produces a value, and are parsed using operator precedence. 
 
-| PREC  | OPERATORS     | DESCRIPTION                               |
-|:------|:--------------|:------------------------------------------|
-|1      | . () [] {}    | Function call, Grouping, Subscript, Scope |
-|2      | ! -           | Not, Negate                               |
-|3      | * /           | Multiply, Divide                          |
-|4      | + -           | Add, Substract                            |
-|5      | < > <= >=     | Less-than, Greater-than                   |
-|6      | == !=         | Equal, Not equal                          |
-|7      | and           | Logical AND                               |
-|8      | or            | Logical OR                                |
-|9      | =             | Assignment                                |
+| PREC  | OPERATORS       | DESCRIPTION                                     |
+|:------|:----------------|:------------------------------------------------|
+|1      | `. () [] {}`    | Function call, Grouping, Subscript, Block scope |
+|2      | `! -`           | Not, Negate                                     |
+|3      | `* /`           | Multiply, Divide                                |
+|4      | `+ -`           | Add, Substract                                  |
+|5      | `< > <= >=`     | Less-than, Greater-than                         |
+|6      | `== !=`         | Equal, Not equal                                |
+|7      | `and`           | Logical AND                                     |
+|8      | `or`            | Logical OR                                      |
+|9      | `=`             | Assignment                                      |
 
 ## Blocks
 

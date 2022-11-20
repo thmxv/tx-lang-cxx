@@ -14,7 +14,9 @@
 #include <fmt/format.h>
 
 #include <chrono>
+#include <cfenv>
 #include <cstddef>
+#include <ctime>
 #include <iterator>
 #include <functional>
 #include <ranges>
@@ -22,58 +24,115 @@
 
 namespace tx {
 
-inline Value core_version_string_native(VM& tvm, std::span<Value> args) {
+inline NativeResult core_version_string_native(VM& tvm, NativeInOut inout) {
+    const auto args = inout.args();
     assert(args.empty());
-    return Value{make_string(tvm, false, VERSION)};
+    inout.return_value() = Value{make_string(tvm, false, VERSION)};
+    return NativeResult::SUCCESS;
 }
 
-inline Value core_version_major_native(VM& /*tvm*/, std::span<Value> args) {
+inline constexpr NativeResult
+core_version_major_native(VM& /*tvm*/, NativeInOut inout) {
+    const auto args = inout.args();
     assert(args.empty());
-    return Value{static_cast<int_t>(VERSION_MAJOR)};
+    inout.return_value() = Value{static_cast<int_t>(VERSION_MAJOR)};
+    return NativeResult::SUCCESS;
 }
 
-inline Value core_version_minor_native(VM& /*tvm*/, std::span<Value> args) {
+inline constexpr NativeResult
+core_version_minor_native(VM& /*tvm*/, NativeInOut inout) {
+    const auto args = inout.args();
     assert(args.empty());
-    return Value{static_cast<int_t>(VERSION_MINOR)};
+    inout.return_value() = Value{static_cast<int_t>(VERSION_MINOR)};
+    return NativeResult::SUCCESS;
 }
 
-inline Value core_version_patch_native(VM& /*tvm*/, std::span<Value> args) {
+inline constexpr NativeResult
+core_version_patch_native(VM& /*tvm*/, NativeInOut inout) {
+    const auto args = inout.args();
     assert(args.empty());
-    return Value{static_cast<int_t>(VERSION_PATCH)};
+    inout.return_value() = Value{static_cast<int_t>(VERSION_PATCH)};
+    return NativeResult::SUCCESS;
 }
 
-inline Value core_version_tweak_native(VM& /*tvm*/, std::span<Value> args) {
+inline constexpr NativeResult
+core_version_tweak_native(VM& /*tvm*/, NativeInOut inout) {
+    const auto args = inout.args();
     assert(args.empty());
-    return Value{static_cast<int_t>(VERSION_TWEAK)};
+    inout.return_value() = Value{static_cast<int_t>(VERSION_TWEAK)};
+    return NativeResult::SUCCESS;
 }
 
-inline Value std_clock_native(VM& /*tvm*/, std::span<Value> args) {
-    assert(args.empty());
-    // FIXME: dividing here does not work
-    return Value{static_cast<float_t>(std::clock()) / CLOCKS_PER_SEC};
+inline NativeResult core_assert_native(VM& /*tvm*/, NativeInOut inout) {
+    const auto args = inout.args();
+    assert(args.size() == 2);
+    assert(args[1].is_object() && args[1].as_object().is_string());
+    if (args[0].is_falsey()) {
+        inout.return_value() = Value{args[1]};
+        return NativeResult::RUNTIME_ERROR;
+    }
+    inout.return_value() = Value{val_nil};
+    return NativeResult::SUCCESS;
 }
 
-inline Value std_sleep_for_native(VM& /*tvm*/, std::span<Value> args) {
+inline NativeResult std_clock_read_native(VM& /*tvm*/, NativeInOut inout) {
+    const auto args = inout.args();
+    assert(args.empty());
+    inout.return_value() = Value{std::clock()};
+    return NativeResult::SUCCESS;
+}
+
+inline NativeResult std_clock_elapsed_native(VM& /*tvm*/, NativeInOut inout) {
+    const auto args = inout.args();
+    assert(args.size() == 1);
+    assert(args[0].is_int());
+    const auto start = args[0].as_int();
+    const auto end = std::clock();
+    inout.return_value() = Value{
+        static_cast<float_t>(end - start) / CLOCKS_PER_SEC};
+    return NativeResult::SUCCESS;
+}
+
+inline NativeResult std_sleep_for_native(VM& /*tvm*/, NativeInOut inout) {
+    const auto args = inout.args();
     assert(args.size() == 1);
     assert(args[0].is_number());
     // FIXME: use a user supplied function to support freestanding/bare-metal
     std::this_thread::sleep_for(
         std::chrono::duration<float_t>(args[0].as_float_force())
     );
-    return Value{val_nil};
+    inout.return_value() = Value{val_nil};
+    return NativeResult::SUCCESS;
 }
 
-inline Value std_println_native(VM& /*tvm*/, std::span<Value> args) {
+inline NativeResult std_println_native(VM& /*tvm*/, NativeInOut inout) {
+    const auto args = inout.args();
     assert(args.size() == 1);
     fmt::print("{}\n", args[0]);
-    return Value{val_nil};
+    inout.return_value() = Value{val_nil};
+    return NativeResult::SUCCESS;
 }
 
-inline Value
-float_has_integer_value_native(VM& /*tvm*/, std::span<Value> args) {
+inline constexpr NativeResult
+float_has_integer_value_native(VM& /*tvm*/, NativeInOut inout) {
+    const auto args = inout.args();
     assert(args.size() == 1);
     assert(args[0].is_float());
-    return Value{has_integer_value(args[0].as_float())};
+    inout.return_value() = Value{has_integer_value(args[0].as_float())};
+    return NativeResult::SUCCESS;
+}
+
+inline constexpr NativeResult float_sqrt_native(VM& /*tvm*/, NativeInOut inout) {
+    const auto args = inout.args();
+    assert(args.size() == 1);
+    assert(args[0].is_float());
+    const auto val = args[0].as_float();
+    // NOTE: Not needed
+    // if (val < -0.0) {}
+    const auto res = std::sqrt(val);
+    if (std::isnan(res)) { std::feclearexcept(FE_INVALID); }
+    inout.return_value() = Value{res};
+    return NativeResult::SUCCESS;
 }
 
 inline VM::VM(VMOptions opts, const Allocator& alloc) noexcept
@@ -84,10 +143,13 @@ inline VM::VM(VMOptions opts, const Allocator& alloc) noexcept
     define_native("core_version_minor", core_version_minor_native);
     define_native("core_version_patch", core_version_patch_native);
     define_native("core_version_tweak", core_version_tweak_native);
-    define_native("std_clock", std_clock_native);
+    define_native("core_assert", core_assert_native);
+    define_native("std_clock_read", std_clock_read_native);
+    define_native("std_clock_elapsed", std_clock_elapsed_native);
     define_native("std_sleep_for", std_sleep_for_native);
     define_native("std_println", std_println_native);
     define_native("Float_has_integer_value", float_has_integer_value_native);
+    define_native("Float_sqrt", float_sqrt_native);
 }
 
 inline constexpr VM::~VM() noexcept {
@@ -185,17 +247,20 @@ VM::call_value(Value callee, size_t arg_c) noexcept {
             case FUNCTION: return call(obj.as<ObjFunction>(), arg_c);
             case NATIVE: {
                 auto& native = obj.as<ObjNative>();
-                auto result = std::invoke(
+                auto success = std::invoke(
                     native.function,
                     *this,
-                    std::span<Value>(
-                        std::prev(stack.end(), arg_c),
-                        static_cast<std::size_t>(arg_c)
-                    )
+                    NativeInOut(std::prev(stack.end(), arg_c + 1), arg_c + 1)
                 );
-                stack.erase(std::prev(stack.cend(), arg_c + 1), stack.cend());
-                push(result);
-                return true;
+                if (success == NativeResult::SUCCESS) {
+                    // Return value already put in right slot by native func.
+                    // Do not erase it :)
+                    stack.erase(std::prev(stack.cend(), arg_c), stack.cend());
+                    return true;
+                }
+                const auto& return_value = *std::prev(stack.cend(), arg_c + 1);
+                runtime_error(return_value.as_object().as<ObjString>());
+                return false;
             }
             default: break;
         }
@@ -529,7 +594,7 @@ inline constexpr void VM::debug_trace() const noexcept {
                 static_assert(count == 0);
                 if (peek(0).is_int() && peek(1).is_int()
                     && peek(0).as_int() == 0) {
-                    runtime_error("Division by zero.");
+                    runtime_error("Integer division by zero.");
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 if (binary_op<std::divides>()) {
