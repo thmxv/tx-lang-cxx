@@ -1,11 +1,12 @@
 #pragma once
 
 #include "tx/common.hxx"
+#include "tx/exit_codes.hxx"
 
 #include <fmt/format.h>
-#include <type_traits>
 
 #include <cassert>
+#include <type_traits>
 
 // TODO remove and force clang 15
 #ifdef __clang__
@@ -29,6 +30,11 @@ template <typename Enum>
     Enum enumeration
 ) noexcept {
     return static_cast<std::underlying_type_t<Enum>>(enumeration);
+}
+
+[[noreturn]] inline void exit(ExitCode code) {
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    std::exit(to_underlying(code));
 }
 
 [[noreturn]] inline void report_and_abort(

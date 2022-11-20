@@ -55,26 +55,26 @@ void print_usage() noexcept { fmt::print(usage_str); }
 void print_debug_usage() noexcept { fmt::print(stderr, usage_debug_str); }
 
 struct ArgsOptions {
-    bool args_help = false;
-    bool args_version = false;
-    bool args_use_stdin = false;
-    const char* args_file_path = nullptr;
-    std::string_view args_command;
-    std::span<const char*> args_rest_of_args;
-    tx::VMOptions args_vm_options;
+    bool help = false;
+    bool version = false;
+    bool use_stdin = false;
+    const char* file_path = nullptr;
+    std::string_view command;
+    std::span<const char*> rest_of_args;
+    tx::VMOptions vm_options;
 };
 
 constexpr std::optional<ArgsOptions>
 parse_arguments(int argc, const char** argv) {
     const std::span<const char*> args{argv, static_cast<std::size_t>(argc)};
-    ArgsOptions options;
+    ArgsOptions result;
     std::size_t idx = 1;
     for (; idx < args.size(); ++idx) {
         const auto arg = std::string_view{args[idx]};
         if (arg == "--help") {
-            options.args_help = true;
+            result.help = true;
         } else if (arg == "--version") {
-            options.args_version = true;
+            result.version = true;
         } else if (arg == "-D") {
             ++idx;
             if (idx >= args.size()) {
@@ -88,21 +88,21 @@ parse_arguments(int argc, const char** argv) {
             }
             const auto opt = std::string_view{args[idx]};
             if (opt == "trace-execution") {
-                options.args_vm_options.trace_execution = true;
+                result.vm_options.trace_execution = true;
             } else if (opt == "print-tokens") {
-                options.args_vm_options.print_tokens = true;
+                result.vm_options.print_tokens = true;
             } else if (opt == "print-bytecode") {
-                options.args_vm_options.print_bytecode = true;
+                result.vm_options.print_bytecode = true;
             } else if (opt == "trace-gc") {
-                options.args_vm_options.trace_gc = true;
+                result.vm_options.trace_gc = true;
             } else if (opt == "stress-gc") {
-                options.args_vm_options.stress_gc = true;
+                result.vm_options.stress_gc = true;
             } else if (opt == "all") {
-                options.args_vm_options.print_bytecode = true;
-                options.args_vm_options.print_tokens = true;
-                options.args_vm_options.trace_execution = true;
-                options.args_vm_options.trace_gc = true;
-                options.args_vm_options.stress_gc = true;
+                result.vm_options.print_bytecode = true;
+                result.vm_options.print_tokens = true;
+                result.vm_options.trace_execution = true;
+                result.vm_options.trace_gc = true;
+                result.vm_options.stress_gc = true;
             } else {
                 fmt::print(
                     stderr,
@@ -120,23 +120,23 @@ parse_arguments(int argc, const char** argv) {
                 tx::print_usage();
                 return std::nullopt;
             }
-            options.args_command = std::string_view{args[idx++]};
+            result.command = std::string_view{args[idx++]};
             break;
         } else if (arg == "-") {
-            options.args_use_stdin = true;
+            result.use_stdin = true;
             ++idx;
             break;
         } else if (arg == "--") {
             ++idx;
             break;
         } else {
-            options.args_file_path = args[idx];
+            result.file_path = args[idx];
             ++idx;
             break;
         }
     }
-    options.args_rest_of_args = args.subspan(idx);
-    return options;
+    result.rest_of_args = args.subspan(idx);
+    return result;
 }
 
 [[nodiscard]] std::string read_file(const char* path) noexcept {
@@ -149,8 +149,7 @@ parse_arguments(int argc, const char** argv) {
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
             std::strerror(errno)
         );
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::IO_ERROR);
+        exit(ExitCode::IO_ERROR);
     }
     auto is_error = std::fseek(file, 0L, SEEK_END);
     if (is_error != 0) {
@@ -162,8 +161,7 @@ parse_arguments(int argc, const char** argv) {
             std::strerror(errno)
         );
         (void)std::fclose(file);
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::IO_ERROR);
+        exit(ExitCode::IO_ERROR);
     }
     const auto file_size = static_cast<std::size_t>(std::ftell(file));
     std::rewind(file);
@@ -184,8 +182,7 @@ parse_arguments(int argc, const char** argv) {
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
             std::strerror(errno)
         );
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::IO_ERROR);
+        exit(ExitCode::IO_ERROR);
     }
     if (bytes_read < file_size) {
         fmt::print(
@@ -195,8 +192,7 @@ parse_arguments(int argc, const char** argv) {
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
             std::strerror(errno)
         );
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::IO_ERROR);
+        exit(ExitCode::IO_ERROR);
     }
     return result;
 }
@@ -205,12 +201,10 @@ void run_file(VM& tvm, const char* path) {
     const auto source = read_file(path);
     const InterpretResult result = tvm.interpret(source);
     if (result == InterpretResult::COMPILE_ERROR) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::DATA_ERROR);
+        exit(ExitCode::DATA_ERROR);
     }
     if (result == InterpretResult::RUNTIME_ERROR) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::exit(ExitCode::SOFTWARE_INTERNAL_ERROR);
+        exit(ExitCode::SOFTWARE_INTERNAL_ERROR);
     }
 }
 
@@ -232,17 +226,19 @@ void run_repl(VM& tvm) {
 
 // NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, const char** argv) noexcept {
-    auto options_opt = tx::parse_arguments(argc, argv);
-    if (!options_opt.has_value()) { return tx::ExitCode::USAGE_ERROR; }
-    auto options = *options_opt;
-    if (options.args_help) {
+    auto args_opt = tx::parse_arguments(argc, argv);
+    if (!args_opt.has_value()) {
+        return to_underlying(tx::ExitCode::USAGE_ERROR);
+    }
+    auto args = *args_opt;
+    if (args.help) {
         tx::print_title();
         tx::print_usage();
-        return tx::ExitCode::SUCCESS;
+        return to_underlying(tx::ExitCode::SUCCESS);
     }
-    if (options.args_version) {
+    if (args.version) {
         fmt::print(FMT_STRING("{}"), tx::VERSION);
-        return tx::ExitCode::SUCCESS;
+        return to_underlying(tx::ExitCode::SUCCESS);
     }
 
     std::pmr::unsynchronized_pool_resource mem_res;
@@ -253,21 +249,21 @@ int main(int argc, const char** argv) noexcept {
     } else {
         mem_res_ptr = &mem_res;
     }
-    tx::VM tvm(options.args_vm_options, mem_res_ptr);
-    if (options.args_file_path == nullptr) {
+    tx::VM tvm(args.vm_options, mem_res_ptr);
+    if (args.file_path == nullptr) {
         tvm.get_options().allow_pointer_to_source_content = false;
         tvm.get_options().allow_global_redefinition = true;
         tx::run_repl(tvm);
     } else {
-        if (options.args_use_stdin) {
+        if (args.use_stdin) {
             fmt::print(
                 FMT_STRING("UNIMPLEMENTED: Cannot read from <stdin> yet.\n")
             );
         } else {
             // tvm.get_options().allow_pointer_to_souce_content = false;
             // tvm.get_options().allow_global_redefinition = true;
-            tx::run_file(tvm, options.args_file_path);
+            tx::run_file(tvm, args.file_path);
         }
     }
-    return tx::ExitCode::SUCCESS;
+    return to_underlying(tx::ExitCode::SUCCESS);
 }
