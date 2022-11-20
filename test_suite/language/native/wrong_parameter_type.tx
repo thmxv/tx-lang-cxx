@@ -1,0 +1,1 @@
+core_assert(true, 1);

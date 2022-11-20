@@ -1,0 +1,4 @@
+core_assert(true, "bad");
+
+var r = core_assert(true, "bad");
+std_println(r);  # expect: nil

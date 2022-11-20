@@ -27,7 +27,6 @@ Tx is still very much a work in progress.
 ## Backlog
 
 - Fix TODOs in the code
-- Tests for: if expr, fn expr
 - Better float formatting: 1.0e20 instead of 1.e20
 - Print name of unknowm variale in error
 - check arity/signature of native fn
