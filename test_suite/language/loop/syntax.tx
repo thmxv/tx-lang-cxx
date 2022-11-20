@@ -1,0 +1,64 @@
+# As expression statement without ;
+var a = 0;
+loop {
+  if a == 3 { break; }
+  std_println(a);
+  a = a + 1;
+}
+# expect: 0
+# expect: 1
+# expect: 2
+
+# As expression statement with ;
+var a = 0;
+loop {
+  if a == 3 { break; }
+  std_println(a);
+  a = a + 1;
+};
+# expect: 0
+# expect: 1
+# expect: 2
+
+# As expression with implicit nil value
+var a = 0;
+var b = loop {
+  if a == 3 { break; }
+  std_println(a);
+  a = a + 1;
+};
+std_println(b);
+# expect: 0
+# expect: 1
+# expect: 2
+# expect: nil
+
+# As expression with explicit value
+var a = 0;
+var b = loop {
+  if a == 3 { break a; }
+  std_println(a);
+  a = a + 1;
+};
+std_println(b);
+# expect: 0
+# expect: 1
+# expect: 2
+# expect: 3
+
+# continue
+var a = 0;
+loop {
+  if a == 3 { break; }
+  std_println(a);
+  a = a + 1;
+  continue;
+  std_println("bad");
+}
+# expect: 0
+# expect: 1
+# expect: 2
+
+# Statement in bodies.
+loop { if true { break; } if true { 1; }  else { 2; } }
+loop { if true { break; } while true { 1;} }

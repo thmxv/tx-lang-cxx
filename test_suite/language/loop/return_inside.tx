@@ -1,0 +1,10 @@
+fn f() {
+  loop {
+    if false { break; };
+    var i = "i";
+    return i;
+  }
+}
+
+std_println(f());
+# expect: i

@@ -1,11 +1,14 @@
-# Single-expression body.
-var c = 0;
-while c < 3 { std_println(c = c + 1); }
+# With ;
+var a = 0;
+while a < 3 {
+  std_println(a);
+  a = a + 1;
+};
+# expect: 0
 # expect: 1
 # expect: 2
-# expect: 3
 
-# Block body.
+# Without ;
 var a = 0;
 while a < 3 {
   std_println(a);
@@ -15,7 +18,30 @@ while a < 3 {
 # expect: 1
 # expect: 2
 
+# break
+var a = 0;
+while true {
+  if a == 3 { break; }
+  std_println(a);
+  a = a + 1;
+}
+# expect: 0
+# expect: 1
+# expect: 2
+
+# continue
+var a = 0;
+while true {
+  if a == 3 { break; }
+  std_println(a);
+  a = a + 1;
+  continue;
+  std_println("bad");
+}
+# expect: 0
+# expect: 1
+# expect: 2
+
 # Statement bodies.
 while false { if (true) { 1; }  else { 2; } }
 while false { while (true) { 1;} }
-# while false { for (;;) { 1; } }

@@ -9,11 +9,11 @@
 
 Tx aims to be oriented towards safety, speed, power and minimalism.
 
-Tx is inspired by Lua. The code base and implementation is inspired by the 
+Tx is inspired by Lua. The code and implementation is based on the 
 book "Crafting Interpreters" by Robert Nystrom. The syntax and feature set
 are inspired by languages such as Python, Rust, Wren and Swift among others.
 
-The code base is written, as much as possible, in modern C++. Trying to be 
+The code is written, as much as possible, in modern C++. Trying to be 
 almost completely constexpr.
 
 ## Disclaimer
@@ -26,9 +26,10 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
-- TODOs in the code
-- Test for loop, block expr, if expr, fn expr
-- Fix std_clock_native
+- Fix TODOs in the code
+- Tests for: if expr, fn expr
+- Better float formatting: 1.0e20 instead of 1.e20
+- Print name of unknowm variale in error
 - check arity/signature of native fn
 - error when assigning to constant golbal
 - forbid global redefinition, unless specifically specified (REPL)
@@ -36,10 +37,10 @@ Tx is still very much a work in progress.
 - replace runtime errors by compile time (keep runtime error in degug and REPL)
 - better and more conform error messages. compile and runtime
 - Ensure enough stack space
+- Go over all the tests one more time
 
 ### To consider
 
-- Better float formating: 1e20 instead of 1.e20
 - Optimize instruction_prt access (chapter 24 challenge) + benchmark
 - Allow function overload with diff arities (if possible)
 - Universal Function Call (UFC)
