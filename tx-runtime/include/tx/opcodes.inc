@@ -1,4 +1,4 @@
-// NOTE: all _LONG opcodes must follow direnctly the non LONG version of the 
+// NOTE: all _LONG opcodes must follow directly the non LONG version of the 
 // same instruction
 TX_OPCODE(CONSTANT,             1, 1)
 TX_OPCODE(CONSTANT_LONG,        3, 1)
@@ -31,8 +31,8 @@ TX_OPCODE(NEGATE,               0, 0)
 TX_OPCODE(JUMP,                 2, 0)
 TX_OPCODE(JUMP_IF_FALSE,        2, 0)
 TX_OPCODE(LOOP,                 2, 0)
-TX_OPCODE(CALL,                 1, 0)
-TX_OPCODE(END_SCOPE,            1, X) // Stack effect is in the operand
-TX_OPCODE(END_SCOPE_LONG,       3, X) // Stack effect is in the operand
-TX_OPCODE(RETURN,               0, X)
+TX_OPCODE(CALL,                 1, 0) // 0 for tx fn's but for native fn it is the same as RETURN
+TX_OPCODE(END_SCOPE,            1, 0) // Stack effect is in the operand
+TX_OPCODE(END_SCOPE_LONG,       3, 0) // Stack effect is in the operand
+TX_OPCODE(RETURN,               0, 0) // Stack effect is variable
 TX_OPCODE(END,                  0, 0)

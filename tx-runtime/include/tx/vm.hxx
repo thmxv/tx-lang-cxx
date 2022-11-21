@@ -34,14 +34,14 @@ struct CallFrame {
 
     [[nodiscard]] constexpr ByteCode read_byte() noexcept;
 
-    template<u32 N>
+    template <u32 N>
     [[nodiscard]] constexpr size_t read_multibyte_operand() noexcept {
         auto result = ::tx::read_multibyte_operand<N>(instruction_ptr);
         std::advance(instruction_ptr, N);
         return result;
     }
 
-    template<size_t N>
+    template <size_t N>
     [[nodiscard]] constexpr Value read_constant() noexcept {
         const auto constant_idx = read_multibyte_operand<N>();
         return function->chunk.constants[size_cast(constant_idx)];
@@ -92,8 +92,8 @@ class VM {
 
     // TX_VM_CONSTEXPR
     InterpretResult interpret(std::string_view source) noexcept;
-
-    [[gnu::flatten]] TX_VM_CONSTEXPR InterpretResult run() noexcept;
+    // TX_VM_CONSTEXPR
+    [[gnu::flatten]] InterpretResult run() noexcept;
 
   private:
     constexpr void push(Value value) noexcept { stack.push_back_unsafe(value); }
@@ -114,15 +114,14 @@ class VM {
     void runtime_error_impl() noexcept;
 
     template <typename... Args>
-    void
-    runtime_error(std::string_view fmt, Args&&... args) noexcept {
+    void runtime_error(std::string_view fmt, Args&&... args) noexcept {
         fmt::print(stderr, fmt::runtime(fmt), std::forward<Args>(args)...);
         runtime_error_impl();
     }
 
     void print_stack() const noexcept;
-
-    constexpr void debug_trace() const noexcept;
+    void assert_stack_effect(const ByteCode* iptr) const noexcept;
+    void debug_trace(const ByteCode* iptr) const noexcept;
 
     constexpr size_t define_global(Value name, Value val) noexcept;
 

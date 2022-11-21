@@ -20,6 +20,23 @@ identifiers_equal(const Token& lhs, const Token& rhs) {
     return lhs.lexeme == rhs.lexeme;
 }
 
+// clang-format off
+inline constexpr std::array opcode_stack_effect_table = {
+    // NOLINTNEXTLINE(*-macro-usage)
+    #define TX_OPCODE(name, length, stack_effect) stack_effect,
+    #include "tx/opcodes.inc"
+    #undef TX_OPCODE
+};
+// clang-format on
+
+inline constexpr i32 get_opcode_stack_effect(OpCode opc, size_t operand) {
+    using enum OpCode;
+    if (opc == CALL || opc == END_SCOPE || opc == END_SCOPE_LONG) {
+        return -operand;
+    }
+    return opcode_stack_effect_table[to_underlying(opc)];
+}
+
 inline constexpr bool ParseResult::is_block_expr() const noexcept {
     switch (token_type) {
         case LEFT_BRACE:
@@ -34,7 +51,7 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
     begin_compiler(comp, FunctionType::SCRIPT, std::nullopt);
     advance();
     while (!match(TokenType::END_OF_FILE)) { statement(); }
-    emit_bytes(OpCode::NIL);
+    emit_instruction(OpCode::NIL);
     auto* fun = end_compiler();
     return had_error ? nullptr : fun;
 }
@@ -116,15 +133,17 @@ Parser::emit_var_length_instruction(OpCode opc, size_t idx) noexcept {
     assert(idx < size_cast(1U << 24U));
     if (idx < size_cast(1U << 8U)) {
         assert(1 == get_byte_count_following_opcode(opc));
-        emit_bytes(opc);
-        emit_multibyte_operand<1>(idx);
+        // emit_bytes(opc);
+        // emit_multibyte_operand<1>(idx);
+        emit_instruction<1>(opc, idx);
         return;
     }
     if (idx < size_cast(1U << 24U)) {
         opc = OpCode(to_underlying(opc) + 1);
         assert(3 == get_byte_count_following_opcode(opc));
-        emit_bytes(opc);
-        emit_multibyte_operand<3>(idx);
+        // emit_bytes(opc);
+        // emit_multibyte_operand<3>(idx);
+        emit_instruction<3>(opc, idx);
         return;
     }
     unreachable();
@@ -137,18 +156,21 @@ inline constexpr void Parser::emit_constant(Value value) noexcept {
 
 [[nodiscard]] inline constexpr size_t Parser::emit_jump(OpCode instruction
 ) noexcept {
-    emit_bytes(instruction);
-    emit_multibyte_operand<2>(0xffff);
+    // emit_bytes(instruction);
+    // emit_multibyte_operand<2>(0xffff);
+    emit_instruction<2>(instruction, 0xffff);
     return current_chunk().code.size() - 2;
 }
 
 inline constexpr void Parser::emit_loop(size_t loop_start) noexcept {
-    emit_bytes(OpCode::LOOP);
-    auto offset = current_chunk().code.size() - loop_start + 2;
+    // emit_bytes(OpCode::LOOP);
+    // auto offset = current_chunk().code.size() - loop_start + 2;
+    auto offset = current_chunk().code.size() - loop_start + 2 + 1;
     if (offset > std::numeric_limits<u16>::max()) {
         error("Loop body too large.");
     }
-    emit_multibyte_operand<2>(offset);
+    // emit_multibyte_operand<2>(offset);
+    emit_instruction<2>(OpCode::LOOP, offset);
 }
 
 inline constexpr void Parser::patch_jump(i32 offset) noexcept {
@@ -184,7 +206,8 @@ inline void Parser::begin_compiler(
 }
 
 [[nodiscard]] inline constexpr ObjFunction* Parser::end_compiler() noexcept {
-    emit_bytes(OpCode::RETURN);
+    // emit_bytes(OpCode::RETURN);
+    emit_instruction(OpCode::RETURN);
     auto* fun = current_compiler->function;
     if constexpr (HAS_DEBUG_FEATURES) {
         if (parent_vm.get_options().print_bytecode) {
@@ -255,16 +278,16 @@ Parser::binary(TypeInfo lhs, bool /*can_assign*/) noexcept {
     (void)rhs;
     switch (token_type) {
         using enum TokenType;
-        case BANG_EQUAL: emit_bytes(OpCode::NOT_EQUAL); break;
-        case EQUAL_EQUAL: emit_bytes(OpCode::EQUAL); break;
-        case LEFT_CHEVRON: emit_bytes(OpCode::LESS); break;
-        case LESS_EQUAL: emit_bytes(OpCode::LESS_EQUAL); break;
-        case RIGHT_CHEVRON: emit_bytes(OpCode::GREATER); break;
-        case GREATER_EQUAL: emit_bytes(OpCode::GREATER_EQUAL); break;
-        case PLUS: emit_bytes(OpCode::ADD); break;
-        case MINUS: emit_bytes(OpCode::SUBSTRACT); break;
-        case STAR: emit_bytes(OpCode::MULTIPLY); break;
-        case SLASH: emit_bytes(OpCode::DIVIDE); break;
+        case BANG_EQUAL: emit_instruction(OpCode::NOT_EQUAL); break;
+        case EQUAL_EQUAL: emit_instruction(OpCode::EQUAL); break;
+        case LEFT_CHEVRON: emit_instruction(OpCode::LESS); break;
+        case LESS_EQUAL: emit_instruction(OpCode::LESS_EQUAL); break;
+        case RIGHT_CHEVRON: emit_instruction(OpCode::GREATER); break;
+        case GREATER_EQUAL: emit_instruction(OpCode::GREATER_EQUAL); break;
+        case PLUS: emit_instruction(OpCode::ADD); break;
+        case MINUS: emit_instruction(OpCode::SUBSTRACT); break;
+        case STAR: emit_instruction(OpCode::MULTIPLY); break;
+        case SLASH: emit_instruction(OpCode::DIVIDE); break;
         default: unreachable();
     }
     return TypeInfo{};
@@ -285,7 +308,8 @@ Parser::binary(TypeInfo lhs, bool /*can_assign*/) noexcept {
 inline constexpr TypeInfo
 Parser::call(TypeInfo lhs, bool /*can_assign*/) noexcept {
     auto arg_count = argument_list();
-    emit_bytes(OpCode::CALL, arg_count);
+    // emit_bytes(OpCode::CALL, arg_count);
+    emit_instruction<1>(OpCode::CALL, arg_count);
     (void)lhs;
     return TypeInfo{};
 }
@@ -299,9 +323,9 @@ inline constexpr TypeInfo Parser::grouping(bool /*can_assign*/) noexcept {
 
 inline constexpr TypeInfo Parser::literal(bool /*can_assign*/) noexcept {
     switch (previous.type) {
-        case NIL: emit_bytes(OpCode::NIL); break;
-        case FALSE: emit_bytes(OpCode::FALSE); break;
-        case TRUE: emit_bytes(OpCode::TRUE); break;
+        case NIL: emit_instruction(OpCode::NIL); break;
+        case FALSE: emit_instruction(OpCode::FALSE); break;
+        case TRUE: emit_instruction(OpCode::TRUE); break;
         case FLOAT_LITERAL:
         case INTEGER_LITERAL:
         case STRING_LITERAL: emit_constant(previous.value); break;
@@ -361,8 +385,8 @@ inline constexpr TypeInfo Parser::unary(bool /*can_assign*/) noexcept {
     auto token_type = previous.type;
     auto rhs = parse_precedence(Precedence::UNARY);
     switch (token_type) {
-        case TokenType::BANG: emit_bytes(OpCode::NOT); break;
-        case TokenType::MINUS: emit_bytes(OpCode::NEGATE); break;
+        case TokenType::BANG: emit_instruction(OpCode::NOT); break;
+        case TokenType::MINUS: emit_instruction(OpCode::NEGATE); break;
         default: unreachable();
     }
     (void)rhs;
@@ -378,11 +402,11 @@ inline constexpr TypeInfo Parser::block_no_scope() noexcept {
                 case RIGHT_BRACE: has_final_expression = true; break;
                 case SEMICOLON:
                     advance();
-                    emit_bytes(OpCode::POP);
+                    emit_instruction(OpCode::POP);
                     continue;
                 default:
                     if (expr_opt.value().is_block_expr()) {
-                        emit_bytes(OpCode::POP);
+                        emit_instruction(OpCode::POP);
                         continue;
                     }
                     error("Expect ';' or '}' after expression inside block.");
@@ -390,7 +414,7 @@ inline constexpr TypeInfo Parser::block_no_scope() noexcept {
         }
     }
     consume(RIGHT_BRACE, "Expect '}' after block.");
-    if (!has_final_expression) { emit_bytes(OpCode::NIL); }
+    if (!has_final_expression) { emit_instruction(OpCode::NIL); }
     return TypeInfo{};
 }
 
@@ -404,13 +428,13 @@ inline constexpr TypeInfo Parser::block(bool /*can_assign*/) noexcept {
 inline constexpr TypeInfo Parser::if_expr(bool /*can_assign*/) noexcept {
     expression();
     auto then_jump = emit_jump(OpCode::JUMP_IF_FALSE);
-    emit_bytes(OpCode::POP);
+    emit_instruction(OpCode::POP);
     consume(LEFT_BRACE, "Expect '{' before if body.");
     auto then_result = block();
     (void)then_result;
     auto else_jump = emit_jump(OpCode::JUMP);
     patch_jump(then_jump);
-    emit_bytes(OpCode::POP);
+    emit_instruction(OpCode::POP);
     TypeInfo else_result;
     if (match(ELSE)) {
         switch (current.type) {
@@ -426,7 +450,7 @@ inline constexpr TypeInfo Parser::if_expr(bool /*can_assign*/) noexcept {
         }
     } else {
         else_result = TypeInfo{};
-        emit_bytes(OpCode::NIL);
+        emit_instruction(OpCode::NIL);
     }
     (void)else_result;
     patch_jump(else_jump);
@@ -439,7 +463,7 @@ inline constexpr TypeInfo Parser::loop_expr(bool /*can_assign*/) noexcept {
     consume(LEFT_BRACE, "Expect '{' after 'loop'.");
     auto result = block();
     (void)result;  // TODO: make sure no final expression as it is meaningless
-    emit_bytes(OpCode::POP);
+    emit_instruction(OpCode::POP);
     emit_loop(loop.start);
     end_loop();
     return TypeInfo{};
@@ -453,7 +477,7 @@ inline TypeInfo Parser::fn_expr(bool /*can_assign*/) noexcept {
 inline constexpr TypeInfo
 Parser::and_(TypeInfo lhs, bool /*can_assign*/) noexcept {
     auto end_jump = emit_jump(OpCode::JUMP_IF_FALSE);
-    emit_bytes(OpCode::POP);
+    emit_instruction(OpCode::POP);
     auto rhs = parse_precedence(Precedence::AND);
     (void)lhs;
     (void)rhs;
@@ -466,7 +490,7 @@ Parser::or_(TypeInfo lhs, bool /*can_assign*/) noexcept {
     auto else_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     auto end_jump = emit_jump(OpCode::JUMP);
     patch_jump(else_jump);
-    emit_bytes(OpCode::POP);
+    emit_instruction(OpCode::POP);
     auto rhs = parse_precedence(Precedence::OR);
     (void)lhs;
     (void)rhs;
@@ -615,7 +639,7 @@ inline constexpr void Parser::var_declaration() noexcept {
         }
         // TODO: allow forward declaration  for globals but mark as
         // uninitialized and not nil
-        emit_bytes(OpCode::NIL);
+        emit_instruction(OpCode::NIL);
     }
     consume(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
     define_variable(global_idx);
@@ -626,14 +650,14 @@ inline constexpr void Parser::while_statement() noexcept {
     begin_loop(loop);
     expression();
     auto exit_jump = emit_jump(OpCode::JUMP_IF_FALSE);
-    emit_bytes(OpCode::POP);
+    emit_instruction(OpCode::POP);
     consume(LEFT_BRACE, "Expect '{' before while body.");
     const auto block_result = block();
     (void)block_result;
-    emit_bytes(OpCode::POP);
+    emit_instruction(OpCode::POP);
     emit_loop(loop.start);
     patch_jump(exit_jump);
-    emit_bytes(OpCode::POP);
+    emit_instruction(OpCode::POP);
     end_loop();
     (void)match(SEMICOLON);
 }
@@ -645,7 +669,7 @@ inline constexpr void Parser::break_statement() noexcept {
     const bool is_loop_expr = current_compiler->innermost_loop->is_loop_expr;
     if (is_loop_expr) {
         if (match(SEMICOLON)) {
-            emit_bytes(OpCode::NIL);
+            emit_instruction(OpCode::NIL);
         } else {
             expression();
             consume(SEMICOLON, "Expect ; after break return expression.");
@@ -660,7 +684,7 @@ inline constexpr void Parser::break_statement() noexcept {
          && current_compiler->locals[i].depth
                 > current_compiler->innermost_loop->scope_depth;
          --i) {
-        if (!is_loop_expr) { emit_bytes(OpCode::POP); }
+        if (!is_loop_expr) { emit_instruction(OpCode::POP); }
         ++loop_local_count;
     }
     if (is_loop_expr && loop_local_count > 0) {
@@ -681,7 +705,7 @@ inline constexpr void Parser::continue_statement() noexcept {
          && current_compiler->locals[i].depth
                 > current_compiler->innermost_loop->scope_depth;
          --i) {
-        emit_bytes(OpCode::POP);
+        emit_instruction(OpCode::POP);
     }
     emit_loop(current_compiler->innermost_loop->start);
 }
@@ -691,12 +715,12 @@ inline constexpr void Parser::return_statement() noexcept {
         error("Can't return from top-level code.");
     }
     if (match(SEMICOLON)) {
-        emit_bytes(OpCode::NIL, OpCode::RETURN);
+        emit_instruction(OpCode::NIL);
     } else {
         expression();
         consume(SEMICOLON, "Expect ';' after return value.");
-        emit_bytes(OpCode::RETURN);
     }
+    emit_instruction(OpCode::RETURN);
 }
 
 inline constexpr void Parser::synchronize() noexcept {
@@ -764,7 +788,7 @@ inline constexpr void Parser::statement() noexcept {
         } else {
             consume(TokenType::SEMICOLON, "Expect ';' after expression.");
         }
-        emit_bytes(OpCode::POP);
+        emit_instruction(OpCode::POP);
     }
     if (panic_mode) { synchronize(); }
 }

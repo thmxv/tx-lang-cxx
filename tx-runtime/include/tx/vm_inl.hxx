@@ -12,6 +12,7 @@
 #include "tx/value.hxx"
 
 #include <fmt/format.h>
+#include <type_traits>
 
 #include <chrono>
 #include <cfenv>
@@ -350,16 +351,50 @@ inline void CallFrame::print_instruction() const noexcept {
     disassemble_instruction(function->chunk, instruction_ptr);
 }
 
-inline constexpr void VM::debug_trace() const noexcept {
+// FIXME: Make sure this does not bloat the binary in realease mode
+inline void VM::assert_stack_effect(const ByteCode* iptr) const noexcept {
+    static auto previous_size = 0;
+    static auto previous_opc = OpCode::END;
+    static size_t previous_operand = 0;
+    const auto current_size = stack.size();
+    const auto delta = current_size - previous_size;
+
+    switch (previous_opc) {
+        using enum OpCode;
+        // FIXME: verify CALL and RETURN if possible
+        case END:
+        case CALL:
+        case RETURN: break;
+        default: {
+            assert(
+                delta == get_opcode_stack_effect(previous_opc, previous_operand)
+            );
+        }
+    }
+    previous_size = current_size;
+    previous_opc = (*iptr).as_opcode();
+    const auto operand_size = get_byte_count_following_opcode(previous_opc);
+    if (operand_size == 1) {
+        previous_operand = ::tx::read_multibyte_operand<1>(std::next(iptr));
+    } else if (operand_size == 2) {
+        previous_operand = ::tx::read_multibyte_operand<2>(std::next(iptr));
+    } else if (operand_size == 3) {
+        previous_operand = ::tx::read_multibyte_operand<3>(std::next(iptr));
+    }
+}
+
+inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
     if constexpr (HAS_DEBUG_FEATURES) {
         if (options.trace_execution) {
             print_stack();
             frames.back().print_instruction();
         }
     }
+    if constexpr (IS_DEBUG_BUILD) { assert_stack_effect(iptr); }
 }
 
-[[gnu::flatten]] inline TX_VM_CONSTEXPR InterpretResult VM::run() noexcept {
+// TX_VM_CONSTEXPR
+[[gnu::flatten]] inline InterpretResult VM::run() noexcept {
 // clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
@@ -372,7 +407,7 @@ inline constexpr void VM::debug_trace() const noexcept {
         #define TX_VM_CASE(name) L_opcode_##name
         #define TX_VM_BREAK() \
             do { \
-                debug_trace(); \
+                debug_trace(frame->instruction_ptr); \
                 instruction = frame->read_byte().as_opcode(); \
                 (__extension__( \
                     {goto *dispatch_table[to_underlying(instruction)];} \
@@ -380,7 +415,7 @@ inline constexpr void VM::debug_trace() const noexcept {
             } while (false)
     #else
         #define TX_VM_DISPATCH  \
-            debug_trace(); \
+            debug_trace(frame->instruction_ptr); \
             instruction = frame->read_byte().as_opcode(); \
             switch (instruction)
         // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
@@ -392,9 +427,8 @@ inline constexpr void VM::debug_trace() const noexcept {
 
     // Try to force the compiler to store it in a register
     CallFrame* frame = &frames.back();
+    OpCode instruction = OpCode::END;
     for (;;) {
-        // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
-        OpCode instruction;
         TX_VM_DISPATCH {
             using enum OpCode;
             TX_VM_CASE(CONSTANT) : {

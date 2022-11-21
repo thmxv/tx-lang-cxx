@@ -4,9 +4,11 @@
 
 namespace tx {
 
+const char* get_opcode_name(OpCode instruction);
+
 void disassemble_chunk(const Chunk& chunk, std::string_view name) noexcept;
 
-inline const ByteCode*
+const ByteCode*
 disassemble_instruction(const Chunk& chunk, const ByteCode* ptr) noexcept;
 
 struct Token;

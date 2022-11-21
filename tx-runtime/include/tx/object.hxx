@@ -149,7 +149,8 @@ struct is_trivially_relocatable<ObjString>
 make_string(VM& tvm, bool copy, std::string_view strv) noexcept;
 
 struct ObjFunction : Obj {
-    int arity{0};
+    i32 arity{0};
+    i32 max_slots{0};
     Chunk chunk;
     ObjString* name{nullptr};
 

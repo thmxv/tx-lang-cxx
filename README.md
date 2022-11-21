@@ -26,17 +26,20 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
-- Fix TODOs in the code
 - Better float formatting: 1.0e20 instead of 1.e20
-- Print name of unknowm variale in error
+- Ensure enough stack space
+- Print name of unknowm variable in error
 - check arity/signature of native fn
 - error when assigning to constant golbal
-- forbid global redefinition, unless specifically specified (REPL)
+- forbid global redeclaration
+- forbid global redefinition, unless in REPL
 - allow "var a = a;" in the case of shadowing and not assigning to self
-- replace runtime errors by compile time (keep runtime error in degug and REPL)
 - better and more conform error messages. compile and runtime
-- Ensure enough stack space
-- Go over all the tests one more time
+- Fix TODOs in the code
+
+- replace runtime errors by compile time (keep runtime error in degug and REPL)
+- Go over all the tests one more time (Some do not make much sense for tx
+  and some others do not test all code paths)
 
 ### To consider
 

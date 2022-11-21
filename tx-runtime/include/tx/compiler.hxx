@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tx/chunk.hxx"
 #include "tx/fixed_array.hxx"
 #include "tx/scanner.hxx"
 #include "tx/table.hxx"
@@ -10,6 +11,8 @@
 #include <string_view>
 
 namespace tx {
+
+inline constexpr i32 get_opcode_stack_effect(OpCode opc, size_t operand);
 
 struct TypeInfo {
     // TODO
@@ -86,6 +89,7 @@ struct Compiler {
     ValueMap constant_indices{};
     LocalArray locals;
     i32 scope_depth{0};
+    i32 num_slots{0};
     Loop* innermost_loop = nullptr;
 
     constexpr void destroy(VM& tvm) noexcept {
@@ -133,17 +137,22 @@ class Parser {
 
     [[nodiscard]] constexpr size_t add_constant(Value value) noexcept;
 
-    template <typename... Ts>
-        requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)
-    inline constexpr void emit_bytes(Ts... bytes) noexcept {
-        current_chunk().write(parent_vm, previous.line, bytes...);
+    inline constexpr void emit_instruction(OpCode opc) noexcept {
+        assert(0 == get_byte_count_following_opcode(opc));
+        emit_instruction<0>(opc, 0);
     }
 
     template <u32 N>
     inline constexpr void
-    emit_multibyte_operand(size_t value) noexcept {
+    emit_instruction(OpCode opc, size_t operand) noexcept {
+        assert(opc == OpCode::END || N == get_byte_count_following_opcode(opc));
         current_chunk()
-            .write_multibyte_operand<N>(parent_vm, previous.line, value);
+            .write_instruction<N>(parent_vm, previous.line, opc, operand);
+        current_compiler->num_slots += get_opcode_stack_effect(opc, operand);
+        if (current_compiler->num_slots
+            > current_compiler->function->max_slots) {
+            current_compiler->function->max_slots = current_compiler->num_slots;
+        }
     }
 
     constexpr void emit_constant(Value value) noexcept;

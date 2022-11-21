@@ -20,21 +20,23 @@ inline constexpr std::array opcode_name_table = {
 };
 // clang-format on
 
+inline const char* get_opcode_name(OpCode instruction) {
+    return opcode_name_table[to_underlying(instruction)];
+}
+
 inline void
 disassemble_chunk(const Chunk& chunk, std::string_view name) noexcept {
     fmt::print(FMT_STRING("=={:=^40s}==\n"), name);
-    for (const auto* ptr = chunk.code.cbegin(); ptr < chunk.code.cend(); ) {
+    for (const auto* ptr = chunk.code.cbegin(); ptr < chunk.code.cend();) {
         ptr = disassemble_instruction(chunk, ptr);
     }
 }
 
 template <u32 N>
-[[nodiscard]] inline const ByteCode* constant_instruction(
-    const ByteCode* ptr,
-    const Chunk& chunk
-) noexcept {
+[[nodiscard]] inline const ByteCode*
+constant_instruction(const ByteCode* ptr, const Chunk& chunk) noexcept {
     const OpCode instruction = ptr->as_opcode();
-    const auto* name = opcode_name_table[to_underlying(instruction)];
+    const auto* name = get_opcode_name(instruction);
     const auto count = get_byte_count_following_opcode(instruction);
     assert(count == N);
     const auto constant_idx = read_multibyte_operand<N>(std::next(ptr));
@@ -44,46 +46,43 @@ template <u32 N>
         constant_idx,
         chunk.constants[size_cast(constant_idx)]
     );
-    return std::next(ptr, 1+N);
+    return std::next(ptr, 1 + N);
 }
 
 template <u32 N>
-[[nodiscard]] inline const ByteCode* var_length_instruction(
-    const ByteCode* ptr
+[[nodiscard]] inline const ByteCode* var_length_instruction(const ByteCode* ptr
 ) noexcept {
     const OpCode instruction = ptr->as_opcode();
-    const auto* name = opcode_name_table[to_underlying(instruction)];
+    const auto* name = get_opcode_name(instruction);
     const auto count = get_byte_count_following_opcode(instruction);
     assert(count == N);
     const auto constant_idx = read_multibyte_operand<N>(std::next(ptr));
     fmt::print("{:18s} {:4d}\n", name, constant_idx);
-    return std::next(ptr, 1+N);
+    return std::next(ptr, 1 + N);
 }
 
-[[nodiscard]] inline const ByteCode* jump_instruction(
-    const ByteCode* ptr,
-    size_t sign,
-    size_t offset
-) {
+[[nodiscard]] inline const ByteCode*
+jump_instruction(const ByteCode* ptr, size_t sign, size_t offset) {
     assert(sign == -1 || sign == 1);
     const OpCode instruction = ptr->as_opcode();
-    const auto* name = opcode_name_table[to_underlying(instruction)];
+    const auto* name = get_opcode_name(instruction);
     const auto count = get_byte_count_following_opcode(instruction);
     assert(count == 2);
-    const auto jump = static_cast<u16>(read_multibyte_operand<2>(std::next(ptr)));
+    const auto jump = static_cast<u16>(read_multibyte_operand<2>(std::next(ptr))
+    );
     fmt::print(
         "{:18s} {:4d} -> {:d}\n",
         name,
         offset,
         offset + 1 + 2 + sign * jump
     );
-    return std::next(ptr, 1+2);
+    return std::next(ptr, 1 + 2);
 }
 
-[[nodiscard]] inline const ByteCode*
-simple_instruction(const ByteCode* ptr) noexcept {
+[[nodiscard]] inline const ByteCode* simple_instruction(const ByteCode* ptr
+) noexcept {
     const OpCode instruction = ptr->as_opcode();
-    const auto* name = opcode_name_table[to_underlying(instruction)];
+    const auto* name = get_opcode_name(instruction);
     const auto count = get_byte_count_following_opcode(instruction);
     assert(count == 0);
     fmt::print(FMT_STRING("{:18s}\n"), name);
@@ -135,8 +134,7 @@ disassemble_instruction(const Chunk& chunk, const ByteCode* ptr) noexcept {
         case DEFINE_GLOBAL_LONG:
         case GET_LOCAL_LONG:
         case SET_LOCAL_LONG:
-        case END_SCOPE_LONG:
-            return var_length_instruction<3>(ptr);
+        case END_SCOPE_LONG: return var_length_instruction<3>(ptr);
         case JUMP:
         case JUMP_IF_FALSE: return jump_instruction(ptr, 1, offset);
         case LOOP: return jump_instruction(ptr, -1, offset);
