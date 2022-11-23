@@ -189,20 +189,20 @@ inline void Parser::begin_compiler(
 ) noexcept {
     compiler.enclosing = current_compiler;
     compiler.function_type = type;
-    compiler.function = allocate_object<ObjFunction>(parent_vm);
-    current_compiler = &compiler;
+    // Reserve first local for methods, use empty string as name to prevent use
+    compiler.locals.push_back(parent_vm, Local(Token{.lexeme = ""}, 0, true));
+    compiler.function = allocate_object<ObjFunction>(
+        parent_vm,
+        compiler.locals.size()
+    );
     if (type != FunctionType::SCRIPT && name_opt.has_value()) {
-        current_compiler->function->name = make_string(
+        compiler.function->name = make_string(
             parent_vm,
             !parent_vm.options.allow_pointer_to_source_content,
             name_opt.value()
         );
     }
-    // Reserve first local for methods, use empty string as name to prevent use
-    current_compiler->locals.push_back(
-        parent_vm,
-        Local(Token{.lexeme = ""}, 0, true)
-    );
+    current_compiler = &compiler;
 }
 
 [[nodiscard]] inline constexpr ObjFunction* Parser::end_compiler() noexcept {

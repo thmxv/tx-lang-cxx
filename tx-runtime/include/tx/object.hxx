@@ -87,7 +87,7 @@ struct ObjString : Obj {
     bool owns_chars = false;
     gsl::owner<const char*> data_ptr = nullptr;
 
-    // clang-format off
+// clang-format off
     #ifdef __clang__
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Wc99-extensions"
@@ -154,7 +154,9 @@ struct ObjFunction : Obj {
     Chunk chunk;
     ObjString* name{nullptr};
 
-    constexpr ObjFunction() noexcept : Obj{ObjType::FUNCTION} {}
+    constexpr explicit ObjFunction(i32 reserved_slots) noexcept
+            : Obj{ObjType::FUNCTION}
+            , max_slots(reserved_slots) {}
 
     constexpr void destroy(VM& tvm) noexcept { chunk.destroy(tvm); }
 

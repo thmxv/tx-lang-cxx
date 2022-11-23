@@ -158,9 +158,9 @@ float_sqrt_native(VM& /*tvm*/, NativeInOut inout) {
     assert(args.size() == 1);
     assert(args[0].is_float());
     const auto val = args[0].as_float();
-    // NOTE: Not needed
-    // if (val < -0.0) {}
     const auto res = std::sqrt(val);
+    // FIXME: we should save/restore except flags instead of just clearing
+    // after. Or maybe just do not care and let them propagate
     if (std::isnan(res)) { std::feclearexcept(FE_INVALID); }
     inout.return_value() = Value{res};
     return NativeResult::SUCCESS;
@@ -169,6 +169,11 @@ float_sqrt_native(VM& /*tvm*/, NativeInOut inout) {
 inline VM::VM(VMOptions opts, const Allocator& alloc) noexcept
         : options(opts)
         , allocator(alloc) {
+    if constexpr (!IS_DEBUG_BUILD) {
+        frames.reserve(*this, FRAMES_START);
+        stack.reserve(*this, STACK_START);
+    }
+
     define_native("core_version_string", core_version_string_native);
     define_native("core_version_major", core_version_major_native);
     define_native("core_version_minor", core_version_minor_native);
@@ -186,6 +191,8 @@ inline VM::VM(VMOptions opts, const Allocator& alloc) noexcept
 }
 
 inline constexpr VM::~VM() noexcept {
+    stack.destroy(*this);
+    frames.destroy(*this);
     global_indices.destroy(*this);
     global_values.destroy(*this);
     strings.destroy(*this);
@@ -201,6 +208,10 @@ inline constexpr VM::~VM() noexcept {
 inline constexpr void VM::reset_stack() noexcept {
     stack.clear();
     frames.clear();
+    if constexpr (IS_DEBUG_BUILD) {
+        stack.destroy(*this);
+        frames.destroy(*this);
+    }
 }
 
 inline void VM::runtime_error_impl() noexcept {
@@ -242,11 +253,30 @@ inline constexpr size_t VM::define_global(Value name, Value val) noexcept {
 
 inline void VM::define_native(std::string_view name, NativeFn fun) noexcept {
     assert(stack.empty());
+    ensure_stack_space(2);
     push(Value{make_string(*this, false, name)});
     push(Value{allocate_object<ObjNative>(*this, fun)});
     define_global(stack[0], stack[1]);
     pop();
     pop();
+}
+
+inline constexpr void VM::ensure_stack_space(i32 needed) noexcept {
+    if (stack.capacity() >= needed) { return; }
+    auto* old = stack.begin();
+    if constexpr (IS_DEBUG_BUILD) {
+        stack.reserve(*this, needed);
+    } else {
+        stack.reserve(*this, power_of_2_ceil(needed));
+    }
+    if (old != stack.cbegin()) {
+        for (auto& frame : frames) {
+            frame.slots = std::next(
+                stack.begin(),
+                std::distance(old, frame.slots)
+            );
+        }
+    }
 }
 
 [[nodiscard]] inline constexpr bool
@@ -264,10 +294,15 @@ VM::call(ObjFunction& fun, size_t arg_c) noexcept {
         runtime_error("Stack overflow.");
         return false;
     }
-    frames.push_back(CallFrame{
-        .function = &fun,
-        .instruction_ptr = fun.chunk.code.begin(),
-        .slots = std::prev(stack.end(), arg_c + 1)});
+    const auto stack_needed = stack.size() + fun.max_slots;
+    ensure_stack_space(stack_needed);
+    frames.push_back(
+        *this,
+        CallFrame{
+            .function = &fun,
+            .instruction_ptr = fun.chunk.code.begin(),
+            .slots = std::prev(stack.end(), arg_c + 1)}
+    );
     return true;
 }
 
@@ -747,12 +782,14 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 constexpr auto count = get_byte_count_following_opcode(RETURN);
                 static_assert(count == 0);
                 const auto result = pop();
+                const auto* frame_slots = frame->slots;
                 frames.pop_back();
                 if (frames.empty()) {
                     pop();
+                    assert(stack.empty());
                     return InterpretResult::OK;
                 }
-                stack.erase(frame->slots, stack.end());
+                stack.erase(frame_slots, stack.end());
                 push(result);
                 frame = &frames.back();
                 TX_VM_BREAK();

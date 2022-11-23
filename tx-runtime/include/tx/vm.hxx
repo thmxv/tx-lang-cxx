@@ -51,8 +51,8 @@ struct CallFrame {
 };
 
 class Parser;
-using CallFrames = FixedCapacityArray<CallFrame, size_t, FRAMES_MAX>;
-using Stack = FixedCapacityArray<Value, size_t, STACK_MAX>;
+using CallFrames = DynArray<CallFrame, size_t>;
+using Stack = DynArray<Value, size_t>;
 using Allocator = std::pmr::polymorphic_allocator<std::byte>;
 
 class VM {
@@ -68,8 +68,6 @@ class VM {
 
   public:
     VM() = delete;
-
-    // TODO: move declaration in _inl file
     VM(VMOptions opts, const Allocator& alloc) noexcept;
     VM(const VM& other) = delete;
     VM(VM&& other) = delete;
@@ -96,7 +94,10 @@ class VM {
     [[gnu::flatten]] InterpretResult run() noexcept;
 
   private:
-    constexpr void push(Value value) noexcept { stack.push_back_unsafe(value); }
+    constexpr void push(Value value) noexcept {
+        assert(stack.capacity() > stack.size());
+        stack.push_back_unsafe(value);
+    }
 
     constexpr Value pop() noexcept {
         assert(!stack.empty());
@@ -127,6 +128,8 @@ class VM {
 
     // TODO: pass full signature, for the compiler to verify calls
     void define_native(std::string_view name, NativeFn fun) noexcept;
+
+    void constexpr ensure_stack_space(i32 needed) noexcept;
 
     [[nodiscard]] constexpr bool call(ObjFunction& fun, size_t arg_c) noexcept;
 

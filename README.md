@@ -27,7 +27,6 @@ Tx is still very much a work in progress.
 ## Backlog
 
 - Better float formatting: 1.0e20 instead of 1.e20
-- Ensure enough stack space
 - Print name of unknowm variable in error
 - check arity/signature of native fn
 - error when assigning to constant golbal
@@ -36,13 +35,14 @@ Tx is still very much a work in progress.
 - allow "var a = a;" in the case of shadowing and not assigning to self
 - better and more conform error messages. compile and runtime
 - Fix TODOs in the code
-
-- replace runtime errors by compile time (keep runtime error in degug and REPL)
+- replace runtime errors by compile time (keep runtime error in degug)
 - Go over all the tests one more time (Some do not make much sense for tx
   and some others do not test all code paths)
 
 ### To consider
 
+- Option to set maximum recursion level, starting stack and frame array size, 
+  and minimum memory consumption (do not round to next power of 2)
 - Optimize instruction_prt access (chapter 24 challenge) + benchmark
 - Allow function overload with diff arities (if possible)
 - Universal Function Call (UFC)
