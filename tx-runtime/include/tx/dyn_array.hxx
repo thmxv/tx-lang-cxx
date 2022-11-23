@@ -19,7 +19,7 @@ template <typename T, typename SizeT>
     requires is_trivially_relocatable_v<T> && std::is_integral_v<SizeT>
 class DynArray {
     SizeT count = 0;
-    SizeT capacity = 0;
+    SizeT capacity_ = 0;
     gsl::owner<T*> data_ptr = nullptr;
 
   public:
@@ -30,7 +30,7 @@ class DynArray {
 
     constexpr DynArray(VM& tvm, SizeT size, T value) noexcept
             : count(size)
-            , capacity(size)
+            , capacity_(size)
             , data_ptr(grow_array(tvm, nullptr, 0, size)) {
         std::uninitialized_fill_n(data_ptr, count, value);
     }
@@ -39,10 +39,10 @@ class DynArray {
 
     constexpr DynArray(DynArray&& other) noexcept
             : count(other.count)
-            , capacity(other.capacity)
+            , capacity_(other.capacity_)
             , data_ptr(other.data_ptr) {
         other.count = 0;
-        other.capacity = 0;
+        other.capacity_ = 0;
         other.data_ptr = nullptr;
     }
 
@@ -51,10 +51,10 @@ class DynArray {
     constexpr DynArray& operator=(DynArray&& other) noexcept {
         destroy();
         count = other.count;
-        capacity = other.capacity;
+        capacity_ = other.capacity_;
         data_ptr = other.data_ptr;  // NOLINT
         other.count = 0;
-        other.capacity = 0;
+        other.capacity_ = 0;
         other.data_ptr = nullptr;
         return *this;
     }
@@ -62,20 +62,51 @@ class DynArray {
     constexpr ~DynArray() noexcept {
         assert(data_ptr == nullptr);
         assert(count == 0);
-        assert(capacity == 0);
+        assert(capacity_ == 0);
     }
 
     constexpr void destroy(VM& tvm) noexcept {
+        clear();
         if (data_ptr != nullptr) {
-            std::destroy_n(data_ptr, count);
-            free_array(tvm, data_ptr, capacity);
+            free_array(tvm, data_ptr, capacity_);
+            capacity_ = 0;
+            data_ptr = nullptr;  // NOLINT
         }
+    }
+
+    constexpr void clear() noexcept(std::is_nothrow_destructible_v<T>) {
+        std::destroy_n(data_ptr, count);
         count = 0;
-        capacity = 0;
-        data_ptr = nullptr;  // NOLINT
+    }
+
+    constexpr T* erase(
+        const T* first,
+        const T* last
+    ) noexcept(std::is_nothrow_destructible_v<T>&&
+                   std::is_nothrow_assignable_v<T, T>) {
+        assert(first < last);
+        assert((data_ptr <= first) && (first <= cend()));
+        assert((data_ptr <= last) && (last <= cend()));
+        T* write_first = begin()
+                         + static_cast<SizeT>(std::distance(cbegin(), first));
+        T* write_last = begin()
+                        + static_cast<SizeT>(std::distance(cbegin(), last));
+        const auto diff = std::distance(first, last);
+        const auto [_, new_end] = std::ranges::move(
+            write_last,
+            end(),
+            write_first
+        );
+        std::destroy(new_end, end());
+        count -= static_cast<SizeT>(diff);
+        return write_last;
     }
 
     [[nodiscard]] constexpr SizeT size() const noexcept { return count; }
+
+    [[nodiscard]] constexpr SizeT capacity() const noexcept {
+        return capacity_;
+    }
 
     [[nodiscard]] constexpr bool empty() const noexcept { return count == 0; }
 
@@ -84,7 +115,8 @@ class DynArray {
     }
 
     constexpr void resize(VM& tvm, SizeT new_size, const T& val) noexcept {
-        if (new_size > capacity) { reserve(tvm, new_size); }
+        // NOTE: maybe best to use next power of 2
+        if (new_size > capacity_) { reserve(tvm, new_size); }
         if (new_size > count) {
             std::uninitialized_fill_n(end(), new_size - count, val);
             count = new_size;
@@ -95,35 +127,34 @@ class DynArray {
     }
 
     constexpr void reserve(VM& tvm, SizeT new_cap) noexcept {
-        data_ptr = grow_array(tvm, data_ptr, capacity, new_cap);  // NOLINT
-        capacity = new_cap;
+        data_ptr = grow_array(tvm, data_ptr, capacity_, new_cap);
+        capacity_ = new_cap;
     }
 
     constexpr void push_back(VM& tvm, T value) noexcept {
-        if (capacity == count) { reserve(tvm, grow_capacity(capacity)); }
+        if (capacity_ == count) { reserve(tvm, grow_capacity(capacity_)); }
         push_back_unsafe(value);
     }
 
     constexpr void push_back_unsafe(T value) noexcept {
-        assert(count < capacity);
-        std::construct_at(&data_ptr[count++], value);
+        assert(count < capacity_);
+        std::construct_at(std::next(data_ptr, count++), value);
     }
 
     template <typename... Args>
-    constexpr T& emplace_back(VM& tvm, Args&&... args) noexcept(
-        noexcept(std::construct_at(
-            &data_ptr[count++],
-            std::forward<Args>(args)...
-        ))
-    ) {
-        if (capacity == count) { reserve(tvm, grow_capacity(capacity)); }
+    constexpr T& emplace_back(VM& tvm, Args&&... args) noexcept(noexcept(
+        std::construct_at(&data_ptr[count++], std::forward<Args>(args)...)
+    )) {
+        if (capacity_ == count) { reserve(tvm, grow_capacity(capacity_)); }
         return *std::construct_at(
-            &data_ptr[count++],
+            std::next(data_ptr, count++),
             std::forward<Args>(args)...
         );
     }
 
-    constexpr void pop_back() noexcept { std::destroy_at(&data_ptr[--count]); }
+    constexpr void pop_back() noexcept {
+        std::destroy_at(std::next(data_ptr, --count));
+    }
 
     [[nodiscard]] constexpr T& operator[](SizeT idx) noexcept {
         return data_ptr[idx];
@@ -147,24 +178,24 @@ class DynArray {
         return data_ptr;  // NOLINT
     }
 
-    [[nodiscard]] constexpr T* begin() noexcept { return &data_ptr[0]; }
+    [[nodiscard]] constexpr T* begin() noexcept { return data_ptr; }
 
-    [[nodiscard]] constexpr const T* begin() const noexcept {
-        return &data_ptr[0];
-    }
+    [[nodiscard]] constexpr const T* begin() const noexcept { return data_ptr; }
 
     [[nodiscard]] constexpr const T* cbegin() const noexcept {
-        return &data_ptr[0];
+        return data_ptr;
     }
 
-    [[nodiscard]] constexpr T* end() noexcept { return &data_ptr[count]; }
+    [[nodiscard]] constexpr T* end() noexcept {
+        return std::next(data_ptr, count);
+    }
 
     [[nodiscard]] constexpr const T* end() const noexcept {
-        return &data_ptr[count];
+        return std::next(data_ptr, count);
     }
 
     [[nodiscard]] constexpr const T* cend() const noexcept {
-        return &data_ptr[count];
+        return std::next(data_ptr, count);
     }
 };
 }  // namespace tx

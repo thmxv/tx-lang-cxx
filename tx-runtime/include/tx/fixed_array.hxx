@@ -81,9 +81,7 @@ class FixedCapacityArray {
 
     [[nodiscard]] constexpr bool empty() const noexcept { return count == 0; }
 
-    constexpr void resize(SizeT new_size) noexcept {
-        resize(new_size, T());
-    }
+    constexpr void resize(SizeT new_size) noexcept { resize(new_size, T()); }
 
     constexpr void resize(
         SizeT len,
@@ -108,15 +106,22 @@ class FixedCapacityArray {
         const T* last
     ) noexcept(std::is_nothrow_destructible_v<T>&&
                    std::is_nothrow_assignable_v<T, T>) {
-        T* write_iterator = begin()
-                            + static_cast<SizeT>(std::distance(cbegin(), first)
-                            );
-        while (last != cend()) {
-            std::destroy_at(write_iterator);
-            *write_iterator++ = *last++;
-        }
-        count -= static_cast<SizeT>(std::distance(first, last));
-        return write_iterator;
+        assert(first < last);
+        assert((data_buff <= first) && (first <= cend()));
+        assert((data_buff <= last) && (last <= cend()));
+        T* write_first = begin()
+                         + static_cast<SizeT>(std::distance(cbegin(), first));
+        T* write_last = begin()
+                        + static_cast<SizeT>(std::distance(cbegin(), last));
+        const auto diff = std::distance(first, last);
+        const auto [_, new_end] = std::ranges::move(
+            write_last,
+            end(),
+            write_first
+        );
+        std::destroy(new_end, end());
+        count -= static_cast<SizeT>(diff);
+        return write_last;
     }
 
     constexpr void push_back(T value
