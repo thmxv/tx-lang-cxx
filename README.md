@@ -27,7 +27,7 @@ Tx is still very much a work in progress.
 ## Backlog
 
 - Better float formatting: 1.0e20 instead of 1.e20
-- Print name of unknowm variable in error
+- Fix find_if and ranges not compiling with containers
 - check arity/signature of native fn
 - error when assigning to constant golbal
 - forbid global redeclaration

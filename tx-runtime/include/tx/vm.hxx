@@ -7,6 +7,7 @@
 
 #include "tx/table.hxx"
 #include <memory_resource>
+#include <string_view>
 
 namespace tx {
 
@@ -125,6 +126,9 @@ class VM {
     void debug_trace(const ByteCode* iptr) const noexcept;
 
     constexpr size_t define_global(Value name, Value val) noexcept;
+
+    [[nodiscard]] constexpr std::string_view get_global_name(size_t index
+    ) const noexcept;
 
     // TODO: pass full signature, for the compiler to verify calls
     void define_native(std::string_view name, NativeFn fun) noexcept;

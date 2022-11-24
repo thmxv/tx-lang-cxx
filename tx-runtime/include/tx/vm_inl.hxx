@@ -12,7 +12,6 @@
 #include "tx/value.hxx"
 
 #include <fmt/format.h>
-#include <type_traits>
 
 #include <chrono>
 #include <cfenv>
@@ -22,6 +21,7 @@
 #include <functional>
 #include <ranges>
 #include <thread>
+#include <type_traits>
 
 namespace tx {
 
@@ -251,6 +251,26 @@ inline constexpr size_t VM::define_global(Value name, Value val) noexcept {
     return new_index;
 }
 
+[[nodiscard]] constexpr std::string_view VM::get_global_name(size_t index
+) const noexcept {
+    assert(index < global_values.size());
+    // auto iter = std::find_if(
+    //     global_indices.cbegin(),
+    //     global_indices.cend(),
+    //     // global_indices,
+    //     [=](const auto& entry) { return entry.second.as_int() == index; }
+    // );
+    // assert(iter != global_indices.cend());
+    // return iter->first.as_object().as<ObjString>();
+    for (const auto& entry : global_indices) {
+        // cppcheck-suppress useStlAlgorithm
+        if (entry.second.as_int() == index) {
+            return entry.first.as_object().as<ObjString>();
+        }
+    }
+    unreachable();
+}
+
 inline void VM::define_native(std::string_view name, NativeFn fun) noexcept {
     assert(stack.empty());
     ensure_stack_space(2);
@@ -430,7 +450,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
 
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
-// clang-format off
+    // clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -544,10 +564,11 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                     GET_GLOBAL
                 );
                 static_assert(count == 1);
-                auto value =
-                    global_values[frame->read_multibyte_operand<count>()];
+                auto index = frame->read_multibyte_operand<count>();
+                auto value = global_values[index];
                 if (value.is_none()) {
-                    runtime_error("Undefined variable.");
+                    const auto name = get_global_name(index);
+                    runtime_error("Undefined variable '{}'.", name);
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 push(value);
@@ -558,10 +579,11 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                     GET_GLOBAL_LONG
                 );
                 static_assert(count == 3);
-                auto value =
-                    global_values[frame->read_multibyte_operand<count>()];
+                auto index = frame->read_multibyte_operand<count>();
+                auto value = global_values[index];
                 if (value.is_none()) {
-                    runtime_error("Undefined variable.");
+                    const auto name = get_global_name(index);
+                    runtime_error("Undefined variable '{}'.", name);
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 push(value);
@@ -592,7 +614,8 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 static_assert(count == 1);
                 auto index = frame->read_multibyte_operand<count>();
                 if (global_values[index].is_none()) {
-                    runtime_error("Undefined variable.");
+                    const auto name = get_global_name(index);
+                    runtime_error("Undefined variable '{}'.", name);
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 global_values[index] = peek(0);
@@ -605,7 +628,8 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 static_assert(count == 3);
                 auto index = frame->read_multibyte_operand<count>();
                 if (global_values[index].is_none()) {
-                    runtime_error("Undefined variable.");
+                    const auto name = get_global_name(index);
+                    runtime_error("Undefined variable '{}'.", name);
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 global_values[index] = peek(0);
@@ -799,7 +823,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-    // clang-format off
+// clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK
