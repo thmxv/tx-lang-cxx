@@ -4,10 +4,13 @@
 #include "tx/memory.hxx"
 
 #include <cassert>
+#include <cstddef>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <span>
+#include <bits/iterator_concepts.h>
 #include <type_traits>
 #include <utility>
 
@@ -25,7 +28,130 @@ class HashMap {
     static_assert(EMPTY_VALUE != TOMBSTONE_VALUE);
 
   public:
-    using Entry = std::pair<Key, T>;
+    using Entry = std::pair<const Key, T>;
+
+    class Iterator {
+        using iterator_category = std::forward_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using value_type = Entry;
+        using pointer = value_type*;
+        using reference = value_type&;
+
+        HashMap* table_ptr = nullptr;
+        HashMap::Entry* ptr = nullptr;
+
+        friend class HashMap;
+
+        constexpr void advance() {
+            while (ptr != std::next(table_ptr->data_ptr, table_ptr->capacity)
+                   && is_entry_empty(*ptr)) {
+                ++ptr;
+            }
+        }
+
+      public:
+        constexpr Iterator(HashMap* map, HashMap::Entry* entry_ptr)
+                : table_ptr(map)
+                , ptr(entry_ptr) {}
+
+        [[nodiscard]] constexpr bool operator==(const Iterator& other
+        ) const noexcept {
+            return ptr == other.ptr;
+        }
+
+        [[nodiscard]] constexpr bool operator!=(const Iterator& other
+        ) const noexcept {
+            return ptr != other.ptr;
+        }
+
+        constexpr Iterator& operator++() noexcept {
+            ++ptr;
+            advance();
+            return *this;
+        }
+
+        constexpr Iterator operator++(int) noexcept {
+            Iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        [[nodiscard]] constexpr Entry& operator*() noexcept { return *ptr; }
+
+        [[nodiscard]] constexpr Entry* operator->() noexcept { return ptr; }
+    };
+
+    class ConstIterator {
+        using iterator_category = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using value_type = Entry;
+        using pointer = value_type*;
+        using const_pointer = const value_type*;
+        using reference = value_type&;
+        using const_reference = const value_type&;
+
+        const HashMap* table_ptr = nullptr;
+        const HashMap::Entry* ptr = nullptr;
+
+        friend class HashMap;
+
+        constexpr void advance() {
+            while (ptr != std::next(table_ptr->data_ptr, table_ptr->capacity)
+                   && is_entry_empty(*ptr)) {
+                ++ptr;
+            }
+        }
+
+      public:
+        constexpr ConstIterator(
+            const HashMap* map,
+            const HashMap::Entry* entry_ptr
+        )
+                : table_ptr(map)
+                , ptr(entry_ptr) {}
+
+        [[nodiscard]] constexpr bool operator==(const ConstIterator& other
+        ) const noexcept {
+            return ptr == other.ptr;
+        }
+
+        [[nodiscard]] constexpr bool operator!=(const ConstIterator& other
+        ) const noexcept {
+            return ptr != other.ptr;
+        }
+
+        constexpr ConstIterator& operator++() noexcept {
+            ++ptr;
+            advance();
+            return *this;
+        }
+
+        constexpr ConstIterator operator++(int) noexcept {
+            ConstIterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        [[nodiscard]] constexpr const Entry& operator*() const noexcept {
+            return *ptr;
+        }
+
+        [[nodiscard]] constexpr const Entry* operator->() const noexcept {
+            return ptr;
+        }
+    };
+
+    using key_type = Key;
+    using mapped_type = T;
+    using value_type = Entry;
+    using size_type = i32;
+    using difference_type = std::ptrdiff_t;
+    using iterator = Iterator;
+    using const_iterator = ConstIterator;
+    using pointer = value_type*;
+    using const_pointer = const value_type*;
+    using reference = value_type&;
+    using const_reference = const value_type&;
 
   private:
     static constexpr float MAX_LOAD_FACTOR = 0.75;
@@ -34,9 +160,6 @@ class HashMap {
     gsl::owner<Entry*> data_ptr = nullptr;
 
   public:
-    using value_type = std::pair<const Key, T>;
-    using size_type = i32;
-
     constexpr HashMap() noexcept = default;
     constexpr HashMap(const HashMap& other) noexcept = delete;
     constexpr HashMap(HashMap&& other) noexcept = delete;
@@ -48,11 +171,11 @@ class HashMap {
     }
 
     constexpr void destroy(VM& tvm) noexcept {
-        std::destroy_n(data_ptr, capacity);
-        if (data_ptr != nullptr) { free_array(tvm, data_ptr, capacity); }
-        count = 0;
-        capacity = 0;
-        data_ptr = nullptr;
+        clear();
+        if (data_ptr != nullptr) {
+            free_array(tvm, data_ptr, capacity);
+            data_ptr = nullptr;
+        }
     }
 
     constexpr HashMap& operator=(const HashMap& other) noexcept = delete;
@@ -75,9 +198,8 @@ class HashMap {
         return &entry.second;
     }
 
-    // template <typename... Args>
-    // constexpr bool set(VM& tvm, Key key, Args&&... args) noexcept {
-    constexpr bool set(VM& tvm, Key key, T&& value) noexcept {
+    template <typename... Args>
+    constexpr bool set(VM& tvm, Key key, Args&&... args) noexcept {
         assert(!KeyEqual()(key, EMPTY_KEY) && "Key cannot be the empty key.");
         if (count + 1 > static_cast<i32>(
                 static_cast<float>(capacity) * max_load_factor()
@@ -87,10 +209,9 @@ class HashMap {
         Entry& entry = find_entry(key);
         bool is_new_key = is_entry_empty(entry);
         if (is_new_key && !is_entry_tombstone(entry)) { ++count; }
-        entry.first = key;
-        // entry.second = T(std::forward<Args>(args)...);
-        // entry.second = std::move(value);
-        entry.second = value;
+        auto* ptr = &entry;
+        std::destroy_at(ptr);
+        std::construct_at(ptr, key, std::forward<Args>(args)...);
         return is_new_key;
     }
 
@@ -112,25 +233,26 @@ class HashMap {
 
     constexpr void rehash(VM& tvm, i32 new_cap) noexcept {
         // TODO: Make new_cap power of 2 and big enough
-        Entry* entries = allocate<Entry>(tvm, new_cap);
+        auto* old_ptr = data_ptr;
+        auto old_capacity = capacity;
+        data_ptr = allocate<Entry>(tvm, new_cap);
         std::uninitialized_fill_n(
-            entries,
+            data_ptr,
             new_cap,
             Entry(EMPTY_KEY, EMPTY_VALUE)
         );
-        auto* old_ptr = data_ptr;
-        auto old_capacity = capacity;
-        data_ptr = entries;
         capacity = new_cap;
         count = 0;
         for (i32 i = 0; i < old_capacity; ++i) {
-            Entry& src = old_ptr[i];
-            if (is_entry_empty(src)) { continue; }
-            Entry& dest = find_entry(src.first);
-            dest = std::move(src);
+            Entry* src = std::next(old_ptr, i);
+            if (is_entry_empty(*src)) { continue; }
+            Entry* dest = &find_entry(src->first);
+            std::destroy_at(dest);
+            std::construct_at(dest, std::move(*src));
             ++count;
         }
         if (old_ptr != nullptr) {
+            std::destroy_n(old_ptr, old_capacity);
             free_array<Entry>(tvm, old_ptr, old_capacity);
         }
     }
@@ -141,6 +263,34 @@ class HashMap {
         auto& result = find_in_bucket_impl(hash, func);
         if (is_entry_empty(result)) { return nullptr; }
         return &result;
+    }
+
+    [[nodiscard]] constexpr Iterator begin() noexcept {
+        Iterator iter(this, data_ptr);
+        iter.advance();
+        return iter;
+    }
+
+    [[nodiscard]] constexpr ConstIterator begin() const noexcept {
+        return cbegin();
+    }
+
+    [[nodiscard]] constexpr ConstIterator cbegin() const noexcept {
+        ConstIterator iter(this, data_ptr);
+        iter.advance();
+        return iter;
+    }
+
+    [[nodiscard]] constexpr Iterator end() noexcept {
+        return Iterator(this, std::next(data_ptr, capacity));
+    }
+
+    [[nodiscard]] constexpr ConstIterator end() const noexcept {
+        return cend();
+    }
+
+    [[nodiscard]] constexpr ConstIterator cend() const noexcept {
+        return ConstIterator(this, std::next(data_ptr, capacity));
     }
 
   private:

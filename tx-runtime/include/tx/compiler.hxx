@@ -137,11 +137,6 @@ class Parser {
 
     [[nodiscard]] constexpr size_t add_constant(Value value) noexcept;
 
-    inline constexpr void emit_instruction(OpCode opc) noexcept {
-        assert(0 == get_byte_count_following_opcode(opc));
-        emit_instruction<0>(opc, 0);
-    }
-
     template <u32 N>
     inline constexpr void
     emit_instruction(OpCode opc, size_t operand) noexcept {
@@ -153,6 +148,11 @@ class Parser {
             > current_compiler->function->max_slots) {
             current_compiler->function->max_slots = current_compiler->num_slots;
         }
+    }
+
+    inline constexpr void emit_instruction(OpCode opc) noexcept {
+        assert(0 == get_byte_count_following_opcode(opc));
+        emit_instruction<0>(opc, 0);
     }
 
     constexpr void emit_constant(Value value) noexcept;
