@@ -6,6 +6,7 @@
 #include <gsl/gsl>
 
 #include <cassert>
+#include <cstddef>
 #include <memory>
 #include <type_traits>
 
@@ -25,6 +26,15 @@ class DynArray {
   public:
     using value_type = T;
     using size_type = SizeT;
+    using difference_type = std::ptrdiff_t;
+    using reference = value_type&;
+    using const_reference = const value_type&;
+    using pointer = value_type*;
+    using const_pointer = const value_type*;
+    using iterator = T*;
+    using const_iterator = const T*;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     constexpr DynArray() noexcept = default;
 
@@ -83,7 +93,7 @@ class DynArray {
         const T* first,
         const T* last
     ) noexcept(std::is_nothrow_destructible_v<T>&&
-                   std::is_nothrow_assignable_v<T, T>) {
+                   std::is_nothrow_move_assignable_v<T>) {
         assert(first < last);
         assert((data_ptr <= first) && (first <= cend()));
         assert((data_ptr <= last) && (last <= cend()));
@@ -164,10 +174,12 @@ class DynArray {
         return data_ptr[idx];
     }
 
-    [[nodiscard]] constexpr T& back() noexcept { return data_ptr[count - 1]; }
+    [[nodiscard]] constexpr T& back() noexcept {
+        return *std::next(data_ptr, count - 1);
+    }
 
     [[nodiscard]] constexpr const T& back() const noexcept {
-        return data_ptr[count - 1];
+        return *std::next(data_ptr, count - 1);
     }
 
     [[nodiscard]] constexpr T* data() noexcept {
@@ -196,6 +208,30 @@ class DynArray {
 
     [[nodiscard]] constexpr const T* cend() const noexcept {
         return std::next(data_ptr, count);
+    }
+
+    [[nodiscard]] constexpr reverse_iterator rbegin() noexcept {
+        return std::reverse_iterator(end());
+    }
+
+    [[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept {
+        return crbegin();
+    }
+
+    [[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept {
+        return std::reverse_iterator(cend());
+    }
+
+    [[nodiscard]] constexpr reverse_iterator rend() noexcept {
+        return std::reverse_iterator(begin());
+    }
+
+    [[nodiscard]] constexpr const_reverse_iterator rend() const noexcept {
+        return crend();
+    }
+
+    [[nodiscard]] constexpr const_reverse_iterator crend() const noexcept {
+        return std::reverse_iterator(cbegin());
     }
 };
 }  // namespace tx

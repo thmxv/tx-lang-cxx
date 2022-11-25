@@ -337,7 +337,6 @@ inline constexpr TypeInfo Parser::literal(bool /*can_assign*/) noexcept {
 inline constexpr i32
 Parser::resolve_local(Compiler& compiler, const Token& name) noexcept {
     // TODO: use ranges, enumerate+reverse
-    // for (const auto& local : compiler.locals | std::views::reverse) {
     for (i32 i = compiler.locals.size() - 1; i >= 0; --i) {
         const Local& local = compiler.locals[i];
         if (identifiers_equal(name, local.name)) {
@@ -547,8 +546,6 @@ inline constexpr void Parser::declare_variable(bool is_const) noexcept {
     if (current_compiler->scope_depth == 0) { return; }
     const auto& name = previous;
     // TODO: use ranges
-    // for (const auto& local : current_compiler->locals | std::views::reverse)
-    // {
     for (auto i = current_compiler->locals.size() - 1; i >= 0; --i) {
         const auto& local = current_compiler->locals[i];
         if (local.depth != -1 && local.depth < current_compiler->scope_depth) {

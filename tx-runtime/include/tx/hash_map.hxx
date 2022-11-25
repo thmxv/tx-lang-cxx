@@ -82,7 +82,7 @@ class HashMap {
     };
 
     class ConstIterator {
-        using iterator_category = std::input_iterator_tag;
+        using iterator_category = std::forward_iterator_tag;
         using difference_type = std::ptrdiff_t;
         using value_type = Entry;
         using pointer = value_type*;
