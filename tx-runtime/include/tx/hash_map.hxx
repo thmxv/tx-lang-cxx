@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include "tx/utils.hxx"
 #include <bits/iterator_concepts.h>
 #include <type_traits>
 #include <utility>
@@ -232,7 +233,7 @@ class HashMap {
     }
 
     constexpr void rehash(VM& tvm, i32 new_cap) noexcept {
-        // TODO: Make new_cap power of 2 and big enough
+        new_cap = power_of_2_ceil(new_cap);
         auto* old_ptr = data_ptr;
         auto old_capacity = capacity;
         data_ptr = allocate<Entry>(tvm, new_cap);

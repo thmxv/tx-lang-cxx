@@ -26,8 +26,8 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
-- Allow forward declaration of global fn without var/let
-- Reserve type, abstract, override and final keywords
+- Allow forward declaration of global var using fn declaration
+- Reserve type, Type, abstract, override and final keywords
 - Move Global info from VM to Parser, keep parser inbetween repl evals
 - Better float formatting: 1.0e20 instead of 1.e20
 - check arity/signature of native fn
@@ -67,11 +67,11 @@ Tx is still very much a work in progress.
 - [X] Local variables
 - [X] Jumping
 - [X] Functions and call
-- [ ] Tests
+- [X] Tests
 - [ ] Closure
 - [ ] Garbage collection
 - [ ] Documentation
-- [ ] Backlog
+- [ ] Backlog/FIXMEs/TODOs
 
 ### v0.2.0
 
@@ -79,7 +79,7 @@ Tx is still very much a work in progress.
 - [ ] Methods and initializer
 - [ ] Type checking
 - [ ] Traits
-- [ ] Inheritance
+- [ ] Inheritance?
 - [ ] String concatenation
 - [ ] String interpolation
 - [ ] Array and Map values (generic types)
