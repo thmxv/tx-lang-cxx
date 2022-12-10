@@ -52,13 +52,14 @@ using usize = std::size_t;
 using f32 = float;
 using f64 = double;
 
-// NOTE: Configurable size type used in all the code
+// NOTE: Configurable size type used in collections
+// TODO: Test with signed/unsiged 32/64 integer and benchmark
 using size_t = i32;
-// using size_t = u64;
+// using size_t = usize;
 
 using int_t = i64;
 using float_t = f64;
-// TODO: if pointer size == 4 and building a minimalized 32 bit version of Tx
+// TODO: allow building a minimal 32 bit version of Tx
 // using int_t = i32;
 // using float_t = f32;
 

@@ -215,6 +215,7 @@ class Parser {
     void fn_declaration() noexcept;
     constexpr void var_declaration() noexcept;
     constexpr void while_statement() noexcept;
+    constexpr void emit_pop_innermost_loop(bool skip_top_expression) noexcept;
     constexpr void break_statement() noexcept;
     constexpr void continue_statement() noexcept;
     constexpr void return_statement() noexcept;

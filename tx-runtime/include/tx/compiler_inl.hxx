@@ -715,6 +715,22 @@ inline constexpr void Parser::while_statement() noexcept {
     (void)match(SEMICOLON);
 }
 
+inline constexpr void Parser::emit_pop_innermost_loop(bool skip_top_expression
+) noexcept {
+    size_t loop_local_count = 0;
+    for (size_t i = current_compiler->locals.size() - 1;
+         i >= 0
+         && current_compiler->locals[i].depth
+                > current_compiler->innermost_loop->scope_depth;
+         --i) {
+        if (!skip_top_expression) { emit_instruction(OpCode::POP); }
+        ++loop_local_count;
+    }
+    if (skip_top_expression && loop_local_count > 0) {
+        emit_var_length_instruction(OpCode::END_SCOPE, loop_local_count);
+    }
+}
+
 inline constexpr void Parser::break_statement() noexcept {
     if (current_compiler->innermost_loop == nullptr) {
         error("Can't use 'break' outside of a loop.");
@@ -730,20 +746,8 @@ inline constexpr void Parser::break_statement() noexcept {
     } else {
         consume(SEMICOLON, "Expect ; after 'break'.");
     }
-    // TODO: extract to emit_pop_innermost_loop()
-    size_t loop_local_count = 0;
-    for (size_t i = current_compiler->locals.size() - 1;
-         i >= 0
-         && current_compiler->locals[i].depth
-                > current_compiler->innermost_loop->scope_depth;
-         --i) {
-        if (!is_loop_expr) { emit_instruction(OpCode::POP); }
-        ++loop_local_count;
-    }
-    if (is_loop_expr && loop_local_count > 0) {
-        emit_var_length_instruction(OpCode::END_SCOPE, loop_local_count);
-    }
-    // jump with placeholder opcode that will need patching later
+    emit_pop_innermost_loop(is_loop_expr);
+    // emit jump with placeholder opcode that will need patching later
     (void)emit_jump(OpCode::END);
 }
 
@@ -752,14 +756,7 @@ inline constexpr void Parser::continue_statement() noexcept {
         error("Can't use 'continue' outside of a loop.");
     }
     consume(SEMICOLON, "Expect ; after 'continue'.");
-    // TODO: extract to emit_pop_innermost_loop()
-    for (size_t i = current_compiler->locals.size() - 1;
-         i >= 0
-         && current_compiler->locals[i].depth
-                > current_compiler->innermost_loop->scope_depth;
-         --i) {
-        emit_instruction(OpCode::POP);
-    }
+    emit_pop_innermost_loop(false);
     emit_loop(current_compiler->innermost_loop->start);
 }
 
