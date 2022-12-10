@@ -1,1 +1,2 @@
-unknown = "what"; # expect runtime error: Undefined variable 'unknown'.
+# [line 2] Error at 'unknown': Cannot find value with this name in current scope.
+unknown = "what";

@@ -1,3 +1,4 @@
 var a = "1";
-var a;
-std_println(a); # expect: nil
+# [line 3] Error at 'a': Redeclaration of global variable.
+let a;
+std_println(a);

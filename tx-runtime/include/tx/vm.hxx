@@ -2,7 +2,6 @@
 
 #include "tx/chunk.hxx"
 #include "tx/common.hxx"
-#include "tx/compiler.hxx"
 #include "tx/fixed_array.hxx"
 
 #include "tx/table.hxx"
@@ -26,6 +25,29 @@ struct VMOptions {
     // REPL specific options
     bool allow_pointer_to_source_content = true;
     bool allow_global_redefinition = false;
+};
+
+// Move to compiler.hxx
+struct GlobalSignature {
+    bool is_const{true};
+
+    friend constexpr bool operator==(
+        const GlobalSignature& lhs,
+        const GlobalSignature& rhs
+    ) = default;
+};
+// Move to compiler.hxx
+struct GlobalInfo {
+    GlobalSignature signature;
+    // NOTE: globals are defined at runtine and are == val_none when not defined
+    // This is set at compile time in order to detect use before defininiton
+    bool is_defined{false};
+};
+// Move to compiler.hxx
+template <>
+struct is_trivially_relocatable<GlobalInfo>
+        : std::__is_bitwise_relocatable<GlobalInfo> {
+    static constexpr value_type value = true;
 };
 
 struct CallFrame {
@@ -52,11 +74,14 @@ struct CallFrame {
 };
 
 class Parser;
-using CallFrames = DynArray<CallFrame, size_t>;
-using Stack = DynArray<Value, size_t>;
+
 using Allocator = std::pmr::polymorphic_allocator<std::byte>;
 
 class VM {
+    using CallFrames = DynArray<CallFrame, size_t>;
+    using Stack = DynArray<Value, size_t>;
+    using GlobalArray = DynArray<GlobalInfo, size_t>;
+
     VMOptions options{};
     Allocator allocator{};
     Parser* parser = nullptr;
@@ -64,6 +89,8 @@ class VM {
     Stack stack;
     ValueMap global_indices;
     ValueArray global_values;
+    // Move to Parser
+    GlobalArray globals;
     ValueSet strings;
     gsl::owner<Obj*> objects = nullptr;
 
@@ -125,7 +152,8 @@ class VM {
     void assert_stack_effect(const ByteCode* iptr) const noexcept;
     void debug_trace(const ByteCode* iptr) const noexcept;
 
-    constexpr size_t define_global(Value name, Value val) noexcept;
+    constexpr size_t
+    define_global(Value name, GlobalInfo signature, Value val) noexcept;
 
     [[nodiscard]] constexpr std::string_view get_global_name(size_t index
     ) const noexcept;

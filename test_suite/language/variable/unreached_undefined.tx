@@ -1,5 +1,6 @@
 if (false) {
+  # [line 3] Error at 'notDefined': Cannot find value with this name in current scope.
   std_println(notDefined);
 }
 
-std_println("ok"); # expect: ok
+std_println("ok");

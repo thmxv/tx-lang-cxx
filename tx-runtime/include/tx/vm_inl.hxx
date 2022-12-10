@@ -195,6 +195,7 @@ inline constexpr VM::~VM() noexcept {
     frames.destroy(*this);
     global_indices.destroy(*this);
     global_values.destroy(*this);
+    globals.destroy(*this);
     strings.destroy(*this);
     free_objects(*this, objects);
 }
@@ -238,15 +239,20 @@ inline InterpretResult VM::interpret(std::string_view source) noexcept {
     ObjFunction* function = parser->compile();
     parser = nullptr;
     if (function == nullptr) { return InterpretResult::COMPILE_ERROR; }
+    ensure_stack_space(1);
     push(Value{function});
     (void)call(*function, 0);
-    return run();
+    auto result = run();
+    assert(stack.empty());
+    return result;
 }
 
-inline constexpr size_t VM::define_global(Value name, Value val) noexcept {
-    // TODO: maybe do the GC push/pop dance here
+inline constexpr size_t
+VM::define_global(Value name, GlobalInfo signature, Value val) noexcept {
+    // NOTE: maybe do the GC push/pop dance here
     auto new_index = global_values.size();
     global_values.push_back(*this, val);
+    globals.push_back(*this, signature);
     global_indices.set(*this, name, Value{static_cast<int_t>(new_index)});
     return new_index;
 }
@@ -276,7 +282,13 @@ inline void VM::define_native(std::string_view name, NativeFn fun) noexcept {
     ensure_stack_space(2);
     push(Value{make_string(*this, false, name)});
     push(Value{allocate_object<ObjNative>(*this, fun)});
-    define_global(stack[0], stack[1]);
+    define_global(
+        stack[0],
+        GlobalInfo{
+            .signature = GlobalSignature{.is_const = true},
+            .is_defined = true},
+        stack[1]
+    );
     pop();
     pop();
 }
@@ -450,7 +462,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
 
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
-    // clang-format off
+// clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -566,7 +578,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 static_assert(count == 1);
                 auto index = frame->read_multibyte_operand<count>();
                 auto value = global_values[index];
-                if (value.is_none()) {
+                if (value.is_none()) [[unlikely]] {
                     const auto name = get_global_name(index);
                     runtime_error("Undefined variable '{}'.", name);
                     return InterpretResult::RUNTIME_ERROR;
@@ -581,7 +593,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 static_assert(count == 3);
                 auto index = frame->read_multibyte_operand<count>();
                 auto value = global_values[index];
-                if (value.is_none()) {
+                if (value.is_none()) [[unlikely]] {
                     const auto name = get_global_name(index);
                     runtime_error("Undefined variable '{}'.", name);
                     return InterpretResult::RUNTIME_ERROR;
@@ -594,7 +606,9 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                     DEFINE_GLOBAL
                 );
                 static_assert(count == 1);
-                global_values[frame->read_multibyte_operand<count>()] = peek(0);
+                auto index = frame->read_multibyte_operand<count>();
+                assert(global_values[index].is_none());
+                global_values[index] = peek(0);
                 pop();
                 TX_VM_BREAK();
             }
@@ -603,7 +617,9 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                     DEFINE_GLOBAL_LONG
                 );
                 static_assert(count == 3);
-                global_values[frame->read_multibyte_operand<count>()] = peek(0);
+                auto index = frame->read_multibyte_operand<count>();
+                assert(global_values[index].is_none());
+                global_values[index] = peek(0);
                 pop();
                 TX_VM_BREAK();
             }
@@ -613,7 +629,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 );
                 static_assert(count == 1);
                 auto index = frame->read_multibyte_operand<count>();
-                if (global_values[index].is_none()) {
+                if (global_values[index].is_none()) [[unlikely]] {
                     const auto name = get_global_name(index);
                     runtime_error("Undefined variable '{}'.", name);
                     return InterpretResult::RUNTIME_ERROR;
@@ -627,7 +643,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 );
                 static_assert(count == 3);
                 auto index = frame->read_multibyte_operand<count>();
-                if (global_values[index].is_none()) {
+                if (global_values[index].is_none()) [[unlikely]] {
                     const auto name = get_global_name(index);
                     runtime_error("Undefined variable '{}'.", name);
                     return InterpretResult::RUNTIME_ERROR;
@@ -823,7 +839,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-// clang-format off
+    // clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK

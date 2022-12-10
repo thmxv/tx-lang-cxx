@@ -1,1 +1,2 @@
-std_println(notDefined);  # expect runtime error: Undefined variable 'notDefined'.
+# [line 2] Error at 'notDefined': Cannot find value with this name in current scope.
+std_println(notDefined);

@@ -26,13 +26,12 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Allow forward declaration of global fn without var/let
+- Reserve type, abstract, override and final keywords
+- Move Global info from VM to Parser, keep parser inbetween repl evals
+- Cleanup is_trivally_relocatable, use tag in class
 - Better float formatting: 1.0e20 instead of 1.e20
-- Fix find_if and ranges not compiling with containers
 - check arity/signature of native fn
-- error when assigning to constant golbal
-- forbid global redeclaration
-- forbid global redefinition, unless in REPL
-- allow "var a = a;" in the case of shadowing and not assigning to self
 - better and more conform error messages. compile and runtime
 - Fix TODOs in the code
 - replace runtime errors by compile time (keep runtime error in degug)
@@ -41,6 +40,7 @@ Tx is still very much a work in progress.
 
 ### To consider
 
+- Allow "var a = a;" in the case of shadowing and not assigning to self
 - Option to set maximum recursion level, starting stack and frame array size, 
   and minimum memory consumption (do not round to next power of 2)
 - Optimize instruction_prt access (chapter 24 challenge) + benchmark
@@ -50,7 +50,7 @@ Tx is still very much a work in progress.
 - Clean up utf8 conv, utf8 lenght, resize once
 - Loop/block labels with support in break and continue
 - Allow to use break to break out of a block (using labels only)
-- Fix 'could be const' warnings with containers when elements are const
+- Better const correctness for container elements
 - Use char8_t and u8string_view (needs libfmt support)
 
 ## Roadmap/TODO list

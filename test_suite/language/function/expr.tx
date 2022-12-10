@@ -1,11 +1,11 @@
 # With explicit value
-var a = "outer";
-var b = fn() { var a = "inner"; a }();
-std_println(b);  # expect: inner
-std_println(a);  # expect: outer
+var a1 = "outer";
+var b1 = fn() { var a1 = "inner"; a1 }();
+std_println(b1);  # expect: inner
+std_println(a1);  # expect: outer
 
 # With implicit nil value
-var a = "outer";
-var b = fn() { var a = "inner"; }();
-std_println(b);  # expect: nil
-std_println(a);  # expect: outer
+var a2 = "outer";
+var b2 = fn() { var a2 = "inner"; }();
+std_println(b2);  # expect: nil
+std_println(a2);  # expect: outer

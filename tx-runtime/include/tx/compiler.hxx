@@ -80,7 +80,6 @@ enum struct FunctionType {
 struct ObjFunction;
 
 struct Compiler {
-    // using LocalArray = FixedCapacityArray<Local, size_t, 256>;
     using LocalArray = DynArray<Local, size_t>;
 
     Compiler* enclosing{nullptr};
@@ -112,20 +111,27 @@ class Parser {
             : parent_vm(tvm)
             , scanner(parent_vm, source) {}
 
+    // constexpr ~Parser() {}
     // Parser(const Parser&) = delete;
     // Parser(Parser&&) = delete;
-    //
-    // constexpr ~Parser() = default;
-    //
     // Parser& operator=(const Parser&) = delete;
     // Parser& operator=(Parser&&) = delete;
 
     [[nodiscard]] ObjFunction* compile() noexcept;
 
   private:
-    constexpr void error_at(Token& token, std::string_view message) noexcept;
-    constexpr void error(std::string_view message) noexcept;
-    constexpr void error_at_current(std::string_view message) noexcept;
+    void error_at(Token& token, std::string_view message) noexcept;
+
+    // template <typename... Args>
+    // void error_at(Token& token, std::string_view fmt, Args&&... args)
+    // noexcept {
+    //     error_at_impl(token);
+    //     fmt::print(stderr, fmt::runtime(fmt), args...);
+    //     fmt::print(stderr, "\n");
+    // }
+
+    void error(std::string_view message) noexcept;
+    void error_at_current(std::string_view message) noexcept;
 
     constexpr void advance() noexcept;
     constexpr void consume(TokenType type, std::string_view message) noexcept;
@@ -180,12 +186,16 @@ class Parser {
     [[nodiscard]] constexpr i32
     resolve_local(Compiler& compiler, const Token& name) noexcept;
 
-    [[nodiscard]] size_t identifier_global_index(const Token& name) noexcept;
+    [[nodiscard]] i32 identifier_global_index(const Token& name) noexcept;
 
+    [[nodiscard]] size_t
+    add_global(Value identifier, GlobalSignature sig) noexcept;
+
+    [[nodiscard]] size_t declare_global_variable(bool is_const) noexcept;
     constexpr void add_local(Token name, bool is_const) noexcept;
-    constexpr void declare_variable(bool is_const) noexcept;
-    constexpr void mark_initialized() noexcept;
-    constexpr void define_variable(size_t global) noexcept;
+    constexpr void declare_local_variable(bool is_const) noexcept;
+    constexpr void mark_initialized(i32 global_idx) noexcept;
+    constexpr void define_variable(i32 global_idx) noexcept;
 
     [[nodiscard]] static constexpr const ParseRule& get_rule(
         TokenType token_type
@@ -194,7 +204,7 @@ class Parser {
     constexpr ParseResult
     parse_precedence(Precedence, bool do_advance = true) noexcept;
 
-    [[nodiscard]] constexpr size_t parse_variable(const char* error_message
+    [[nodiscard]] constexpr i32 parse_variable(const char* error_message
     ) noexcept;
 
     [[nodiscard]] constexpr u8 argument_list();

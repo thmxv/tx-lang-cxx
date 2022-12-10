@@ -1,3 +1,3 @@
 var a = "value";
-var a = a;
-std_println(a); # expect: value
+var b = a;
+std_println(b); # expect: value

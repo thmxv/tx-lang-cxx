@@ -1,12 +1,17 @@
-fn isEven(n) {
+#!/usr/bin/env tx
+
+let is_odd;
+# fn is_odd(n);
+
+fn is_even(n) {
   if (n == 0) { return true; }
-  return isOdd(n - 1);
+  return is_odd(n - 1);
 }
 
-fn isOdd(n) {
+fn is_odd(n) {
   if (n == 0) { return false; }
-  return isEven(n - 1);
+  return is_even(n - 1);
 }
 
-std_println(isEven(4)); # expect: true
-std_println(isOdd(3)); # expect: true
+std_println(is_even(4)); # expect: true
+std_println(is_odd(3)); # expect: true

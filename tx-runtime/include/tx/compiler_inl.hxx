@@ -8,6 +8,7 @@
 #include "tx/object.hxx"
 #include "tx/scanner.hxx"
 #include "tx/utils.hxx"
+#include "tx/vm.hxx"
 
 #include <limits>
 #include <ranges>
@@ -53,13 +54,18 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
     while (!match(TokenType::END_OF_FILE)) { statement(); }
     emit_instruction(OpCode::NIL);
     auto* fun = end_compiler();
+    for (const auto& val : parent_vm.globals) {
+        if (!val.is_defined) {
+            error("Global variable declared but not defined.");
+        }
+    }
     return had_error ? nullptr : fun;
 }
 
-inline constexpr void
-Parser::error_at(Token& token, std::string_view message) noexcept {
+inline void Parser::error_at(Token& token, std::string_view message) noexcept {
     if (panic_mode) { return; }
     panic_mode = true;
+    had_error = true;
     fmt::print(stderr, "[line {:d}] Error", token.line);
     if (token.type == TokenType::END_OF_FILE) {
         fmt::print(stderr, " at end");
@@ -68,15 +74,13 @@ Parser::error_at(Token& token, std::string_view message) noexcept {
         fmt::print(stderr, " at '{:s}'", token.lexeme);
     }
     fmt::print(stderr, ": {:s}\n", message);
-    had_error = true;
 }
 
-inline constexpr void Parser::error(std::string_view message) noexcept {
+inline void Parser::error(std::string_view message) noexcept {
     error_at(previous, message);
 }
 
-inline constexpr void Parser::error_at_current(std::string_view message
-) noexcept {
+inline void Parser::error_at_current(std::string_view message) noexcept {
     error_at(current, message);
 }
 
@@ -94,7 +98,7 @@ inline constexpr void Parser::advance() noexcept {
 
 inline constexpr void
 Parser::consume(TokenType type, std::string_view message) noexcept {
-    if (current.type == type) {
+    if (check(type)) {
         advance();
         return;
     }
@@ -307,8 +311,8 @@ Parser::binary(TypeInfo lhs, bool /*can_assign*/) noexcept {
 
 inline constexpr TypeInfo
 Parser::call(TypeInfo lhs, bool /*can_assign*/) noexcept {
+    // TODO: check last expresion is callable
     auto arg_count = argument_list();
-    // emit_bytes(OpCode::CALL, arg_count);
     emit_instruction<1>(OpCode::CALL, arg_count);
     (void)lhs;
     return TypeInfo{};
@@ -361,9 +365,19 @@ Parser::named_variable(const Token& name, bool can_assign) noexcept {
         is_const = current_compiler->locals[idx].is_const;
     } else {
         idx = identifier_global_index(name);
-        get_op = OpCode::GET_GLOBAL;
-        set_op = OpCode::SET_GLOBAL;
-        is_const = false;
+        if (idx != -1) {
+            get_op = OpCode::GET_GLOBAL;
+            set_op = OpCode::SET_GLOBAL;
+            is_const = parent_vm.globals[idx].signature.is_const;
+            if (current_compiler->scope_depth == 0) {
+                if (!parent_vm.globals[idx].is_defined) {
+                    error("Use of forward declared global before definition.");
+                }
+            }
+        } else {
+            error("Cannot find value with this name in current scope.");
+            return TypeInfo{};
+        }
     }
     if (can_assign && match(EQUAL)) {
         if (is_const) { error("Immutable assignment target."); }
@@ -523,7 +537,7 @@ Parser::parse_precedence(Precedence precedence, bool do_advance) noexcept {
     return ParseResult{.token_type = token_type, .type_info = result};
 }
 
-inline size_t Parser::identifier_global_index(const Token& name) noexcept {
+inline i32 Parser::identifier_global_index(const Token& name) noexcept {
     auto identifier = Value{make_string(
         parent_vm,
         !parent_vm.get_options().allow_pointer_to_source_content,
@@ -531,7 +545,43 @@ inline size_t Parser::identifier_global_index(const Token& name) noexcept {
     )};
     auto* index = parent_vm.global_indices.get(identifier);
     if (index != nullptr) { return static_cast<size_t>(index->as_int()); }
-    return parent_vm.define_global(identifier, Value{val_none});
+    return -1;
+}
+
+inline size_t
+Parser::add_global(Value identifier, GlobalSignature sig) noexcept {
+    return parent_vm.define_global(
+        identifier,
+        GlobalInfo{.signature = sig, .is_defined = false},
+        Value{val_none}
+    );
+}
+
+inline size_t Parser::declare_global_variable(bool is_const) noexcept {
+    assert(current_compiler->scope_depth == 0);
+    GlobalSignature sig{is_const};
+    const auto& name = previous;
+    auto identifier = Value{make_string(
+        parent_vm,
+        !parent_vm.get_options().allow_pointer_to_source_content,
+        name.lexeme
+    )};
+    const auto* idx_ptr = parent_vm.global_indices.get(identifier);
+    if (idx_ptr != nullptr) {
+        const auto idx = size_cast(idx_ptr->as_int());
+        const auto global_info = parent_vm.globals[idx];
+        if (sig == global_info.signature) {
+            if (!global_info.is_defined) {
+                // definition of a (forward) declared but not yet defined var
+            } else if (!parent_vm.options.allow_global_redefinition) {
+                error("Redefinition of global variable.");
+            }
+        } else {
+            error("Redeclaration of global variable.");
+        }
+    }
+    return idx_ptr == nullptr ? add_global(identifier, sig)
+                              : size_cast(idx_ptr->as_int());
 }
 
 inline constexpr void Parser::add_local(Token name, bool is_const) noexcept {
@@ -542,8 +592,8 @@ inline constexpr void Parser::add_local(Token name, bool is_const) noexcept {
     current_compiler->locals.emplace_back(parent_vm, name, -1, is_const);
 }
 
-inline constexpr void Parser::declare_variable(bool is_const) noexcept {
-    if (current_compiler->scope_depth == 0) { return; }
+inline constexpr void Parser::declare_local_variable(bool is_const) noexcept {
+    assert(current_compiler->scope_depth > 0);
     const auto& name = previous;
     // TODO: use ranges
     for (auto i = current_compiler->locals.size() - 1; i >= 0; --i) {
@@ -558,28 +608,35 @@ inline constexpr void Parser::declare_variable(bool is_const) noexcept {
     add_local(name, is_const);
 }
 
-inline constexpr size_t Parser::parse_variable(const char* error_message
+inline constexpr i32 Parser::parse_variable(const char* error_message
 ) noexcept {
     auto is_const = previous.type != VAR;
-    consume(TokenType::IDENTIFIER, error_message);
-    // TODO: rework code for following function that handle locals and if test
-    // that follows to exit early.
-    declare_variable(is_const);
-    if (current_compiler->scope_depth > 0) { return 0; }
-    return identifier_global_index(previous);
+    if (!match(TokenType::IDENTIFIER)) {
+        error_at_current(error_message);
+        return -1;
+    }
+    if (current_compiler->scope_depth > 0) {
+        declare_local_variable(is_const);
+        return -1;
+    }
+    return declare_global_variable(is_const);
 }
 
-inline constexpr void Parser::mark_initialized() noexcept {
-    if (current_compiler->scope_depth == 0) { return; }
+inline constexpr void Parser::mark_initialized(i32 global_idx) noexcept {
+    if (current_compiler->scope_depth == 0) {
+        assert(global_idx >= 0);
+        parent_vm.globals[global_idx].is_defined = true;
+        return;
+    }
     current_compiler->locals.back().depth = current_compiler->scope_depth;
 }
 
-inline constexpr void Parser::define_variable(size_t global) noexcept {
-    if (current_compiler->scope_depth > 0) {
-        mark_initialized();
-        return;
+inline constexpr void Parser::define_variable(i32 global_idx) noexcept {
+    mark_initialized(global_idx);
+    if (current_compiler->scope_depth == 0) {
+        assert(global_idx >= 0);
+        emit_var_length_instruction(OpCode::DEFINE_GLOBAL, global_idx);
     }
-    emit_var_length_instruction(OpCode::DEFINE_GLOBAL, global);
 }
 
 inline constexpr ParseResult Parser::expression(bool do_advance) noexcept {
@@ -621,25 +678,24 @@ Parser::function(FunctionType type, std::string_view name) noexcept {
 
 inline void Parser::fn_declaration() noexcept {
     auto global_idx = parse_variable("Expect funtion name.");
-    mark_initialized();
+    mark_initialized(global_idx);
     function(FunctionType::FUNCTION, previous.lexeme);
     define_variable(global_idx);
+    // NOTE: Do not permit trailing semicolon after fn declaration (for now)
+    // (void)match(SEMICOLON);
 }
 
 inline constexpr void Parser::var_declaration() noexcept {
     auto global_idx = parse_variable("Expect variable name.");
     if (match(TokenType::EQUAL)) {
         expression();
+        define_variable(global_idx);
     } else {
         if (current_compiler->scope_depth > 0) {
             error("Local variable should be initialized in declaration.");
         }
-        // TODO: allow forward declaration  for globals but mark as
-        // uninitialized and not nil
-        emit_instruction(OpCode::NIL);
     }
     consume(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
-    define_variable(global_idx);
 }
 
 inline constexpr void Parser::while_statement() noexcept {
@@ -674,7 +730,7 @@ inline constexpr void Parser::break_statement() noexcept {
     } else {
         consume(SEMICOLON, "Expect ; after 'break'.");
     }
-    // TODO: extract to emit_pop_innermost_loop_locals()
+    // TODO: extract to emit_pop_innermost_loop()
     size_t loop_local_count = 0;
     for (size_t i = current_compiler->locals.size() - 1;
          i >= 0
@@ -696,7 +752,7 @@ inline constexpr void Parser::continue_statement() noexcept {
         error("Can't use 'continue' outside of a loop.");
     }
     consume(SEMICOLON, "Expect ; after 'continue'.");
-    // TODO: make reusable in discard_locals()
+    // TODO: extract to emit_pop_innermost_loop()
     for (size_t i = current_compiler->locals.size() - 1;
          i >= 0
          && current_compiler->locals[i].depth
@@ -745,7 +801,7 @@ inline constexpr void Parser::synchronize() noexcept {
 
 inline constexpr std::optional<ParseResult> Parser::statement_or_expression(
 ) noexcept {
-    // NOTE: Do not allow useless ; for now
+    // NOTE: Do not allow useless ; (for now)
     // if (match(SEMICOLON)) { return true; }
     if (match(FN)) {
         if (check(IDENTIFIER)) {

@@ -1,57 +1,57 @@
 # As expression statement without ;
-var a = 0;
+var a1 = 0;
 loop {
-  if a == 3 { break; }
-  std_println(a);
-  a = a + 1;
+  if a1 == 3 { break; }
+  std_println(a1);
+  a1 = a1 + 1;
 }
 # expect: 0
 # expect: 1
 # expect: 2
 
 # As expression statement with ;
-var a = 0;
+var a2 = 0;
 loop {
-  if a == 3 { break; }
-  std_println(a);
-  a = a + 1;
+  if a2 == 3 { break; }
+  std_println(a2);
+  a2 = a2 + 1;
 };
 # expect: 0
 # expect: 1
 # expect: 2
 
 # As expression with implicit nil value
-var a = 0;
-var b = loop {
-  if a == 3 { break; }
-  std_println(a);
-  a = a + 1;
+var a3 = 0;
+var b1 = loop {
+  if a3 == 3 { break; }
+  std_println(a3);
+  a3 = a3 + 1;
 };
-std_println(b);
+std_println(b1);
 # expect: 0
 # expect: 1
 # expect: 2
 # expect: nil
 
 # As expression with explicit value
-var a = 0;
-var b = loop {
-  if a == 3 { break a; }
-  std_println(a);
-  a = a + 1;
+var a4 = 0;
+var b2 = loop {
+  if a4 == 3 { break a4; }
+  std_println(a4);
+  a4 = a4 + 1;
 };
-std_println(b);
+std_println(b2);
 # expect: 0
 # expect: 1
 # expect: 2
 # expect: 3
 
 # continue
-var a = 0;
+var a5 = 0;
 loop {
-  if a == 3 { break; }
-  std_println(a);
-  a = a + 1;
+  if a5 == 3 { break; }
+  std_println(a5);
+  a5 = a5 + 1;
   continue;
   std_println("bad");
 }

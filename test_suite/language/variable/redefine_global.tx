@@ -1,3 +1,4 @@
 var a = "1";
+# [line 3] Error at 'a': Redefinition of global variable.
 var a = "2";
-std_println(a); # expect: 2
+std_println(a);

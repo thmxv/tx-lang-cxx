@@ -1,2 +1,4 @@
 var a;
-std_println(a); # expect: nil
+# [line 3] Error at 'a': Use of forward declared global before definition.
+std_println(a);
+# [line 5] Error at end: Global variable declared but not defined.

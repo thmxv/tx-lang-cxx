@@ -1,2 +1,5 @@
-# [line 2] Error: Unexpected character.
+let a = 1;
+let b = nil;
+fn foo(a){};
+# [line 5] Error: Unexpected character.
 foo(a $ b);

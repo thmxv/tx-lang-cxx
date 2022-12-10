@@ -1,21 +1,21 @@
 # With explicit value
-var a = "outer";
-var b = if true { var a = "inner"; a };
-std_println(b);  # expect: inner
-std_println(a);  # expect: outer
+var a1 = "outer";
+var b1 = if true { var a1 = "inner"; a1 };
+std_println(b1);  # expect: inner
+std_println(a1);  # expect: outer
 
-var a = "outer";
-var b = if false {} else { var a = "inner"; a };
-std_println(b);  # expect: inner
-std_println(a);  # expect: outer
+var a2 = "outer";
+var b2 = if false {} else { var a2 = "inner"; a2 };
+std_println(b2);  # expect: inner
+std_println(a2);  # expect: outer
 
 # With implicit nil value
-var a = "outer";
-var b = if true { var a = "inner"; };
-std_println(b);  # expect: nil
-std_println(a);  # expect: outer
+var a3 = "outer";
+var b3 = if true { var a3 = "inner"; };
+std_println(b3);  # expect: nil
+std_println(a3);  # expect: outer
 
-var a = "outer";
-var b = if false {} else { var a = "inner"; };
-std_println(b);  # expect: nil
-std_println(a);  # expect: outer
+var a4 = "outer";
+var b4 = if false {} else { var a4 = "inner"; };
+std_println(b4);  # expect: nil
+std_println(a4);  # expect: outer

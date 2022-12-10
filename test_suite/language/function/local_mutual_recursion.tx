@@ -1,7 +1,8 @@
 {
   fn isEven(n) {
     if (n == 0) { return true; }
-    return isOdd(n - 1); # expect runtime error: Undefined variable 'isOdd'.
+    # [line 5] Error at 'isOdd': Cannot find value with this name in current scope.
+    return isOdd(n - 1);
   }
 
   fn isOdd(n) {

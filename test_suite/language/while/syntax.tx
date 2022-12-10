@@ -1,40 +1,40 @@
 # With ;
-var a = 0;
-while a < 3 {
-  std_println(a);
-  a = a + 1;
+var a1 = 0;
+while a1 < 3 {
+  std_println(a1);
+  a1 = a1 + 1;
 };
 # expect: 0
 # expect: 1
 # expect: 2
 
 # Without ;
-var a = 0;
-while a < 3 {
-  std_println(a);
-  a = a + 1;
+var a2 = 0;
+while a2 < 3 {
+  std_println(a2);
+  a2 = a2 + 1;
 }
 # expect: 0
 # expect: 1
 # expect: 2
 
 # break
-var a = 0;
+var a3 = 0;
 while true {
-  if a == 3 { break; }
-  std_println(a);
-  a = a + 1;
+  if a3 == 3 { break; }
+  std_println(a3);
+  a3 = a3 + 1;
 }
 # expect: 0
 # expect: 1
 # expect: 2
 
 # continue
-var a = 0;
+var a4 = 0;
 while true {
-  if a == 3 { break; }
-  std_println(a);
-  a = a + 1;
+  if a4 == 3 { break; }
+  std_println(a4);
+  a4 = a4 + 1;
   continue;
   std_println("bad");
 }
