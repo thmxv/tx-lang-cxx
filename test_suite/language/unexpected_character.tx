@@ -1,5 +1,8 @@
+#!/usr/bin/env tx
+
 let a = 1;
 let b = nil;
-fn foo(a){};
-# [line 5] Error: Unexpected character.
+fn foo(a) {}
+
+# [line 8] Error: Unexpected character.
 foo(a $ b);
