@@ -82,6 +82,8 @@ template <typename T, typename... Args>
 T* allocate_object(VM& tvm, Args&&... args) noexcept;
 
 struct ObjString : Obj {
+    static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
+
     size_t length = 0;
     u32 hash = 0;
     bool owns_chars = false;
@@ -137,12 +139,6 @@ struct ObjString : Obj {
 
     friend constexpr bool
     operator==(const ObjString& lhs, const ObjString& rhs) noexcept;
-};
-
-template <>
-struct is_trivially_relocatable<ObjString>
-        : std::__is_bitwise_relocatable<ObjString> {
-    static constexpr value_type value = true;
 };
 
 [[nodiscard]] ObjString*

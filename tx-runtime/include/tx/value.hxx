@@ -26,6 +26,8 @@ inline constexpr ValNone val_none;
 inline constexpr ValNil val_nil;
 
 struct Value {
+    static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
+
     using enum ValueType;
 
     ValueType type;
@@ -148,17 +150,6 @@ struct Value {
         unreachable();
     }
 };
-
-template <>
-struct is_trivially_relocatable<Value> : std::__is_bitwise_relocatable<Value> {
-    static constexpr value_type value = true;
-};
-
-// template <>
-// struct is_trivially_relocatable<const Value>
-//         : std::__is_bitwise_relocatable<const Value> {
-//     static constexpr value_type value = true;
-// };
 
 using ValueArray = DynArray<Value, size_t>;
 // using ConstValueArray = DynArray<const Value, size_t>;

@@ -38,16 +38,12 @@ struct GlobalSignature {
 };
 // Move to compiler.hxx
 struct GlobalInfo {
+    static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
+
     GlobalSignature signature;
     // NOTE: globals are defined at runtine and are == val_none when not defined
     // This is set at compile time in order to detect use before defininiton
     bool is_defined{false};
-};
-// Move to compiler.hxx
-template <>
-struct is_trivially_relocatable<GlobalInfo>
-        : std::__is_bitwise_relocatable<GlobalInfo> {
-    static constexpr value_type value = true;
 };
 
 struct CallFrame {

@@ -50,6 +50,8 @@ struct ParseRule {
 };
 
 struct Local {
+    static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
+
     Token name{};
     i32 depth{0};
     bool is_const{true};
@@ -58,11 +60,6 @@ struct Local {
             : name(name_)
             , depth(dpth)
             , is_const(is_constant) {}
-};
-
-template <>
-struct is_trivially_relocatable<Local> : std::__is_bitwise_relocatable<Local> {
-    static constexpr value_type value = true;
 };
 
 struct Loop {
