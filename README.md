@@ -29,7 +29,6 @@ Tx is still very much a work in progress.
 - Allow forward declaration of global fn without var/let
 - Reserve type, abstract, override and final keywords
 - Move Global info from VM to Parser, keep parser inbetween repl evals
-- Cleanup is_trivally_relocatable, use tag in class
 - Better float formatting: 1.0e20 instead of 1.e20
 - check arity/signature of native fn
 - better and more conform error messages. compile and runtime
