@@ -1,0 +1,12 @@
+#!/usr/bin/env tx
+
+let a;
+
+fn f() {
+  std_println(a);  # expect runtime error: Undefined variable 'a'.
+}
+
+f();
+
+# Too late
+let a = 1;

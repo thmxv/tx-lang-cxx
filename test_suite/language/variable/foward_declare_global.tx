@@ -1,0 +1,10 @@
+let a;
+
+fn f() {
+  std_println(a);
+}
+
+let a = 1;
+
+std_println(a);  # expect: 1
+f();  # expect: 1
