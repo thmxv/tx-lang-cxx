@@ -29,7 +29,7 @@ class HashSet
         Equal>;
 
   public:
-    constexpr bool set(VM& tvm, T val) noexcept {
+    constexpr bool add(VM& tvm, T val) noexcept {
         return Base::set(tvm, val, Value{val_none});
     }
 };

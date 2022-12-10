@@ -95,7 +95,7 @@ make_string(VM& tvm, bool copy, std::string_view strv) noexcept {
         strv,
         hash
     );
-    tvm.strings.set(tvm, Value{string});
+    tvm.strings.add(tvm, Value{string});
     return string;
 }
 

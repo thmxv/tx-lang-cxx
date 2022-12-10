@@ -79,8 +79,8 @@ class DynArray {
         clear();
         if (data_ptr != nullptr) {
             free_array(tvm, data_ptr, capacity_);
-            capacity_ = 0;
             data_ptr = nullptr;  // NOLINT
+            capacity_ = 0;
         }
     }
 
