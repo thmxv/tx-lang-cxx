@@ -47,9 +47,20 @@ struct GlobalInfo {
 };
 
 struct CallFrame {
+    static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
+
     ObjClosure& closure;
     const ByteCode* instruction_ptr;
     Value* slots;
+
+    constexpr CallFrame(
+        ObjClosure& closure_,
+        const ByteCode* iptr,
+        Value* slots_
+    ) noexcept
+            : closure(closure_)
+            , instruction_ptr(iptr)
+            , slots(slots_) {}
 
     [[nodiscard]] constexpr ByteCode read_byte() noexcept;
 

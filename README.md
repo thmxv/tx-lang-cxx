@@ -28,7 +28,6 @@ Tx is still very much a work in progress.
 
 - Benchmark without checking at runtime if globals are defined. Forbid forward 
   declaration if gains are significant.
-- Use emplace_back instead of push_back when possible
 - Allow forward declaration of global var using fn declaration
 - Reserve type, Type, abstract, override and final keywords
 - Move Global info from VM to Parser, keep parser inbetween repl evals

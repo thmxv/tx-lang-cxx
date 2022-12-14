@@ -247,7 +247,7 @@ inline void Parser::begin_compiler(
     compiler.enclosing = current_compiler;
     compiler.function_type = type;
     // Reserve first local for methods, use empty string as name to prevent use
-    compiler.locals.push_back(parent_vm, Local(Token{.lexeme = ""}, 0, true));
+    compiler.locals.emplace_back(parent_vm, Token{.lexeme = ""}, 0, true);
     compiler.function = allocate_object<ObjFunction>(
         parent_vm,
         compiler.locals.size()

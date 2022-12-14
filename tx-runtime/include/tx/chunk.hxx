@@ -51,8 +51,14 @@ struct ByteCode {
 };
 
 struct LineStart {
+    static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
+
     size_t offset;
     size_t line;
+
+    constexpr LineStart(size_t offset_, size_t line_) noexcept
+            : offset(offset_)
+            , line(line_) {}
 };
 
 template <u32 N>
@@ -109,10 +115,10 @@ struct Chunk {
     }
 
     constexpr void write_line(VM& tvm, size_t line) {
-        if (lines.size() > 0 && lines[lines.size() - 1].line == line) {
+        if (!lines.empty() && lines[lines.size() - 1].line == line) {
             return;
         }
-        lines.push_back(tvm, LineStart{.offset = code.size(), .line = line});
+        lines.emplace_back(tvm, code.size(), line);
     }
 
     [[nodiscard]] constexpr size_t add_constant(VM& tvm, Value value) noexcept {
@@ -124,7 +130,7 @@ struct Chunk {
         requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)
     constexpr void write_bytes(VM& tvm, size_t line, Ts... bytes) noexcept {
         write_line(tvm, line);
-        (code.push_back(tvm, ByteCode(bytes)), ...);
+        (code.emplace_back(tvm, bytes), ...);
     }
 
     template <u32 N>
@@ -147,12 +153,8 @@ struct Chunk {
     ) noexcept {
         static_assert(N <= 3);
         write_line(tvm, line);
-        code.push_back(tvm, ByteCode(opc));
+        code.emplace_back(tvm, opc);
         write_multibyte_operand<N>(tvm, line, operand);
-        // auto offset = code.size();
-        // code.resize(tvm, code.size() + size_cast(N), ByteCode(OpCode::END));
-        // auto* ptr = std::next(code.begin(), offset);
-        // ::tx::write_multibyte_operand<N>(ptr, operand);
     }
 
     [[nodiscard]] constexpr size_t get_line(size_t instruction) const noexcept {

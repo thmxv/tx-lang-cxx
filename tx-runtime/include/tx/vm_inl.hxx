@@ -348,12 +348,11 @@ VM::call(ObjClosure& closure, size_t arg_c) noexcept {
     }
     const auto stack_needed = stack.size() + closure.function.max_slots;
     ensure_stack_space(stack_needed);
-    frames.push_back(
+    frames.emplace_back(
         *this,
-        CallFrame{
-            .closure = closure,
-            .instruction_ptr = closure.function.chunk.code.begin(),
-            .slots = std::prev(stack.end(), arg_c + 1)}
+        closure,
+        closure.function.chunk.code.begin(),
+        std::prev(stack.end(), arg_c + 1)
     );
     return true;
 }
