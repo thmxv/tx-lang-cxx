@@ -1,0 +1,7 @@
+#!/usr/bin/env tx
+
+let global = nil;
+fn f_() {
+  # [line 6] Error at '=': Immutable assignment target.
+  global = "after";
+}

@@ -12,6 +12,9 @@
 namespace tx {
 
 // Pseudo random non-null numbers generated using code from cppreference:
+inline constexpr u32 HASH_NIL = 0x1735b84b;
+inline constexpr u32 HASH_FALSE = 0x7674b793;
+inline constexpr u32 HASH_TRUE = 0x4a2da019;
 // clang-format off
 // std::random_device rd;  // Will be used to obtain a seed
 // std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
@@ -25,10 +28,6 @@ namespace tx {
 //     std::cout << std::hex << distrib(gen) << ' ';
 // std::cout << '\n';
 // clang-format on
-
-inline constexpr u32 HASH_NIL = 0x1735b84b;
-inline constexpr u32 HASH_FALSE = 0x7674b793;
-inline constexpr u32 HASH_TRUE = 0x4a2da019;
 
 template <typename Key>
 struct Hash;
@@ -61,8 +60,12 @@ struct Hash<Obj> {
         switch (obj.type) {
             using enum ObjType;
             case STRING: return obj.as<ObjString>().hash;
+            case CLOSURE:
             case FUNCTION:
             case NATIVE:
+            case UPVALUE:
+                // FIXME: Hashing the address do not make sense
+                // better to implement for real of cause crash
                 // TODO: make this work without "const"
                 return Hash<const Obj*>()(&obj);
         }

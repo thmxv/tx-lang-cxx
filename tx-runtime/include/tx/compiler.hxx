@@ -9,6 +9,7 @@
 #include <gsl/gsl>
 
 #include <string_view>
+#include <utility>
 
 namespace tx {
 
@@ -54,6 +55,7 @@ struct Local {
 
     Token name{};
     i32 depth{0};
+    bool is_captured{false};
     bool is_const{true};
 
     Local(Token name_, i32 dpth, bool is_constant)
@@ -69,6 +71,19 @@ struct Loop {
     Loop* enclosing;
 };
 
+struct Upvalue {
+    static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
+
+    size_t index;
+    bool is_local :1;
+    bool is_const :1;
+
+    constexpr Upvalue(size_t idx, bool is_local_, bool is_const_) noexcept
+            : index(idx)
+            , is_local(is_local_)
+            , is_const(is_const_) {}
+};
+
 enum struct FunctionType {
     FUNCTION,
     SCRIPT
@@ -78,12 +93,14 @@ struct ObjFunction;
 
 struct Compiler {
     using LocalArray = DynArray<Local, size_t>;
+    using UpvalueArray = DynArray<Upvalue, size_t>;
 
     Compiler* enclosing{nullptr};
     ObjFunction* function{nullptr};
     FunctionType function_type;
     ValueMap constant_indices{};
     LocalArray locals;
+    UpvalueArray upvalues;
     i32 scope_depth{0};
     i32 num_slots{0};
     Loop* innermost_loop = nullptr;
@@ -91,6 +108,7 @@ struct Compiler {
     constexpr void destroy(VM& tvm) noexcept {
         constant_indices.destroy(tvm);
         locals.destroy(tvm);
+        upvalues.destroy(tvm);
     }
 };
 
@@ -140,6 +158,13 @@ class Parser {
 
     [[nodiscard]] constexpr size_t add_constant(Value value) noexcept;
 
+    template <typename... Ts>
+        requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)
+    constexpr void emit_bytes(Ts... bytes) noexcept {
+        current_chunk()
+            .write_bytes(parent_vm, previous.line, std::forward<Ts>(bytes)...);
+    }
+
     template <u32 N>
     inline constexpr void
     emit_instruction(OpCode opc, size_t operand) noexcept {
@@ -183,7 +208,17 @@ class Parser {
     [[nodiscard]] constexpr i32
     resolve_local(Compiler& compiler, const Token& name) noexcept;
 
-    [[nodiscard]] i32 identifier_global_index(const Token& name) noexcept;
+    [[nodiscard]] constexpr size_t add_upvalue(
+        Compiler& compiler,
+        size_t index,
+        bool is_local,
+        bool is_const
+    ) noexcept;
+
+    [[nodiscard]] constexpr i32
+    resolve_upvalue(Compiler& compiler, const Token& name) noexcept;
+
+    [[nodiscard]] i32 resolve_global(const Token& name) noexcept;
 
     [[nodiscard]] size_t
     add_global(Value identifier, GlobalSignature sig) noexcept;

@@ -209,6 +209,7 @@ inline constexpr VM::~VM() noexcept {
 inline constexpr void VM::reset_stack() noexcept {
     stack.clear();
     frames.clear();
+    open_upvalues = nullptr;
     if constexpr (IS_DEBUG_BUILD) {
         stack.destroy(*this);
         frames.destroy(*this);
@@ -219,7 +220,7 @@ inline void VM::runtime_error_impl() noexcept {
     fmt::print(stderr, "\n");
     for (size_t i = frames.size() - 1; i >= 0; --i) {
         const auto& frame = frames[i];
-        const auto& function = *frame.function;
+        const auto& function = frame.closure.function;
         auto instruction = frame.instruction_ptr - function.chunk.code.begin()
                            - 1;
         fmt::print(
@@ -241,8 +242,12 @@ inline InterpretResult VM::interpret(std::string_view source) noexcept {
     if (function == nullptr) { return InterpretResult::COMPILE_ERROR; }
     ensure_stack_space(1);
     push(Value{function});
-    (void)call(*function, 0);
+    auto* closure = make_closure(*this, *function);
+    pop();
+    push(Value{closure});
+    (void)call(*closure, 0);
     auto result = run();
+    // closure->destroy(*this);
     assert(stack.empty());
     return result;
 }
@@ -308,16 +313,23 @@ inline constexpr void VM::ensure_stack_space(i32 needed) noexcept {
                 std::distance(old, frame.slots)
             );
         }
+        for (auto* upvalue = open_upvalues; upvalue != nullptr;
+             upvalue = upvalue->next_upvalue) {
+            upvalue->location = std::next(
+                stack.begin(),
+                std::distance(old, upvalue->location)
+            );
+        }
     }
 }
 
 [[nodiscard]] inline constexpr bool
-VM::call(ObjFunction& fun, size_t arg_c) noexcept {
+VM::call(ObjClosure& closure, size_t arg_c) noexcept {
     // TODO: make this a compile time error
-    if (arg_c != fun.arity) {
+    if (arg_c != closure.function.arity) {
         runtime_error(
             "Expected {:d} arguments but got {:d}.",
-            fun.arity,
+            closure.function.arity,
             arg_c
         );
         return false;
@@ -326,13 +338,13 @@ VM::call(ObjFunction& fun, size_t arg_c) noexcept {
         runtime_error("Stack overflow.");
         return false;
     }
-    const auto stack_needed = stack.size() + fun.max_slots;
+    const auto stack_needed = stack.size() + closure.function.max_slots;
     ensure_stack_space(stack_needed);
     frames.push_back(
         *this,
         CallFrame{
-            .function = &fun,
-            .instruction_ptr = fun.chunk.code.begin(),
+            .closure = closure,
+            .instruction_ptr = closure.function.chunk.code.begin(),
             .slots = std::prev(stack.end(), arg_c + 1)}
     );
     return true;
@@ -344,7 +356,7 @@ VM::call_value(Value callee, size_t arg_c) noexcept {
         auto& obj = callee.as_object();
         switch (obj.type) {
             using enum ObjType;
-            case FUNCTION: return call(obj.as<ObjFunction>(), arg_c);
+            case CLOSURE: return call(obj.as<ObjClosure>(), arg_c);
             case NATIVE: {
                 auto& native = obj.as<ObjNative>();
                 auto success = std::invoke(
@@ -368,6 +380,33 @@ VM::call_value(Value callee, size_t arg_c) noexcept {
     // TODO: make this a compile time error
     runtime_error("Can only call functions.");
     return false;
+}
+
+[[nodiscard]] inline ObjUpvalue& VM::capture_upvalue(Value* local) noexcept {
+    ObjUpvalue* prev_upvalue = nullptr;
+    ObjUpvalue* upvalue = open_upvalues;
+    while (upvalue != nullptr && upvalue->location > local) {
+        prev_upvalue = upvalue;
+        upvalue = upvalue->next_upvalue;
+    }
+    if (upvalue != nullptr && upvalue->location == local) { return *upvalue; }
+    auto* created_upvalue = allocate_object<ObjUpvalue>(*this, local);
+    created_upvalue->next_upvalue = upvalue;
+    if (prev_upvalue == nullptr) {
+        open_upvalues = created_upvalue;
+    } else {
+        prev_upvalue->next_upvalue = created_upvalue;
+    }
+    return *created_upvalue;
+}
+
+inline constexpr void VM::close_upvalues(const Value* last) noexcept {
+    while (open_upvalues != nullptr && open_upvalues->location >= last) {
+        ObjUpvalue* upvalue = open_upvalues;
+        upvalue->closed = *upvalue->location;
+        upvalue->location = &upvalue->closed;
+        open_upvalues = upvalue->next_upvalue;
+    }
 }
 
 [[nodiscard]] inline constexpr bool VM::negate_op() noexcept {
@@ -415,7 +454,7 @@ inline void VM::print_stack() const noexcept {
 }
 
 inline void CallFrame::print_instruction() const noexcept {
-    disassemble_instruction(function->chunk, instruction_ptr);
+    disassemble_instruction(closure.function.chunk, instruction_ptr);
 }
 
 // FIXME: Make sure this does not bloat the binary in realease mode
@@ -462,7 +501,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
 
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
-// clang-format off
+    // clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -607,7 +646,9 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 );
                 static_assert(count == 1);
                 auto index = frame->read_multibyte_operand<count>();
-                assert(global_values[index].is_none());
+                if (!options.allow_global_redefinition) {
+                    assert(global_values[index].is_none());
+                }
                 global_values[index] = peek(0);
                 pop();
                 TX_VM_BREAK();
@@ -618,7 +659,9 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 );
                 static_assert(count == 3);
                 auto index = frame->read_multibyte_operand<count>();
-                assert(global_values[index].is_none());
+                if (!options.allow_global_redefinition) {
+                    assert(global_values[index].is_none());
+                }
                 global_values[index] = peek(0);
                 pop();
                 TX_VM_BREAK();
@@ -649,6 +692,42 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 global_values[index] = peek(0);
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(GET_UPVALUE) : {
+                constexpr auto count = get_byte_count_following_opcode(
+                    GET_UPVALUE
+                );
+                static_assert(count == 1);
+                const auto slot = frame->read_multibyte_operand<count>();
+                push(*frame->closure.upvalues[slot]->location);
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(GET_UPVALUE_LONG) : {
+                constexpr auto count = get_byte_count_following_opcode(
+                    GET_UPVALUE_LONG
+                );
+                static_assert(count == 3);
+                const auto slot = frame->read_multibyte_operand<count>();
+                push(*frame->closure.upvalues[slot]->location);
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(SET_UPVALUE) : {
+                constexpr auto count = get_byte_count_following_opcode(
+                    SET_UPVALUE
+                );
+                static_assert(count == 1);
+                const auto slot = frame->read_multibyte_operand<count>();
+                *frame->closure.upvalues[slot]->location = peek(0);
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(SET_UPVALUE_LONG) : {
+                constexpr auto count = get_byte_count_following_opcode(
+                    SET_UPVALUE_LONG
+                );
+                static_assert(count == 3);
+                const auto slot = frame->read_multibyte_operand<count>();
+                *frame->closure.upvalues[slot]->location = peek(0);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(EQUAL) : {
@@ -797,12 +876,51 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 frame = &frames.back();
                 TX_VM_BREAK();
             }
+            TX_VM_CASE(CLOSURE) : {
+                constexpr auto count = get_byte_count_following_opcode(CLOSURE);
+                static_assert(count == 1);
+                auto& fun =
+                    frame->read_constant<count>().as_object().as<ObjFunction>();
+                auto* closure = make_closure(*this, fun);
+                push(Value(closure));
+                for (auto& upvalue : closure->upvalues) {
+                    auto is_local = frame->read_byte().as_u8();
+                    auto index = frame->read_byte().as_u8();
+                    if (is_local != 0U) {
+                        upvalue = &capture_upvalue(frame->slots + index);
+                    } else {
+                        upvalue = frame->closure.upvalues[index];
+                    }
+                }
+                TX_VM_BREAK();
+            }
+            TX_VM_CASE(CLOSURE_LONG) : {
+                constexpr auto count = get_byte_count_following_opcode(
+                    CLOSURE_LONG
+                );
+                static_assert(count == 3);
+                auto& fun =
+                    frame->read_constant<count>().as_object().as<ObjFunction>();
+                auto* closure = make_closure(*this, fun);
+                push(Value(closure));
+                for (auto& upvalue : closure->upvalues) {
+                    auto is_local = frame->read_byte().as_u8();
+                    auto index = frame->read_byte().as_u8();
+                    if (is_local != 0U) {
+                        upvalue = &capture_upvalue(frame->slots + index);
+                    } else {
+                        upvalue = frame->closure.upvalues[index];
+                    }
+                }
+                TX_VM_BREAK();
+            }
             TX_VM_CASE(END_SCOPE) : {
                 constexpr auto count = get_byte_count_following_opcode(END_SCOPE
                 );
                 static_assert(count == 1);
                 const auto slot_count = frame->read_multibyte_operand<count>();
                 const auto result = pop();
+                close_upvalues(std::prev(stack.end(), slot_count));
                 for (auto i = 0; i < slot_count; ++i) { pop(); }
                 push(result);
                 TX_VM_BREAK();
@@ -814,6 +932,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 static_assert(count == 3);
                 const auto slot_count = frame->read_multibyte_operand<count>();
                 const auto result = pop();
+                close_upvalues(std::prev(stack.end(), slot_count));
                 for (auto i = 0; i < slot_count; ++i) { pop(); }
                 push(result);
                 TX_VM_BREAK();
@@ -823,6 +942,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 static_assert(count == 0);
                 const auto result = pop();
                 const auto* frame_slots = frame->slots;
+                close_upvalues(frame_slots);
                 frames.pop_back();
                 if (frames.empty()) {
                     pop();
@@ -839,7 +959,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-    // clang-format off
+// clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK

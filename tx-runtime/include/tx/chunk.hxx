@@ -101,6 +101,13 @@ struct Chunk {
         return constants.size() - 1;
     }
 
+    template <typename... Ts>
+        requires((std::is_nothrow_constructible_v<ByteCode, Ts>) && ...)
+    constexpr void write_bytes(VM& tvm, size_t line, Ts... bytes) noexcept {
+        write_line(tvm, line);
+        (code.push_back(tvm, ByteCode(bytes)), ...);
+    }
+
     template <u32 N>
     constexpr inline void write_instruction(
         VM& tvm,
@@ -112,8 +119,8 @@ struct Chunk {
         write_line(tvm, line);
         code.push_back(tvm, ByteCode(opc));
         auto offset = code.size();
-        for (u32 i = 0; i < N; ++i) { code.push_back(tvm, ByteCode(opc)); }
-        auto* ptr = &code[offset];
+        code.resize(tvm, code.size() + size_cast(N), ByteCode(OpCode::END));
+        auto* ptr = std::next(code.begin(), offset);
         ::tx::write_multibyte_operand<N>(ptr, operand);
     }
 

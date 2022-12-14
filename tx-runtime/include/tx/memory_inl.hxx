@@ -81,7 +81,6 @@ inline void* reallocate_impl(
 }
 
 template <typename T>
-// requires std::derived_from<T, Obj>
     requires std::is_base_of_v<Obj, T>
 constexpr void free_object_impl(VM& tvm, T* object) noexcept {
     // TODO: call destroy if exist
@@ -99,22 +98,21 @@ inline void free_object(VM& tvm, Obj* object) noexcept {
     // }
     switch (object->type) {
         using enum ObjType;
-        // case CLOSURE:
-        //     free_object_impl(&object->as<ObjClosure>());
-        //     return;
+        case CLOSURE: {
+            auto& closure = object->as<ObjClosure>();
+            closure.destroy(tvm);
+            free_object_impl(tvm, &closure);
+            return;
+        }
         case FUNCTION: {
             auto& fun = object->as<ObjFunction>();
             fun.destroy(tvm);
             free_object_impl(tvm, &fun);
             return;
         }
-        case NATIVE:
-            free_object_impl(tvm, &object->as<ObjNative>());
-            return;
+        case NATIVE: free_object_impl(tvm, &object->as<ObjNative>()); return;
         case STRING: {
             auto& str = object->as<ObjString>();
-            // str.destroy(tvm);
-            // free_object_impl(tvm, &str);
             std::destroy_at(&str);
             (void)reallocate_impl(
                 tvm,
@@ -126,7 +124,7 @@ inline void free_object(VM& tvm, Obj* object) noexcept {
             );
             return;
         }
-        // case UPVALUE: free_object_impl(&object->as<ObjUpvalue>());
+        case UPVALUE: free_object_impl(tvm, &object->as<ObjUpvalue>()); return;
     }
     unreachable();
 }

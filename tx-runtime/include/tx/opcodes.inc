@@ -16,6 +16,10 @@ TX_OPCODE(SET_GLOBAL,           1, 0)
 TX_OPCODE(SET_GLOBAL_LONG,      3, 0)
 TX_OPCODE(DEFINE_GLOBAL,        1, -1)
 TX_OPCODE(DEFINE_GLOBAL_LONG,   3, -1)
+TX_OPCODE(GET_UPVALUE,          1, 1)
+TX_OPCODE(GET_UPVALUE_LONG,     3, 1)
+TX_OPCODE(SET_UPVALUE,          1, 0)
+TX_OPCODE(SET_UPVALUE_LONG,     3, 0)
 TX_OPCODE(EQUAL,                0, -1)
 TX_OPCODE(NOT_EQUAL,            0, -1)
 TX_OPCODE(GREATER,              0, -1)
@@ -32,6 +36,8 @@ TX_OPCODE(JUMP,                 2, 0)
 TX_OPCODE(JUMP_IF_FALSE,        2, 0)
 TX_OPCODE(LOOP,                 2, 0)
 TX_OPCODE(CALL,                 1, 0) // 0 for tx fn's but for native fn it is the same as RETURN
+TX_OPCODE(CLOSURE,              1, 1)
+TX_OPCODE(CLOSURE_LONG,         3, 1)
 TX_OPCODE(END_SCOPE,            1, 0) // Stack effect is in the operand
 TX_OPCODE(END_SCOPE_LONG,       3, 0) // Stack effect is in the operand
 TX_OPCODE(RETURN,               0, 0) // Stack effect is variable

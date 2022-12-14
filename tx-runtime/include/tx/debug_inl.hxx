@@ -1,8 +1,10 @@
 #pragma once
 
-#include "tx/chunk.hxx"
 #include "tx/debug.hxx"
+//
+#include "tx/chunk.hxx"
 #include "tx/formatting.hxx"
+#include "tx/object.hxx"
 #include "tx/scanner.hxx"
 #include "tx/value.hxx"
 
@@ -47,6 +49,41 @@ constant_instruction(const ByteCode* ptr, const Chunk& chunk) noexcept {
         chunk.constants[size_cast(constant_idx)]
     );
     return std::next(ptr, 1 + N);
+}
+
+template <u32 N>
+[[nodiscard]] inline const ByteCode* closure_instruction(
+    const ByteCode* ptr,
+    const Chunk& chunk,
+    size_t offset
+) noexcept {
+    const OpCode instruction = ptr->as_opcode();
+    const auto* name = get_opcode_name(instruction);
+    const auto count = get_byte_count_following_opcode(instruction);
+    assert(count == N);
+    const auto constant_idx = read_multibyte_operand<N>(std::next(ptr));
+    fmt::print(
+        "{:18s} {:4d} '{}'\n",
+        name,
+        constant_idx,
+        chunk.constants[size_cast(constant_idx)]
+    );
+    const auto& function =
+        chunk.constants[constant_idx].as_object().template as<ObjFunction>();
+    for (size_t i = 0; i < function.upvalue_count; ++i) {
+        // FIXME: remove crazy offset calculation
+        auto is_local = std::next(ptr, 1 + size_cast(N) + i * 2)->as_u8();
+        auto index = std::next(ptr, 1 + size_cast(N) + i * 2 + 1)->as_u8();
+        fmt::print(
+            FMT_STRING("{:04d}      |                       {:s} {:d}\n"),
+            // FIXME: remove crazy offset calculation
+            offset + 1 + size_cast(N) + (i * 2), // - 2,
+            is_local ? "local" : "upvalue",
+            index
+        );
+    }
+    // FIXME: remove crazy offset calculation
+    return std::next(ptr, 1 + size_cast(N) + function.upvalue_count * 2);
 }
 
 template <u32 N>
@@ -127,6 +164,8 @@ disassemble_instruction(const Chunk& chunk, const ByteCode* ptr) noexcept {
         case DEFINE_GLOBAL:
         case GET_LOCAL:
         case SET_LOCAL:
+        case GET_UPVALUE:
+        case SET_UPVALUE:
         case CALL:
         case END_SCOPE: return var_length_instruction<1>(ptr);
         case GET_GLOBAL_LONG:
@@ -134,10 +173,14 @@ disassemble_instruction(const Chunk& chunk, const ByteCode* ptr) noexcept {
         case DEFINE_GLOBAL_LONG:
         case GET_LOCAL_LONG:
         case SET_LOCAL_LONG:
+        case GET_UPVALUE_LONG:
+        case SET_UPVALUE_LONG:
         case END_SCOPE_LONG: return var_length_instruction<3>(ptr);
         case JUMP:
         case JUMP_IF_FALSE: return jump_instruction(ptr, 1, offset);
         case LOOP: return jump_instruction(ptr, -1, offset);
+        case CLOSURE: return closure_instruction<1>(ptr, chunk, offset);
+        case CLOSURE_LONG: return closure_instruction<3>(ptr, chunk, offset);
     }
     unreachable();
 }

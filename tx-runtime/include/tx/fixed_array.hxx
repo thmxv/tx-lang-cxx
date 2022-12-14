@@ -167,11 +167,13 @@ class FixedCapacityArray {
     }
 
     [[nodiscard]] constexpr T& operator[](SizeT idx) noexcept {
+        assert(idx < count);
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         return *std::launder(reinterpret_cast<T*>(&data_buff[idx]));
     }
 
     [[nodiscard]] constexpr const T& operator[](SizeT idx) const noexcept {
+        assert(idx < count);
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         return *std::launder(reinterpret_cast<const T*>(&data_buff[idx]));
     }
@@ -188,24 +190,20 @@ class FixedCapacityArray {
         return &(operator[](0));
     }
 
-    [[nodiscard]] constexpr T* begin() noexcept { return &(operator[](0)); }
+    [[nodiscard]] constexpr T* begin() noexcept { return data(); }
+    [[nodiscard]] constexpr const T* begin() const noexcept { return data(); }
+    [[nodiscard]] constexpr const T* cbegin() const noexcept { return data(); }
 
-    [[nodiscard]] constexpr const T* begin() const noexcept {
-        return &(operator[](0));
+    [[nodiscard]] constexpr T* end() noexcept {
+        return std::next(data(), count);
     }
-
-    [[nodiscard]] constexpr T* end() noexcept { return &(operator[](count)); }
 
     [[nodiscard]] constexpr const T* end() const noexcept {
-        return &(operator[](count));
-    }
-
-    [[nodiscard]] constexpr const T* cbegin() const noexcept {
-        return &(operator[](0));
+        return std::next(data(), count);
     }
 
     [[nodiscard]] constexpr const T* cend() const noexcept {
-        return &(operator[](count));
+        return std::next(data(), count);
     }
 };
 

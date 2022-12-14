@@ -1,0 +1,28 @@
+#!/usr/bin/env tx
+
+# Here we create two locals that can be closed over, but only the first one
+# actually is. When "b" goes out of scope, we need to make sure we don't
+# prematurely close "a".
+
+var closure = nil;
+
+{
+  var a = "a";
+
+  {
+    var b = "b";
+    fn return_a() {
+      return a;
+    }
+
+    closure = return_a;
+
+    if (false) {
+      fn return_b() {
+        return b;
+      }
+    }
+  }
+
+  std_println(closure()); # expect: a
+}

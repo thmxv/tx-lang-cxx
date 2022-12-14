@@ -77,6 +77,10 @@ T* allocate_object(VM& tvm, Args&&... args) noexcept {
     );
 }
 
+inline ObjClosure* make_closure(VM& tvm, ObjFunction& fun) noexcept {
+    return allocate_object<ObjClosure>(tvm, tvm, fun);
+}
+
 inline ObjString*
 make_string(VM& tvm, bool copy, std::string_view strv) noexcept {
     auto hash = Hash<std::string_view>()(strv);

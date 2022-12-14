@@ -1,0 +1,27 @@
+var f = nil;
+var g = nil;
+
+{
+  var local = "local";
+  fn f_() {
+    std_println(local);
+    local = "after f";
+    std_println(local);
+  }
+  f = f_;
+
+  fn g_() {
+    std_println(local);
+    local = "after g";
+    std_println(local);
+  }
+  g = g_;
+}
+
+f();
+# expect: local
+# expect: after f
+
+g();
+# expect: after f
+# expect: after g

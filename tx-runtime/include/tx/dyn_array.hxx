@@ -40,8 +40,10 @@ class DynArray {
 
     constexpr DynArray(VM& tvm, SizeT size, T value) noexcept
             : count(size)
-            , capacity_(size)
-            , data_ptr(grow_array(tvm, nullptr, 0, size)) {
+            , capacity_(size) {
+        //  , data_ptr(grow_array<T>(tvm, nullptr, 0, size)) {
+        assert(size >= 0);
+        if (size > 0) { data_ptr = grow_array<T>(tvm, nullptr, 0, size); }
         std::uninitialized_fill_n(data_ptr, count, value);
     }
 
@@ -120,6 +122,7 @@ class DynArray {
 
     [[nodiscard]] constexpr bool empty() const noexcept { return count == 0; }
 
+    // cppcheck-suppress constParameter
     constexpr void resize(VM& tvm, SizeT new_size) noexcept {
         resize(tvm, new_size, T());
     }
@@ -152,9 +155,12 @@ class DynArray {
     }
 
     template <typename... Args>
-    constexpr T& emplace_back(VM& tvm, Args&&... args) noexcept(noexcept(
-        std::construct_at(&data_ptr[count++], std::forward<Args>(args)...)
-    )) {
+    constexpr T& emplace_back(VM& tvm, Args&&... args) noexcept(
+        noexcept(std::construct_at(
+            std::next(data_ptr, count++),
+            std::forward<Args>(args)...
+        ))
+    ) {
         if (capacity_ == count) { reserve(tvm, grow_capacity(capacity_)); }
         return *std::construct_at(
             std::next(data_ptr, count++),
@@ -167,10 +173,12 @@ class DynArray {
     }
 
     [[nodiscard]] constexpr T& operator[](SizeT idx) noexcept {
+        assert(idx < count);
         return data_ptr[idx];
     }
 
     [[nodiscard]] constexpr const T& operator[](SizeT idx) const noexcept {
+        assert(idx < count);
         return data_ptr[idx];
     }
 

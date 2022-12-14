@@ -54,6 +54,7 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
     while (!match(TokenType::END_OF_FILE)) { statement(); }
     emit_instruction(OpCode::NIL);
     auto* fun = end_compiler();
+    comp.destroy(parent_vm);
     for (const auto& val : parent_vm.globals) {
         if (!val.is_defined) {
             error("Global variable declared but not defined.");
@@ -132,21 +133,18 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
     return idx;
 }
 
+// TODO: pass long and short opcode instead of adding 1
 inline constexpr void
 Parser::emit_var_length_instruction(OpCode opc, size_t idx) noexcept {
     assert(idx < size_cast(1U << 24U));
     if (idx < size_cast(1U << 8U)) {
         assert(1 == get_byte_count_following_opcode(opc));
-        // emit_bytes(opc);
-        // emit_multibyte_operand<1>(idx);
         emit_instruction<1>(opc, idx);
         return;
     }
     if (idx < size_cast(1U << 24U)) {
         opc = OpCode(to_underlying(opc) + 1);
         assert(3 == get_byte_count_following_opcode(opc));
-        // emit_bytes(opc);
-        // emit_multibyte_operand<3>(idx);
         emit_instruction<3>(opc, idx);
         return;
     }
@@ -210,17 +208,18 @@ inline void Parser::begin_compiler(
 }
 
 [[nodiscard]] inline constexpr ObjFunction* Parser::end_compiler() noexcept {
-    // emit_bytes(OpCode::RETURN);
     emit_instruction(OpCode::RETURN);
     auto* fun = current_compiler->function;
     if constexpr (HAS_DEBUG_FEATURES) {
         if (parent_vm.get_options().print_bytecode) {
             if (!had_error) {
+                // fmt::print("Argument count: {:d}\n", fun->arity);
+                // fmt::print("Upvalue count: {:d}\n", fun->upvalue_count);
+                // fmt::print("Max slots: {:d}\n", fun->max_slots);
                 disassemble_chunk(current_chunk(), fun->get_display_name());
             }
         }
     }
-    current_compiler->destroy(parent_vm);
     current_compiler = current_compiler->enclosing;
     return fun;
 }
@@ -235,7 +234,6 @@ inline constexpr void Parser::end_scope() noexcept {
     while (!current_compiler->locals.empty()
            && current_compiler->locals.back().depth
                   > current_compiler->scope_depth) {
-        // emit_bytes(OpCode::POP);
         ++scope_local_count;
         current_compiler->locals.pop_back();
     }
@@ -353,6 +351,44 @@ Parser::resolve_local(Compiler& compiler, const Token& name) noexcept {
     return -1;
 }
 
+inline constexpr size_t Parser::add_upvalue(
+    Compiler& compiler,
+    size_t index,
+    bool is_local,
+    bool is_const
+) noexcept {
+    auto upvalue_count = compiler.function->upvalue_count;
+    for (size_t i = 0; i < upvalue_count; ++i) {
+        const auto& upvalue = compiler.upvalues[i];
+        if (upvalue.index == index && upvalue.is_local == is_local) {
+            return i;
+        }
+    }
+    if (upvalue_count == MAX_UPVALUES) {
+        error("Too much closure variables in function.");
+        return 0;
+    }
+    compiler.upvalues.emplace_back(parent_vm, index, is_local, is_const);
+    return compiler.function->upvalue_count++;
+}
+
+inline constexpr i32
+Parser::resolve_upvalue(Compiler& compiler, const Token& name) noexcept {
+    if (compiler.enclosing == nullptr) { return -1; }
+    auto local_idx = resolve_local(*compiler.enclosing, name);
+    if (local_idx != -1) {
+        auto& local = compiler.enclosing->locals[local_idx];
+        local.is_captured = true;
+        return add_upvalue(compiler, local_idx, true, local.is_const);
+    }
+    auto upvalue_idx = resolve_upvalue(*compiler.enclosing, name);
+    if (upvalue_idx != -1) {
+        const auto& upvalue = compiler.enclosing->upvalues[upvalue_idx];
+        return add_upvalue(compiler, upvalue_idx, false, upvalue.is_const);
+    }
+    return -1;
+}
+
 inline constexpr TypeInfo
 Parser::named_variable(const Token& name, bool can_assign) noexcept {
     OpCode get_op{};
@@ -363,21 +399,22 @@ Parser::named_variable(const Token& name, bool can_assign) noexcept {
         get_op = OpCode::GET_LOCAL;
         set_op = OpCode::SET_LOCAL;
         is_const = current_compiler->locals[idx].is_const;
-    } else {
-        idx = identifier_global_index(name);
-        if (idx != -1) {
-            get_op = OpCode::GET_GLOBAL;
-            set_op = OpCode::SET_GLOBAL;
-            is_const = parent_vm.globals[idx].signature.is_const;
-            if (current_compiler->scope_depth == 0) {
-                if (!parent_vm.globals[idx].is_defined) {
-                    error("Use of forward declared global before definition.");
-                }
+    } else if ((idx = resolve_upvalue(*current_compiler, name)) != -1) {
+        get_op = OpCode::GET_UPVALUE;
+        set_op = OpCode::SET_UPVALUE;
+        is_const = current_compiler->upvalues[idx].is_const;
+    } else if ((idx = resolve_global(name)) != -1) {
+        get_op = OpCode::GET_GLOBAL;
+        set_op = OpCode::SET_GLOBAL;
+        is_const = parent_vm.globals[idx].signature.is_const;
+        if (current_compiler->scope_depth == 0) {
+            if (!parent_vm.globals[idx].is_defined) {
+                error("Use of forward declared global before definition.");
             }
-        } else {
-            error("Cannot find value with this name in current scope.");
-            return TypeInfo{};
         }
+    } else {
+        error("Cannot find value with this name in current scope.");
+        return TypeInfo{};
     }
     if (can_assign && match(EQUAL)) {
         if (is_const) { error("Immutable assignment target."); }
@@ -537,7 +574,7 @@ Parser::parse_precedence(Precedence precedence, bool do_advance) noexcept {
     return ParseResult{.token_type = token_type, .type_info = result};
 }
 
-inline i32 Parser::identifier_global_index(const Token& name) noexcept {
+inline i32 Parser::resolve_global(const Token& name) noexcept {
     auto identifier = Value{make_string(
         parent_vm,
         !parent_vm.get_options().allow_pointer_to_source_content,
@@ -670,10 +707,16 @@ Parser::function(FunctionType type, std::string_view name) noexcept {
     (void)block_result;
     // end_scope(); // NOTE: Not necessary
     auto* function = end_compiler();
-    emit_var_length_instruction(
-        OpCode::CONSTANT,
-        add_constant(Value{function})
-    );
+    emit_var_length_instruction(OpCode::CLOSURE, add_constant(Value{function}));
+    assert(function->upvalue_count == compiler.upvalues.size());
+    for (size_t i = 0; i < function->upvalue_count; ++i) {
+        emit_bytes(
+            compiler.upvalues[i].is_local ? u8{1} : u8{0},
+            // FIXME: support long index
+            static_cast<u8>(compiler.upvalues[i].index)
+        );
+    }
+    compiler.destroy(parent_vm);
 }
 
 inline void Parser::fn_declaration() noexcept {

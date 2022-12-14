@@ -26,6 +26,12 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Benchmark without checking at runtime if globals are defined. Forbid forward 
+  declaration if gains are significant.
+- Remove lots of duplicate code in VM::run()
+- Fix long upvalue/closure index
+- Test upvalue/closure desassembly
+- Use emplace_back instead of push_back when possible
 - Allow forward declaration of global var using fn declaration
 - Reserve type, Type, abstract, override and final keywords
 - Move Global info from VM to Parser, keep parser inbetween repl evals
@@ -39,6 +45,7 @@ Tx is still very much a work in progress.
 
 ### To consider
 
+- Chapter 25 challenges
 - Allow "var a = a;" in the case of shadowing and not assigning to self
 - Option to set maximum recursion level, starting stack and frame array size, 
   and minimum memory consumption (do not round to next power of 2)
@@ -68,7 +75,7 @@ Tx is still very much a work in progress.
 - [X] Jumping
 - [X] Functions and call
 - [X] Tests
-- [ ] Closure
+- [X] Closure
 - [ ] Garbage collection
 - [ ] Documentation
 - [ ] Backlog/FIXMEs/TODOs

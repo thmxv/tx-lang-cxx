@@ -47,7 +47,7 @@ struct GlobalInfo {
 };
 
 struct CallFrame {
-    ObjFunction* function;
+    ObjClosure& closure;
     const ByteCode* instruction_ptr;
     Value* slots;
 
@@ -63,7 +63,7 @@ struct CallFrame {
     template <size_t N>
     [[nodiscard]] constexpr Value read_constant() noexcept {
         const auto constant_idx = read_multibyte_operand<N>();
-        return function->chunk.constants[size_cast(constant_idx)];
+        return closure.function.chunk.constants[size_cast(constant_idx)];
     }
 
     void print_instruction() const noexcept;
@@ -88,6 +88,7 @@ class VM {
     // Move to Parser
     GlobalArray globals;
     ValueSet strings;
+    ObjUpvalue* open_upvalues{nullptr};
     gsl::owner<Obj*> objects = nullptr;
 
   public:
@@ -159,10 +160,15 @@ class VM {
 
     void constexpr ensure_stack_space(i32 needed) noexcept;
 
-    [[nodiscard]] constexpr bool call(ObjFunction& fun, size_t arg_c) noexcept;
+    [[nodiscard]] constexpr bool
+    call(ObjClosure& closure, size_t arg_c) noexcept;
 
     [[nodiscard]] constexpr bool
     call_value(Value callee, size_t arg_c) noexcept;
+
+    [[nodiscard]] ObjUpvalue& capture_upvalue(Value* local) noexcept;
+
+    constexpr void close_upvalues(const Value* last) noexcept;
 
     [[nodiscard]] constexpr bool negate_op() noexcept;
 

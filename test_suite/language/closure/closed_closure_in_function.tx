@@ -1,0 +1,11 @@
+var f = nil;
+
+{
+  var local = "local";
+  fn f_() {
+    std_println(local);
+  }
+  f = f_;
+}
+
+f(); # expect: local

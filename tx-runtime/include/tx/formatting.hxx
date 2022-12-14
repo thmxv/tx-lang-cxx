@@ -40,22 +40,26 @@ struct fmt::formatter<tx::Value> : formatter<string_view> {
 template <>
 struct fmt::formatter<tx::Obj> : formatter<string_view> {
     template <typename FormatContext>
+    constexpr auto
+    format_function(const tx::ObjFunction& fun, FormatContext& ctx) {
+        if (fun.name == nullptr) {
+            return fmt::format_to(ctx.out(), "<script>");
+        }
+        auto result = std::string_view(*fun.name);
+        if (result.empty()) { return fmt::format_to(ctx.out(), "<fn>"); }
+        return fmt::format_to(ctx.out(), "<fn {:s}>", result);
+    }
+
+    template <typename FormatContext>
     constexpr auto format(const tx::Obj& obj, FormatContext& ctx) {
         switch (obj.type) {
-            // case tx::ObjType::CLOSURE: {
-            //     const auto& closure = obj.as<tx::ObjClosure>();
-            //     return format_function(*closure.function, ctx);
-            // }
+            case tx::ObjType::CLOSURE: {
+                const auto& closure = obj.as<tx::ObjClosure>();
+                return format_function(closure.function, ctx);
+            }
             case tx::ObjType::FUNCTION: {
                 const auto& function = obj.as<tx::ObjFunction>();
-                if (function.name == nullptr) {
-                    return fmt::format_to(ctx.out(), "<script>");
-                }
-                auto result = std::string_view(*function.name);
-                if (result.empty()) {
-                    return fmt::format_to(ctx.out(), "<fn>");
-                }
-                return fmt::format_to(ctx.out(), "<fn {:s}>", result);
+                return format_function(function, ctx);
             }
             case tx::ObjType::NATIVE:
                 return fmt::format_to(ctx.out(), "<native fn>");
@@ -63,8 +67,8 @@ struct fmt::formatter<tx::Obj> : formatter<string_view> {
                 const auto& str = obj.as<tx::ObjString>();
                 return fmt::format_to(ctx.out(), "{:s}", std::string_view(str));
             }
-                // case tx::ObjType::UPVALUE:
-                //     return fmt::format_to(ctx.out(), "upvalue");
+            case tx::ObjType::UPVALUE:
+                return fmt::format_to(ctx.out(), "<upvalue>");
         }
         tx::unreachable();
     }

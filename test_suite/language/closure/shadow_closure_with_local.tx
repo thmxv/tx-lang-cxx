@@ -1,0 +1,12 @@
+{
+  var foo = "closure";
+  fn f() {
+    {
+      std_println(foo); # expect: closure
+      var foo = "shadow";
+      std_println(foo); # expect: shadow
+    }
+    std_println(foo); # expect: closure
+  }
+  f();
+}

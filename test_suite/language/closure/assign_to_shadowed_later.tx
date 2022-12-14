@@ -1,0 +1,13 @@
+var a = "global";
+
+{
+  fn assign() {
+    a = "assigned";
+  }
+
+  var a = "inner";
+  assign();
+  std_println(a); # expect: inner
+}
+
+std_println(a); # expect: assigned

@@ -8,20 +8,19 @@
 #include <cstddef>
 #include <cstdint>
 
-// #define TX_ENABLE_COMPUTED_GOTO
+namespace tx {
+
+#ifdef NDEBUG
+inline constexpr bool IS_DEBUG_BUILD = false;
+#define TX_ENABLE_COMPUTED_GOTO
+#else
+inline constexpr bool IS_DEBUG_BUILD = true;
+#endif
 
 #ifdef TX_ENABLE_COMPUTED_GOTO
 #define TX_VM_CONSTEXPR
 #else
 #define TX_VM_CONSTEXPR constexpr
-#endif
-
-namespace tx {
-
-#ifdef NDEBUG
-inline constexpr bool IS_DEBUG_BUILD = false;
-#else
-inline constexpr bool IS_DEBUG_BUILD = true;
 #endif
 
 inline constexpr std::string_view VERSION = cmake::project_version;
@@ -33,10 +32,12 @@ inline constexpr std::string_view GIT_SHA = cmake::git_sha;
 
 inline constexpr bool HAS_DEBUG_FEATURES = cmake::has_debug_features;
 
+// FIXME: Better and more consistent naming
 inline constexpr size_t FRAMES_START = 64;
 inline constexpr size_t FRAMES_MAX = 1U << 10U;
 inline constexpr size_t STACK_START = FRAMES_START * 256;
 inline constexpr size_t LOCALS_MAX = 1U << 24U;
+inline constexpr size_t MAX_UPVALUES = 1U << 24U;
 
 // Usefull short type aliases
 using i8 = std::int8_t;

@@ -5,6 +5,7 @@
 #include "tx/type_traits.hxx"
 #include "tx/utils.hxx"
 
+#include "tx/value.hxx"
 #include <gsl/gsl>
 
 #include <gsl/util>
@@ -18,9 +19,11 @@ namespace tx {
 class VM;
 
 enum class ObjType : u8 {
+    CLOSURE,
     FUNCTION,
     NATIVE,
     STRING,
+    UPVALUE,
 };
 
 struct Obj {
@@ -58,10 +61,9 @@ struct Obj {
         return type == ObjType::STRING;
     }
 
-    // [[nodiscard]] constexpr
-    // bool is_closure() const noexcept {
-    //     return type == ObjType::CLOSURE;
-    // }
+    [[nodiscard]] constexpr bool is_closure() const noexcept {
+        return type == ObjType::CLOSURE;
+    }
 
     [[nodiscard]] constexpr bool is_function() const noexcept {
         return type == ObjType::FUNCTION;
@@ -145,7 +147,9 @@ struct ObjString : Obj {
 make_string(VM& tvm, bool copy, std::string_view strv) noexcept;
 
 struct ObjFunction : Obj {
+    // FIXME: use size_t for all size related members
     i32 arity{0};
+    size_t upvalue_count{0};
     i32 max_slots{0};
     Chunk chunk;
     ObjString* name{nullptr};
@@ -171,6 +175,30 @@ struct ObjFunction : Obj {
         return result;
     }
 };
+
+struct ObjUpvalue : Obj {
+    Value* location;
+    Value closed{val_none};
+    ObjUpvalue* next_upvalue{nullptr};
+
+    constexpr explicit ObjUpvalue(Value* slot) noexcept
+            : Obj(ObjType::UPVALUE)
+            , location(slot) {}
+};
+
+struct ObjClosure : Obj {
+    ObjFunction& function;
+    DynArray<ObjUpvalue*, size_t> upvalues;
+
+    constexpr explicit ObjClosure(VM& tvm, ObjFunction& fun) noexcept
+            : Obj(ObjType::CLOSURE)
+            , function(fun)
+            , upvalues(tvm, fun.upvalue_count, nullptr) {}
+
+    constexpr void destroy(VM& tvm) noexcept { upvalues.destroy(tvm); }
+};
+
+[[nodiscard]] ObjClosure* make_closure(VM& tvm, ObjFunction& fun) noexcept;
 
 enum struct NativeResult : bool {
     RUNTIME_ERROR,
