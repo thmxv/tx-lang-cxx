@@ -26,12 +26,8 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
-- Fix disassembly of upvalue is_local and index sequence
 - Benchmark without checking at runtime if globals are defined. Forbid forward 
   declaration if gains are significant.
-- Remove lots of duplicate code in VM::run()
-- Fix long upvalue/closure index
-- Test upvalue/closure desassembly
 - Use emplace_back instead of push_back when possible
 - Allow forward declaration of global var using fn declaration
 - Reserve type, Type, abstract, override and final keywords
@@ -120,7 +116,7 @@ Tx is still very much a work in progress.
 - [ ] Threads
 - [ ] Async and await
 - [ ] Package/dependency manager
-- [ ] Tools (debugger)
+- [ ] Tools (debugger, ...)
 - [ ] Virtual env
 
 ## v2.0.0

@@ -118,6 +118,7 @@ class VM {
 
     // TX_VM_CONSTEXPR
     InterpretResult interpret(std::string_view source) noexcept;
+
     // TX_VM_CONSTEXPR
     [[gnu::flatten]] InterpretResult run() noexcept;
 
@@ -133,6 +134,7 @@ class VM {
         stack.pop_back();
         return value;
     }
+
     constexpr Value peek(size_t distance) noexcept {
         assert(!stack.empty());
         return *std::prev(stack.end(), 1 + distance);
@@ -177,6 +179,36 @@ class VM {
 
     template <template <typename> typename Op>
     [[nodiscard]] constexpr bool binary_op() noexcept;
+
+    template <u8 N>
+    inline void do_constant(CallFrame*& frame) noexcept;
+
+    template <u8 N>
+    inline void do_get_local(CallFrame*& frame) noexcept;
+
+    template <u8 N>
+    inline void do_set_local(CallFrame*& frame) noexcept;
+
+    template <u8 N>
+    inline bool do_get_global(CallFrame*& frame) noexcept;
+
+    template <u8 N>
+    inline void do_define_global(CallFrame*& frame) noexcept;
+
+    template <u8 N>
+    inline bool do_set_global(CallFrame*& frame) noexcept;
+
+    template <u8 N>
+    inline void do_get_upvalue(CallFrame*& frame) noexcept;
+
+    template <u8 N>
+    inline void do_set_upvalue(CallFrame*& frame) noexcept;
+
+    template <u8 N>
+    inline void do_closure(CallFrame*& frame) noexcept;
+
+    template <u8 N>
+    inline void do_end_scope(CallFrame*& frame) noexcept;
 
     // Friends
     template <typename T, typename... Args>

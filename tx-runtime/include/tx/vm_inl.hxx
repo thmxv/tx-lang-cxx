@@ -507,6 +507,95 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
     if constexpr (IS_DEBUG_BUILD) { assert_stack_effect(iptr); }
 }
 
+template <u8 N>
+inline void VM::do_constant(CallFrame*& frame) noexcept {
+    push(frame->read_constant<N>());
+}
+
+template <u8 N>
+inline void VM::do_get_local(CallFrame*& frame) noexcept {
+    const auto slot = frame->read_multibyte_operand<N>();
+    push(frame->slots[slot]);
+}
+
+template <u8 N>
+inline void VM::do_set_local(CallFrame*& frame) noexcept {
+    const auto slot = frame->read_multibyte_operand<N>();
+    frame->slots[slot] = peek(0);
+}
+
+template <u8 N>
+inline bool VM::do_get_global(CallFrame*& frame) noexcept {
+    auto index = frame->read_multibyte_operand<N>();
+    auto value = global_values[index];
+    if (value.is_none()) [[unlikely]] {
+        const auto name = get_global_name(index);
+        runtime_error("Undefined variable '{}'.", name);
+        return true;
+    }
+    push(value);
+    return false;
+}
+
+template <u8 N>
+inline void VM::do_define_global(CallFrame*& frame) noexcept {
+    auto index = frame->read_multibyte_operand<N>();
+    if (!options.allow_global_redefinition) {
+        assert(global_values[index].is_none());
+    }
+    global_values[index] = peek(0);
+    pop();
+}
+
+template <u8 N>
+inline bool VM::do_set_global(CallFrame*& frame) noexcept {
+    auto index = frame->read_multibyte_operand<N>();
+    if (global_values[index].is_none()) [[unlikely]] {
+        const auto name = get_global_name(index);
+        runtime_error("Undefined variable '{}'.", name);
+        return true;
+    }
+    global_values[index] = peek(0);
+    return false;
+}
+
+template <u8 N>
+inline void VM::do_get_upvalue(CallFrame*& frame) noexcept {
+    const auto slot = frame->read_multibyte_operand<N>();
+    push(*frame->closure.upvalues[slot]->location);
+}
+
+template <u8 N>
+inline void VM::do_set_upvalue(CallFrame*& frame) noexcept {
+    const auto slot = frame->read_multibyte_operand<N>();
+    *frame->closure.upvalues[slot]->location = peek(0);
+}
+
+template <u8 N>
+inline void VM::do_closure(CallFrame*& frame) noexcept {
+    auto& fun = frame->read_constant<N>().as_object().template as<ObjFunction>(
+    );
+    auto* closure = make_closure(*this, fun);
+    push(Value(closure));
+    for (auto& upvalue : closure->upvalues) {
+        auto [is_local, index] = frame->read_closure_operand();
+        if (is_local) {
+            upvalue = &capture_upvalue(std::next(frame->slots, index));
+        } else {
+            upvalue = frame->closure.upvalues[index];
+        }
+    }
+}
+
+template <u8 N>
+inline void VM::do_end_scope(CallFrame*& frame) noexcept {
+    const auto slot_count = frame->read_multibyte_operand<N>();
+    const auto result = pop();
+    close_upvalues(std::prev(stack.end(), slot_count));
+    for (auto i = 0; i < slot_count; ++i) { pop(); }
+    push(result);
+}
+
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
 // clang-format off
@@ -546,280 +635,148 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
         TX_VM_DISPATCH {
             using enum OpCode;
             TX_VM_CASE(CONSTANT) : {
-                constexpr auto count = get_byte_count_following_opcode(CONSTANT
-                );
-                static_assert(count == 1);
-                push(frame->read_constant<count>());
+                do_constant<1>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(CONSTANT_LONG) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    CONSTANT_LONG
-                );
-                static_assert(count == 3);
-                push(frame->read_constant<count>());
+                do_constant<3>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(NIL) : {
-                constexpr auto count = get_byte_count_following_opcode(NIL);
-                static_assert(count == 0);
                 push(Value(val_nil));
                 TX_VM_BREAK();
             }
             TX_VM_CASE(TRUE) : {
-                constexpr auto count = get_byte_count_following_opcode(TRUE);
-                static_assert(count == 0);
                 push(Value(true));
                 TX_VM_BREAK();
             }
             TX_VM_CASE(FALSE) : {
-                constexpr auto count = get_byte_count_following_opcode(FALSE);
-                static_assert(count == 0);
                 push(Value(false));
                 TX_VM_BREAK();
             }
             TX_VM_CASE(POP) : {
-                constexpr auto count = get_byte_count_following_opcode(POP);
-                static_assert(count == 0);
                 pop();
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_LOCAL) : {
-                constexpr auto count = get_byte_count_following_opcode(GET_LOCAL
-                );
-                static_assert(count == 1);
-                const auto slot = frame->read_multibyte_operand<count>();
-                push(frame->slots[slot]);
+                do_get_local<1>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_LOCAL_LONG) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    GET_LOCAL_LONG
-                );
-                static_assert(count == 3);
-                const auto slot = frame->read_multibyte_operand<count>();
-                push(frame->slots[slot]);
+                do_get_local<3>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_LOCAL) : {
-                constexpr auto count = get_byte_count_following_opcode(SET_LOCAL
-                );
-                static_assert(count == 1);
-                const auto slot = frame->read_multibyte_operand<count>();
-                frame->slots[slot] = peek(0);
+                do_set_local<1>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_LOCAL_LONG) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    SET_LOCAL_LONG
-                );
-                static_assert(count == 3);
-                const auto slot = frame->read_multibyte_operand<count>();
-                frame->slots[slot] = peek(0);
+                do_set_local<3>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_GLOBAL) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    GET_GLOBAL
-                );
-                static_assert(count == 1);
-                auto index = frame->read_multibyte_operand<count>();
-                auto value = global_values[index];
-                if (value.is_none()) [[unlikely]] {
-                    const auto name = get_global_name(index);
-                    runtime_error("Undefined variable '{}'.", name);
+                if (do_get_global<1>(frame)) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
-                push(value);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_GLOBAL_LONG) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    GET_GLOBAL_LONG
-                );
-                static_assert(count == 3);
-                auto index = frame->read_multibyte_operand<count>();
-                auto value = global_values[index];
-                if (value.is_none()) [[unlikely]] {
-                    const auto name = get_global_name(index);
-                    runtime_error("Undefined variable '{}'.", name);
+                if (do_get_global<3>(frame)) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
-                push(value);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(DEFINE_GLOBAL) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    DEFINE_GLOBAL
-                );
-                static_assert(count == 1);
-                auto index = frame->read_multibyte_operand<count>();
-                if (!options.allow_global_redefinition) {
-                    assert(global_values[index].is_none());
-                }
-                global_values[index] = peek(0);
-                pop();
+                do_define_global<1>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(DEFINE_GLOBAL_LONG) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    DEFINE_GLOBAL_LONG
-                );
-                static_assert(count == 3);
-                auto index = frame->read_multibyte_operand<count>();
-                if (!options.allow_global_redefinition) {
-                    assert(global_values[index].is_none());
-                }
-                global_values[index] = peek(0);
-                pop();
+                do_define_global<3>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_GLOBAL) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    SET_GLOBAL
-                );
-                static_assert(count == 1);
-                auto index = frame->read_multibyte_operand<count>();
-                if (global_values[index].is_none()) [[unlikely]] {
-                    const auto name = get_global_name(index);
-                    runtime_error("Undefined variable '{}'.", name);
+                if (do_set_global<1>(frame)) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
-                global_values[index] = peek(0);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_GLOBAL_LONG) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    SET_GLOBAL_LONG
-                );
-                static_assert(count == 3);
-                auto index = frame->read_multibyte_operand<count>();
-                if (global_values[index].is_none()) [[unlikely]] {
-                    const auto name = get_global_name(index);
-                    runtime_error("Undefined variable '{}'.", name);
+                if (do_set_global<3>(frame)) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
-                global_values[index] = peek(0);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_UPVALUE) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    GET_UPVALUE
-                );
-                static_assert(count == 1);
-                const auto slot = frame->read_multibyte_operand<count>();
-                push(*frame->closure.upvalues[slot]->location);
+                do_get_upvalue<1>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_UPVALUE_LONG) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    GET_UPVALUE_LONG
-                );
-                static_assert(count == 3);
-                const auto slot = frame->read_multibyte_operand<count>();
-                push(*frame->closure.upvalues[slot]->location);
+                do_get_upvalue<3>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_UPVALUE) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    SET_UPVALUE
-                );
-                static_assert(count == 1);
-                const auto slot = frame->read_multibyte_operand<count>();
-                *frame->closure.upvalues[slot]->location = peek(0);
+                do_set_upvalue<1>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_UPVALUE_LONG) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    SET_UPVALUE_LONG
-                );
-                static_assert(count == 3);
-                const auto slot = frame->read_multibyte_operand<count>();
-                *frame->closure.upvalues[slot]->location = peek(0);
+                do_set_upvalue<3>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(EQUAL) : {
-                constexpr auto count = get_byte_count_following_opcode(EQUAL);
-                static_assert(count == 0);
                 const Value rhs = pop();
                 const Value lhs = pop();
                 push(Value(lhs == rhs));
                 TX_VM_BREAK();
             }
             TX_VM_CASE(NOT_EQUAL) : {
-                constexpr auto count = get_byte_count_following_opcode(NOT_EQUAL
-                );
-                static_assert(count == 0);
                 const Value rhs = pop();
                 const Value lhs = pop();
                 push(Value(lhs != rhs));
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GREATER) : {
-                constexpr auto count = get_byte_count_following_opcode(GREATER);
-                static_assert(count == 0);
                 if (binary_op<std::greater>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(LESS) : {
-                constexpr auto count = get_byte_count_following_opcode(LESS);
-                static_assert(count == 0);
                 if (binary_op<std::less>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GREATER_EQUAL) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    GREATER_EQUAL
-                );
-                static_assert(count == 0);
                 if (binary_op<std::greater_equal>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(LESS_EQUAL) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    LESS_EQUAL
-                );
-                static_assert(count == 0);
                 if (binary_op<std::less_equal>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(ADD) : {
-                constexpr auto count = get_byte_count_following_opcode(ADD);
-                static_assert(count == 0);
                 if (binary_op<std::plus>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SUBSTRACT) : {
-                constexpr auto count = get_byte_count_following_opcode(SUBSTRACT
-                );
-                static_assert(count == 0);
                 if (binary_op<std::minus>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(MULTIPLY) : {
-                constexpr auto count = get_byte_count_following_opcode(MULTIPLY
-                );
-                static_assert(count == 0);
                 if (binary_op<std::multiplies>()) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(DIVIDE) : {
-                constexpr auto count = get_byte_count_following_opcode(DIVIDE);
-                static_assert(count == 0);
                 if (peek(0).is_int() && peek(1).is_int()
                     && peek(0).as_int() == 0) {
                     runtime_error("Integer division by zero.");
@@ -831,21 +788,15 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(NOT) : {
-                constexpr auto count = get_byte_count_following_opcode(NOT);
-                static_assert(count == 0);
                 push(Value(pop().is_falsey()));
                 TX_VM_BREAK();
             }
             TX_VM_CASE(NEGATE) : {
-                constexpr auto count = get_byte_count_following_opcode(NEGATE);
-                static_assert(count == 0);
                 if (negate_op()) { return InterpretResult::RUNTIME_ERROR; }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(JUMP) : {
-                constexpr auto count = get_byte_count_following_opcode(JUMP);
-                static_assert(count == 2);
-                auto offset = frame->read_multibyte_operand<count>();
+                auto offset = frame->read_multibyte_operand<2>();
                 frame->instruction_ptr = std::next(
                     frame->instruction_ptr,
                     offset
@@ -853,11 +804,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(JUMP_IF_FALSE) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    JUMP_IF_FALSE
-                );
-                static_assert(count == 2);
-                auto offset = frame->read_multibyte_operand<count>();
+                auto offset = frame->read_multibyte_operand<2>();
                 frame->instruction_ptr = std::next(
                     frame->instruction_ptr,
                     static_cast<i64>(peek(0).is_falsey()) * offset
@@ -865,9 +812,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(LOOP) : {
-                constexpr auto count = get_byte_count_following_opcode(LOOP);
-                static_assert(count == 2);
-                auto offset = frame->read_multibyte_operand<count>();
+                auto offset = frame->read_multibyte_operand<2>();
                 frame->instruction_ptr = std::prev(
                     frame->instruction_ptr,
                     offset
@@ -875,9 +820,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(CALL) : {
-                constexpr auto count = get_byte_count_following_opcode(CALL);
-                static_assert(count == 1);
-                auto arg_count = frame->read_multibyte_operand<count>();
+                auto arg_count = frame->read_multibyte_operand<1>();
                 if (!call_value(peek(arg_count), arg_count)) {
                     return InterpretResult::RUNTIME_ERROR;
                 }
@@ -885,71 +828,22 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(CLOSURE) : {
-                constexpr auto count = get_byte_count_following_opcode(CLOSURE);
-                static_assert(count == 1);
-                auto& fun =
-                    frame->read_constant<count>().as_object().as<ObjFunction>();
-                auto* closure = make_closure(*this, fun);
-                push(Value(closure));
-                for (auto& upvalue : closure->upvalues) {
-                    auto [is_local, index] = frame->read_closure_operand();
-                    if (is_local) {
-                        upvalue = &capture_upvalue(
-                            std::next(frame->slots, index)
-                        );
-                    } else {
-                        upvalue = frame->closure.upvalues[index];
-                    }
-                }
+                do_closure<1>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(CLOSURE_LONG) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    CLOSURE_LONG
-                );
-                static_assert(count == 3);
-                auto& fun =
-                    frame->read_constant<count>().as_object().as<ObjFunction>();
-                auto* closure = make_closure(*this, fun);
-                push(Value(closure));
-                for (auto& upvalue : closure->upvalues) {
-                    auto [is_local, index] = frame->read_closure_operand();
-                    if (is_local) {
-                        upvalue = &capture_upvalue(
-                            std::next(frame->slots, index)
-                        );
-                    } else {
-                        upvalue = frame->closure.upvalues[index];
-                    }
-                }
+                do_closure<3>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(END_SCOPE) : {
-                constexpr auto count = get_byte_count_following_opcode(END_SCOPE
-                );
-                static_assert(count == 1);
-                const auto slot_count = frame->read_multibyte_operand<count>();
-                const auto result = pop();
-                close_upvalues(std::prev(stack.end(), slot_count));
-                for (auto i = 0; i < slot_count; ++i) { pop(); }
-                push(result);
+                do_end_scope<1>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(END_SCOPE_LONG) : {
-                constexpr auto count = get_byte_count_following_opcode(
-                    END_SCOPE_LONG
-                );
-                static_assert(count == 3);
-                const auto slot_count = frame->read_multibyte_operand<count>();
-                const auto result = pop();
-                close_upvalues(std::prev(stack.end(), slot_count));
-                for (auto i = 0; i < slot_count; ++i) { pop(); }
-                push(result);
+                do_end_scope<3>(frame);
                 TX_VM_BREAK();
             }
             TX_VM_CASE(RETURN) : {
-                constexpr auto count = get_byte_count_following_opcode(RETURN);
-                static_assert(count == 0);
                 const auto result = pop();
                 const auto* frame_slots = frame->slots;
                 close_upvalues(frame_slots);
