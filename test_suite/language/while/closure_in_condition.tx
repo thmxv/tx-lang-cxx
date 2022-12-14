@@ -1,6 +1,8 @@
-var f1;
-var f2;
-var f3;
+#!/usr/bin/env tx
+
+var f1 = nil;
+var f2 = nil;
+var f3 = nil;
 
 var i = 1;
 while i < 4 {

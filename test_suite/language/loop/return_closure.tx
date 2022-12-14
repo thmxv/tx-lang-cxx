@@ -1,5 +1,8 @@
+#!/usr/bin/env tx
+
 fn f() {
-  while true {
+  loop {
+    if false { break; };
     var i = "i";
     fn g() { std_println(i); }
     return g;
