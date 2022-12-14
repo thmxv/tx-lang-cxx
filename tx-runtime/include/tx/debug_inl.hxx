@@ -20,10 +20,21 @@ inline constexpr std::array opcode_name_table = {
     #include "tx/opcodes.inc"
     #undef TX_OPCODE
 };
+
+inline constexpr std::array token_name_table = {
+    // NOLINTNEXTLINE(*-macro-usage)
+    #define TX_TOKEN(name) #name,
+    #include "tx/tokens.inc"
+    #undef TX_TOKEN
+};
 // clang-format on
 
 inline const char* get_opcode_name(OpCode instruction) {
-    return opcode_name_table[to_underlying(instruction)];
+    return gsl::at(opcode_name_table, to_underlying(instruction));
+}
+
+inline const char* get_token_name(TokenType tok) {
+    return gsl::at(token_name_table, to_underlying(tok));
 }
 
 inline void
@@ -52,16 +63,15 @@ constant_instruction(const ByteCode* ptr, const Chunk& chunk) noexcept {
 }
 
 template <u32 N>
-[[nodiscard]] inline const ByteCode* closure_instruction(
-    const ByteCode* ptr,
-    const Chunk& chunk,
-    size_t offset
-) noexcept {
+[[nodiscard]] inline const ByteCode*
+closure_instruction(const ByteCode* ptr, const Chunk& chunk) noexcept {
     const OpCode instruction = ptr->as_opcode();
+    std::advance(ptr, 1);
     const auto* name = get_opcode_name(instruction);
     const auto count = get_byte_count_following_opcode(instruction);
     assert(count == N);
-    const auto constant_idx = read_multibyte_operand<N>(std::next(ptr));
+    const auto constant_idx = read_multibyte_operand<N>(ptr);
+    std::advance(ptr, N);
     fmt::print(
         "{:18s} {:4d} '{}'\n",
         name,
@@ -71,19 +81,16 @@ template <u32 N>
     const auto& function =
         chunk.constants[constant_idx].as_object().template as<ObjFunction>();
     for (size_t i = 0; i < function.upvalue_count; ++i) {
-        // FIXME: remove crazy offset calculation
-        auto is_local = std::next(ptr, 1 + size_cast(N) + i * 2)->as_u8();
-        auto index = std::next(ptr, 1 + size_cast(N) + i * 2 + 1)->as_u8();
+        auto [is_local, index, len] = read_closure_operand(ptr);
         fmt::print(
             FMT_STRING("{:04d}      |                       {:s} {:d}\n"),
-            // FIXME: remove crazy offset calculation
-            offset + 1 + size_cast(N) + (i * 2), // - 2,
+            size_cast(std::distance(chunk.code.cbegin(), ptr)),
             is_local ? "local" : "upvalue",
             index
         );
+        std::advance(ptr, len);
     }
-    // FIXME: remove crazy offset calculation
-    return std::next(ptr, 1 + size_cast(N) + function.upvalue_count * 2);
+    return ptr;
 }
 
 template <u32 N>
@@ -179,20 +186,11 @@ disassemble_instruction(const Chunk& chunk, const ByteCode* ptr) noexcept {
         case JUMP:
         case JUMP_IF_FALSE: return jump_instruction(ptr, 1, offset);
         case LOOP: return jump_instruction(ptr, -1, offset);
-        case CLOSURE: return closure_instruction<1>(ptr, chunk, offset);
-        case CLOSURE_LONG: return closure_instruction<3>(ptr, chunk, offset);
+        case CLOSURE: return closure_instruction<1>(ptr, chunk);
+        case CLOSURE_LONG: return closure_instruction<3>(ptr, chunk);
     }
     unreachable();
 }
-
-// clang-format off
-inline constexpr std::array token_name_table = {
-    // NOLINTNEXTLINE(*-macro-usage)
-    #define TX_TOKEN(name) #name,
-    #include "tx/tokens.inc"
-    #undef TX_TOKEN
-};
-// clang-format on
 
 inline void print_token(const Token& token) noexcept {
     static int line = -1;
@@ -202,10 +200,10 @@ inline void print_token(const Token& token) noexcept {
     } else {
         fmt::print("   | ");
     }
-    // TODO: remove newlines and other perturbing chars
+    // TODO: trim, remove newlines and other perturbing chars, ...
     fmt::print(
         FMT_STRING("{:16s} '{:s}' "),
-        std::string_view(token_name_table[to_underlying(token.type)]),
+        std::string_view(get_token_name(token.type)),
         token.lexeme
     );
     if (!token.value.is_none()) { fmt::print(FMT_STRING("{}"), token.value); }

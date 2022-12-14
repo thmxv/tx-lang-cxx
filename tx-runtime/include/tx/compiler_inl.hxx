@@ -53,14 +53,14 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
     advance();
     while (!match(TokenType::END_OF_FILE)) { statement(); }
     emit_instruction(OpCode::NIL);
-    auto* fun = end_compiler();
+    auto& fun = end_compiler();
     comp.destroy(parent_vm);
     for (const auto& val : parent_vm.globals) {
         if (!val.is_defined) {
             error("Global variable declared but not defined.");
         }
     }
-    return had_error ? nullptr : fun;
+    return had_error ? nullptr : &fun;
 }
 
 inline void Parser::error_at(Token& token, std::string_view message) noexcept {
@@ -156,6 +156,61 @@ inline constexpr void Parser::emit_constant(Value value) noexcept {
     emit_var_length_instruction(OpCode::CONSTANT, idx);
 }
 
+inline constexpr void
+Parser::emit_closure(Compiler& compiler, ObjFunction& function) noexcept {
+    emit_var_length_instruction(
+        OpCode::CLOSURE,
+        add_constant(Value{&function})
+    );
+    assert(function.upvalue_count == compiler.upvalues.size());
+    for (const auto& upvalue : compiler.upvalues) {
+        assert(upvalue.index >= 0);
+        assert(upvalue.index < size_cast(1U << 24U));
+        const u8 length = [](usize idx) {
+            u8 result = 0;
+            while (idx != 0) {
+                idx >>= 8U;
+                ++result;
+            }
+            return result == 0 ? u8{1} : result;
+        }(static_cast<usize>(upvalue.index));
+        assert(length == 1);
+        assert(length >= 1);
+        assert(length <= 3);
+        const u8 flags = static_cast<u8>(
+            (upvalue.is_local << 7U) | (length & 0b01111111U)
+        );
+        assert(length == (flags & 0b01111111U));
+        assert(upvalue.is_local == bool(flags & 0b10000000U));
+        emit_bytes(flags);
+        if (length == 1) {
+            current_chunk().write_multibyte_operand<1>(
+                parent_vm,
+                previous.line,
+                upvalue.index
+            );
+            continue;
+        }
+        if (length == 2) {
+            current_chunk().write_multibyte_operand<2>(
+                parent_vm,
+                previous.line,
+                upvalue.index
+            );
+            continue;
+        }
+        if (length == 3) {
+            current_chunk().write_multibyte_operand<3>(
+                parent_vm,
+                previous.line,
+                upvalue.index
+            );
+            continue;
+        }
+        unreachable();
+    }
+}
+
 [[nodiscard]] inline constexpr size_t Parser::emit_jump(OpCode instruction
 ) noexcept {
     // emit_bytes(instruction);
@@ -207,16 +262,16 @@ inline void Parser::begin_compiler(
     current_compiler = &compiler;
 }
 
-[[nodiscard]] inline constexpr ObjFunction* Parser::end_compiler() noexcept {
+[[nodiscard]] inline constexpr ObjFunction& Parser::end_compiler() noexcept {
     emit_instruction(OpCode::RETURN);
-    auto* fun = current_compiler->function;
+    auto& fun = *current_compiler->function;
     if constexpr (HAS_DEBUG_FEATURES) {
         if (parent_vm.get_options().print_bytecode) {
             if (!had_error) {
                 // fmt::print("Argument count: {:d}\n", fun->arity);
                 // fmt::print("Upvalue count: {:d}\n", fun->upvalue_count);
                 // fmt::print("Max slots: {:d}\n", fun->max_slots);
-                disassemble_chunk(current_chunk(), fun->get_display_name());
+                disassemble_chunk(current_chunk(), fun.get_display_name());
             }
         }
     }
@@ -255,6 +310,34 @@ inline constexpr void Parser::patch_jumps_in_innermost_loop() noexcept {
     for (size_t i = current_compiler->innermost_loop->start;
          i < current_chunk().code.size();) {
         ByteCode& btc = current_chunk().code[i];
+        if (btc.as_opcode() == OpCode::CLOSURE
+            || btc.as_opcode() == OpCode::CLOSURE_LONG) {
+            const auto constant_idx = [&]() {
+                if (btc.as_opcode() == OpCode::CLOSURE) {
+                    return read_multibyte_operand<1>(
+                        std::next(current_chunk().code.begin(), i + 1)
+                    );
+                }
+                if (btc.as_opcode() == OpCode::CLOSURE_LONG) {
+                    return read_multibyte_operand<3>(
+                        std::next(current_chunk().code.begin(), i + 1)
+                    );
+                }
+                unreachable();
+            }();
+            const auto& fun = current_chunk()
+                                  .constants[constant_idx]
+                                  .as_object()
+                                  .as<ObjFunction>();
+            i += 1 + 1;
+            for (auto j = 0; j < fun.upvalue_count; ++j) {
+                auto [is_local, index, len] = read_closure_operand(
+                    std::next(current_chunk().code.begin(), i)
+                );
+                i += len;
+            }
+            continue;
+        }
         if (btc.as_opcode() == OpCode::END) {
             btc = ByteCode{OpCode::JUMP};
             patch_jump(i + 1);
@@ -706,16 +789,8 @@ Parser::function(FunctionType type, std::string_view name) noexcept {
     auto block_result = block_no_scope();
     (void)block_result;
     // end_scope(); // NOTE: Not necessary
-    auto* function = end_compiler();
-    emit_var_length_instruction(OpCode::CLOSURE, add_constant(Value{function}));
-    assert(function->upvalue_count == compiler.upvalues.size());
-    for (size_t i = 0; i < function->upvalue_count; ++i) {
-        emit_bytes(
-            compiler.upvalues[i].is_local ? u8{1} : u8{0},
-            // FIXME: support long index
-            static_cast<u8>(compiler.upvalues[i].index)
-        );
-    }
+    auto& function = end_compiler();
+    emit_closure(compiler, function);
     compiler.destroy(parent_vm);
 }
 

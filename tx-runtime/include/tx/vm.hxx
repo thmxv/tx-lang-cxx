@@ -53,6 +53,9 @@ struct CallFrame {
 
     [[nodiscard]] constexpr ByteCode read_byte() noexcept;
 
+    [[nodiscard]] constexpr std::tuple<bool, size_t> read_closure_operand(
+    ) noexcept;
+
     template <u32 N>
     [[nodiscard]] constexpr size_t read_multibyte_operand() noexcept {
         auto result = ::tx::read_multibyte_operand<N>(instruction_ptr);

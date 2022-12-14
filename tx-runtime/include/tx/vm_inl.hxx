@@ -21,6 +21,7 @@
 #include <functional>
 #include <ranges>
 #include <thread>
+#include <tuple>
 #include <type_traits>
 
 namespace tx {
@@ -166,6 +167,19 @@ float_sqrt_native(VM& /*tvm*/, NativeInOut inout) {
     return NativeResult::SUCCESS;
 }
 
+[[nodiscard]] inline constexpr ByteCode CallFrame::read_byte() noexcept {
+    auto result = *instruction_ptr;
+    instruction_ptr = std::next(instruction_ptr);
+    return result;
+}
+
+[[nodiscard]] inline constexpr std::tuple<bool, size_t>
+CallFrame::read_closure_operand() noexcept {
+    auto [is_local, index, len] = ::tx::read_closure_operand(instruction_ptr);
+    std::advance(instruction_ptr, len);
+    return std::make_tuple(is_local, index);
+}
+
 inline VM::VM(VMOptions opts, const Allocator& alloc) noexcept
         : options(opts)
         , allocator(alloc) {
@@ -198,12 +212,6 @@ inline constexpr VM::~VM() noexcept {
     globals.destroy(*this);
     strings.destroy(*this);
     free_objects(*this, objects);
-}
-
-[[nodiscard]] inline constexpr ByteCode CallFrame::read_byte() noexcept {
-    auto result = *instruction_ptr;
-    instruction_ptr = std::next(instruction_ptr);
-    return result;
 }
 
 inline constexpr void VM::reset_stack() noexcept {
@@ -501,7 +509,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
 
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
-    // clang-format off
+// clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -884,10 +892,11 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 auto* closure = make_closure(*this, fun);
                 push(Value(closure));
                 for (auto& upvalue : closure->upvalues) {
-                    auto is_local = frame->read_byte().as_u8();
-                    auto index = frame->read_byte().as_u8();
-                    if (is_local != 0U) {
-                        upvalue = &capture_upvalue(frame->slots + index);
+                    auto [is_local, index] = frame->read_closure_operand();
+                    if (is_local) {
+                        upvalue = &capture_upvalue(
+                            std::next(frame->slots, index)
+                        );
                     } else {
                         upvalue = frame->closure.upvalues[index];
                     }
@@ -904,10 +913,11 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
                 auto* closure = make_closure(*this, fun);
                 push(Value(closure));
                 for (auto& upvalue : closure->upvalues) {
-                    auto is_local = frame->read_byte().as_u8();
-                    auto index = frame->read_byte().as_u8();
-                    if (is_local != 0U) {
-                        upvalue = &capture_upvalue(frame->slots + index);
+                    auto [is_local, index] = frame->read_closure_operand();
+                    if (is_local) {
+                        upvalue = &capture_upvalue(
+                            std::next(frame->slots, index)
+                        );
                     } else {
                         upvalue = frame->closure.upvalues[index];
                     }
@@ -959,7 +969,7 @@ inline void VM::debug_trace(const ByteCode* iptr) const noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-// clang-format off
+    // clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK

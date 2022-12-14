@@ -184,6 +184,10 @@ class Parser {
     }
 
     constexpr void emit_constant(Value value) noexcept;
+
+    constexpr void
+    emit_closure(Compiler& compiler, ObjFunction& function) noexcept;
+
     constexpr void emit_var_length_instruction(OpCode opc, size_t idx) noexcept;
 
     [[nodiscard]] constexpr size_t emit_jump(OpCode instruction) noexcept;
@@ -197,7 +201,7 @@ class Parser {
         std::optional<std::string_view> name_opt
     ) noexcept;
 
-    [[nodiscard]] constexpr ObjFunction* end_compiler() noexcept;
+    [[nodiscard]] constexpr ObjFunction& end_compiler() noexcept;
 
     constexpr void begin_scope() noexcept;
     constexpr void patch_jumps_in_innermost_loop() noexcept;

@@ -4,6 +4,7 @@
 #include "tx/dyn_array.hxx"
 #include "tx/value.hxx"
 
+#include <iterator>
 #include <numeric>
 #include <utility>
 #include <type_traits>
@@ -74,6 +75,24 @@ constexpr inline size_t read_multibyte_operand(const ByteCode* ptr) noexcept {
     return size_cast(result);
 }
 
+constexpr inline std::tuple<bool, size_t, u8> read_closure_operand(
+    const ByteCode* ptr
+) noexcept {
+    u8 flags = ptr->as_u8();
+    std::advance(ptr, 1);
+    const u8 length = flags & 0b01111111U;
+    const bool is_local = (flags & 0b10000000U) != 0U;
+    assert(length >= 1);
+    assert(length <= 3);
+    auto index = [&]() {
+        if (length == 1) { return read_multibyte_operand<1>(ptr); }
+        if (length == 2) { return read_multibyte_operand<2>(ptr); }
+        if (length == 3) { return read_multibyte_operand<3>(ptr); }
+        unreachable();
+    }();
+    return std::make_tuple(is_local, index, 1 + length);
+}
+
 using ByteCodeArray = DynArray<ByteCode, size_t>;
 using LineStartArray = DynArray<LineStart, size_t>;
 
@@ -109,6 +128,17 @@ struct Chunk {
     }
 
     template <u32 N>
+    constexpr inline void
+    write_multibyte_operand(VM& tvm, size_t line, size_t operand) noexcept {
+        static_assert(N <= 3);
+        write_line(tvm, line);
+        auto offset = code.size();
+        code.resize(tvm, code.size() + size_cast(N), ByteCode(OpCode::END));
+        auto* ptr = std::next(code.begin(), offset);
+        ::tx::write_multibyte_operand<N>(ptr, operand);
+    }
+
+    template <u32 N>
     constexpr inline void write_instruction(
         VM& tvm,
         size_t line,
@@ -118,10 +148,11 @@ struct Chunk {
         static_assert(N <= 3);
         write_line(tvm, line);
         code.push_back(tvm, ByteCode(opc));
-        auto offset = code.size();
-        code.resize(tvm, code.size() + size_cast(N), ByteCode(OpCode::END));
-        auto* ptr = std::next(code.begin(), offset);
-        ::tx::write_multibyte_operand<N>(ptr, operand);
+        write_multibyte_operand<N>(tvm, line, operand);
+        // auto offset = code.size();
+        // code.resize(tvm, code.size() + size_cast(N), ByteCode(OpCode::END));
+        // auto* ptr = std::next(code.begin(), offset);
+        // ::tx::write_multibyte_operand<N>(ptr, operand);
     }
 
     [[nodiscard]] constexpr size_t get_line(size_t instruction) const noexcept {

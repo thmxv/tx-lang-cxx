@@ -26,6 +26,7 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Fix disassembly of upvalue is_local and index sequence
 - Benchmark without checking at runtime if globals are defined. Forbid forward 
   declaration if gains are significant.
 - Remove lots of duplicate code in VM::run()
@@ -106,19 +107,22 @@ Tx is still very much a work in progress.
 - [ ] Final syntax/grammar
 - [ ] Reserve all future keywords
 - [ ] Benchmarks
-- [ ] Editors support
+- [ ] Editors support (LSP)
 - [ ] Modules for core and std
 - [ ] Type alias
 - [ ] Recursive types
 - [ ] Documentation
 
-## Later versions
+## Later 1.0 versions
 
 - [ ] Syntax highlighting and completion in REPL
 - [ ] Fibers
 - [ ] Threads
 - [ ] Async and await
 - [ ] Package/dependency manager
-- [ ] Tools
+- [ ] Tools (debugger)
 - [ ] Virtual env
+
+## v2.0.0
+- [ ] Refactor instruction set/Switch to register based VM
 
