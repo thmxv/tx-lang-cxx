@@ -26,16 +26,18 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Make sure GC and allocator are "in sync". Meaning the GC always trigger 
+  every time it would be necessary for the pool allocator to grow.
 - Benchmark without checking at runtime if globals are defined. Forbid forward 
   declaration if gains are significant.
 - Allow forward declaration of global var using fn declaration
 - Reserve type, Type, abstract, override and final keywords
 - Move Global info from VM to Parser, keep parser inbetween repl evals
 - Better float formatting: 1.0e20 instead of 1.e20
-- check arity/signature of native fn
-- better and more conform error messages. compile and runtime
+- Check arity/signature of native fn
+- Better and more conform error messages. compile and runtime
 - Fix TODOs in the code
-- replace runtime errors by compile time (keep runtime error in degug)
+- Replace runtime errors by compile time (keep runtime error in degug)
 - Go over all the tests one more time (Some do not make much sense for tx
   and some others do not test all code paths)
 
@@ -55,7 +57,7 @@ Tx is still very much a work in progress.
 - Better const correctness for container elements
 - Use char8_t and u8string_view (needs libfmt support)
 
-## Roadmap/TODO list
+## Roadmap
 
 ### v0.1.0
 
@@ -72,15 +74,18 @@ Tx is still very much a work in progress.
 - [X] Functions and call
 - [X] Tests
 - [X] Closure
-- [ ] Garbage collection
-- [ ] Documentation
+- [X] Garbage collection
 - [ ] Backlog/FIXMEs/TODOs
 
 ### v0.2.0
 
+- [ ] Type checking
+- [ ] Documentation
+
+### v0.3.0
+
 - [ ] Struct and instances
 - [ ] Methods and initializer
-- [ ] Type checking
 - [ ] Traits
 - [ ] Inheritance?
 - [ ] String concatenation
@@ -91,7 +96,7 @@ Tx is still very much a work in progress.
 - [ ] Pattern matching
 - [ ] Documentation
 
-### v0.3.0
+### v0.4.0
 
 - [ ] Modules
 - [ ] Optimizations
@@ -119,5 +124,7 @@ Tx is still very much a work in progress.
 - [ ] Virtual env
 
 ## v2.0.0
+
 - [ ] Refactor instruction set/Switch to register based VM
+- [ ] Better GC
 

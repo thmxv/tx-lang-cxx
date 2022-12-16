@@ -220,8 +220,9 @@ class HashMap {
         if (count == 0) { return false; }
         Entry& entry = find_entry(key);
         if (is_entry_empty(entry)) { return false; }
-        entry.first = EMPTY_KEY;
-        entry.second = TOMBSTONE_VALUE;
+        auto* ptr = &entry;
+        std::destroy_at(ptr);
+        std::construct_at(ptr, EMPTY_KEY, TOMBSTONE_VALUE);
         return true;
     }
 

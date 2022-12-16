@@ -348,7 +348,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
 }
 
 [[nodiscard]] inline constexpr bool
-Scanner::utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept {
+Scanner::utf8_escape(size_t digits, DynArray<char>& dst) noexcept {
     auto value_opt = hex_escape(digits);
     if (!value_opt.has_value()) { return true; }
     auto value = static_cast<char32_t>(*value_opt);
@@ -376,7 +376,7 @@ Scanner::utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept {
 }
 
 [[nodiscard]] inline constexpr Token Scanner::string() noexcept {
-    DynArray<char, size_t> string;
+    DynArray<char> string;
     while (peek() != '"' && !is_at_end()) {
         if (peek() == '\n') { ++line; }
         if (peek() == '\r') { continue; }

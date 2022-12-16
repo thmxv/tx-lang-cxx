@@ -82,7 +82,7 @@ class Scanner {
     ) noexcept;
 
     [[nodiscard]] constexpr bool
-    utf8_escape(size_t digits, DynArray<char, size_t>& dst) noexcept;
+    utf8_escape(size_t digits, DynArray<char>& dst) noexcept;
 
     [[nodiscard]] constexpr Token string() noexcept;
 };

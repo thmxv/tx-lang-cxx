@@ -16,7 +16,7 @@ namespace tx {
 // passing in the VM that was used to allocate the container's data
 // storage in order to destroy the data and free the memory.
 
-template <typename T, typename SizeT>
+template <typename T, typename SizeT = size_t, bool TRIGGER_GC = true>
     requires is_trivially_relocatable_v<T> && std::is_integral_v<SizeT>
 class DynArray {
     SizeT count = 0;
@@ -41,9 +41,8 @@ class DynArray {
     constexpr DynArray(VM& tvm, SizeT size, T value) noexcept
             : count(size)
             , capacity_(size) {
-        //  , data_ptr(grow_array<T>(tvm, nullptr, 0, size)) {
         assert(size >= 0);
-        if (size > 0) { data_ptr = grow_array<T>(tvm, nullptr, 0, size); }
+        if (size > 0) { data_ptr = grow_array<T, TRIGGER_GC>(tvm, nullptr, 0, size); }
         std::uninitialized_fill_n(data_ptr, count, value);
     }
 
@@ -140,7 +139,7 @@ class DynArray {
     }
 
     constexpr void reserve(VM& tvm, SizeT new_cap) noexcept {
-        data_ptr = grow_array(tvm, data_ptr, capacity_, new_cap);
+        data_ptr = grow_array<T,TRIGGER_GC>(tvm, data_ptr, capacity_, new_cap);
         capacity_ = new_cap;
     }
 

@@ -99,8 +99,8 @@ constexpr inline std::tuple<bool, size_t, u8> read_closure_operand(
     return std::make_tuple(is_local, index, 1 + length);
 }
 
-using ByteCodeArray = DynArray<ByteCode, size_t>;
-using LineStartArray = DynArray<LineStart, size_t>;
+using ByteCodeArray = DynArray<ByteCode>;
+using LineStartArray = DynArray<LineStart>;
 
 struct Chunk {
     ByteCodeArray code;

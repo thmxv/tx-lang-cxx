@@ -212,6 +212,7 @@ inline constexpr VM::~VM() noexcept {
     globals.destroy(*this);
     strings.destroy(*this);
     free_objects(*this, objects);
+    gray_stack.destroy(*this);
 }
 
 inline constexpr void VM::reset_stack() noexcept {
@@ -245,10 +246,10 @@ inline void VM::runtime_error_impl() noexcept {
 inline InterpretResult VM::interpret(std::string_view source) noexcept {
     Parser current_parser(*this, source);
     parser = &current_parser;
+    ensure_stack_space(1);
     ObjFunction* function = parser->compile();
     parser = nullptr;
     if (function == nullptr) { return InterpretResult::COMPILE_ERROR; }
-    ensure_stack_space(1);
     push(Value{function});
     auto* closure = make_closure(*this, *function);
     pop();

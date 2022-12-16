@@ -28,7 +28,7 @@ enum class ObjType : u8 {
 
 struct Obj {
     ObjType type;
-    // bool is_marked = false;
+    bool is_marked = false;
     gsl::owner<Obj*> next_object = nullptr;
 
     Obj() = delete;
@@ -188,7 +188,7 @@ struct ObjUpvalue : Obj {
 
 struct ObjClosure : Obj {
     ObjFunction& function;
-    DynArray<ObjUpvalue*, size_t> upvalues;
+    DynArray<ObjUpvalue*> upvalues;
 
     constexpr explicit ObjClosure(VM& tvm, ObjFunction& fun) noexcept
             : Obj(ObjType::CLOSURE)

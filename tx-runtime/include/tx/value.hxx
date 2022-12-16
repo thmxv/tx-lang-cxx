@@ -151,7 +151,7 @@ struct Value {
     }
 };
 
-using ValueArray = DynArray<Value, size_t>;
-// using ConstValueArray = DynArray<const Value, size_t>;
+using ValueArray = DynArray<Value>;
+// using ConstValueArray = DynArray<const Value>;
 
 }  // namespace tx

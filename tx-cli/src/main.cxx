@@ -27,7 +27,6 @@ Options:
       -D print-bytecode   Print bytecode after compilation
       -D trace-execution  Trace bytecode execution
       -D trace-gc         Trace garbage collection
-      -D stress-gc        Run garbage collector on every allocation
   -c,--command TXT  Execute command passed as argument.
   file TXT          Read script to ececute from file.
   -                 Read script to execute from the standard input.
@@ -37,7 +36,7 @@ Options:
 
 constexpr std::string_view usage_debug_str =
     R"(Allowed debug options: 'all', 'print-tokens', 'print-bytecode', 
-  'trace-execution', 'trace-gc', 'stress-gc'.
+  'trace-execution', 'trace-gc'.
 )";
 
 constexpr std::string_view greeting_str =
@@ -95,14 +94,11 @@ parse_arguments(int argc, const char** argv) {
                 result.vm_options.print_bytecode = true;
             } else if (opt == "trace-gc") {
                 result.vm_options.trace_gc = true;
-            } else if (opt == "stress-gc") {
-                result.vm_options.stress_gc = true;
             } else if (opt == "all") {
                 result.vm_options.print_bytecode = true;
                 result.vm_options.print_tokens = true;
                 result.vm_options.trace_execution = true;
                 result.vm_options.trace_gc = true;
-                result.vm_options.stress_gc = true;
             } else {
                 fmt::print(
                     stderr,

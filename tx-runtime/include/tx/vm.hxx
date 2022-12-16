@@ -21,7 +21,6 @@ struct VMOptions {
     bool print_tokens = false;
     bool print_bytecode = false;
     bool trace_gc = false;
-    bool stress_gc = false;
     // REPL specific options
     bool allow_pointer_to_source_content = true;
     bool allow_global_redefinition = false;
@@ -88,9 +87,10 @@ class Parser;
 using Allocator = std::pmr::polymorphic_allocator<std::byte>;
 
 class VM {
-    using CallFrames = DynArray<CallFrame, size_t>;
-    using Stack = DynArray<Value, size_t>;
-    using GlobalArray = DynArray<GlobalInfo, size_t>;
+    using CallFrames = DynArray<CallFrame>;
+    using Stack = DynArray<Value>;
+    using GlobalArray = DynArray<GlobalInfo>;
+    using GrayStack = DynArray<Obj*, size_t, false>;
 
     VMOptions options{};
     Allocator allocator{};
@@ -103,7 +103,10 @@ class VM {
     GlobalArray globals;
     ValueSet strings;
     ObjUpvalue* open_upvalues{nullptr};
+    size_t bytes_allocated{0};
+    size_t next_gc{1024 * 1024};
     gsl::owner<Obj*> objects = nullptr;
+    GrayStack gray_stack;
 
   public:
     VM() = delete;
@@ -222,6 +225,23 @@ class VM {
     inline void do_end_scope(CallFrame*& frame) noexcept;
 
     // Friends
+    friend constexpr void mark_roots(VM& tvm) noexcept;
+    friend constexpr void mark_compiler_roots(VM& tvm) noexcept;
+    friend constexpr void mark_object(VM& tvm, Obj* obj) noexcept;
+    friend constexpr void trace_references(VM& tvm) noexcept;
+    friend constexpr void sweep(VM& tvm) noexcept;
+    friend constexpr void collect_garbage(VM& tvm) noexcept;
+
+    template <bool TRIGGER_GC>
+    // constexpr
+    friend inline void* reallocate_impl(
+        VM& tvm,
+        void* pointer,
+        size_t old_size,
+        size_t new_size,
+        size_t alignment
+    ) noexcept;
+
     template <typename T, typename... Args>
     friend T*
     allocate_object_extra_size(VM& tvm, size_t extra, Args&&... args) noexcept;

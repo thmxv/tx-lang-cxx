@@ -127,9 +127,11 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
     const auto* existing = current_compiler->constant_indices.get(value);
     if (existing != nullptr) { return static_cast<size_t>(existing->as_int()); }
     // TODO: error if too much constants
+    parent_vm.push(value);
     auto idx = current_chunk().add_constant(parent_vm, value);
     current_compiler->constant_indices
         .set(parent_vm, value, Value{static_cast<int_t>(idx)});
+    parent_vm.pop();
     return idx;
 }
 
@@ -213,20 +215,15 @@ Parser::emit_closure(Compiler& compiler, ObjFunction& function) noexcept {
 
 [[nodiscard]] inline constexpr size_t Parser::emit_jump(OpCode instruction
 ) noexcept {
-    // emit_bytes(instruction);
-    // emit_multibyte_operand<2>(0xffff);
     emit_instruction<2>(instruction, 0xffff);
     return current_chunk().code.size() - 2;
 }
 
 inline constexpr void Parser::emit_loop(size_t loop_start) noexcept {
-    // emit_bytes(OpCode::LOOP);
-    // auto offset = current_chunk().code.size() - loop_start + 2;
     auto offset = current_chunk().code.size() - loop_start + 2 + 1;
     if (offset > std::numeric_limits<u16>::max()) {
         error("Loop body too large.");
     }
-    // emit_multibyte_operand<2>(offset);
     emit_instruction<2>(OpCode::LOOP, offset);
 }
 
@@ -246,12 +243,13 @@ inline void Parser::begin_compiler(
 ) noexcept {
     compiler.enclosing = current_compiler;
     compiler.function_type = type;
-    // Reserve first local for methods, use empty string as name to prevent use
-    compiler.locals.emplace_back(parent_vm, Token{.lexeme = ""}, 0, true);
     compiler.function = allocate_object<ObjFunction>(
         parent_vm,
         compiler.locals.size()
     );
+    current_compiler = &compiler;
+    // Reserve first local for methods, use empty string as name to prevent use
+    compiler.locals.emplace_back(parent_vm, Token{.lexeme = ""}, 0, true);
     if (type != FunctionType::SCRIPT && name_opt.has_value()) {
         compiler.function->name = make_string(
             parent_vm,
@@ -259,7 +257,6 @@ inline void Parser::begin_compiler(
             name_opt.value()
         );
     }
-    current_compiler = &compiler;
 }
 
 [[nodiscard]] inline constexpr ObjFunction& Parser::end_compiler() noexcept {
@@ -670,11 +667,14 @@ inline i32 Parser::resolve_global(const Token& name) noexcept {
 
 inline size_t
 Parser::add_global(Value identifier, GlobalSignature sig) noexcept {
-    return parent_vm.define_global(
+    parent_vm.push(identifier);
+    auto result = parent_vm.define_global(
         identifier,
         GlobalInfo{.signature = sig, .is_defined = false},
         Value{val_none}
     );
+    parent_vm.pop();
+    return result;
 }
 
 inline size_t Parser::declare_global_variable(bool is_const) noexcept {

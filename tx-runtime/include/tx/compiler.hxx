@@ -92,8 +92,8 @@ enum struct FunctionType {
 struct ObjFunction;
 
 struct Compiler {
-    using LocalArray = DynArray<Local, size_t>;
-    using UpvalueArray = DynArray<Upvalue, size_t>;
+    using LocalArray = DynArray<Local>;
+    using UpvalueArray = DynArray<Upvalue>;
 
     Compiler* enclosing{nullptr};
     ObjFunction* function{nullptr};
@@ -276,6 +276,9 @@ class Parser {
     constexpr TypeInfo call(TypeInfo, bool) noexcept;
     constexpr TypeInfo and_(TypeInfo, bool) noexcept;
     constexpr TypeInfo or_(TypeInfo, bool) noexcept;
+
+    // Friends
+    friend constexpr void mark_compiler_roots(VM& tvm) noexcept;
 };
 
 #ifdef __clang__

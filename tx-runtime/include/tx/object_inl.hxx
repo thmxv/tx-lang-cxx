@@ -3,6 +3,7 @@
 #include "tx/hash.hxx"
 #include "tx/object.hxx"
 #include "tx/memory.hxx"
+#include "tx/utils.hxx"
 #include "tx/vm.hxx"
 #include <type_traits>
 
@@ -56,14 +57,16 @@ T* allocate_object_extra_size(VM& tvm, size_t extra, Args&&... args) noexcept {
     object_ptr = std::construct_at<T>(object_ptr, std::forward<Args>(args)...);
     object_ptr->next_object = tvm.objects;
     tvm.objects = object_ptr;
-    // if constexpr (DEBUG_LOG_GC) {
-    //     fmt::print(
-    //         FMT_STRING("{} allocate {:d} for {}\n"),
-    //         fmt::ptr(ptr),
-    //         sizeof(T),
-    //         object->type
-    //     );
-    // }
+    if constexpr (HAS_DEBUG_FEATURES) {
+        if (tvm.get_options().trace_gc) {
+            fmt::print(
+                FMT_STRING("{} allocate {:d} for {}\n"),
+                fmt::ptr(object_ptr),
+                sizeof(T),
+                to_underlying(object_ptr->type)
+            );
+        }
+    }
     return object_ptr;
 }
 
@@ -99,7 +102,9 @@ make_string(VM& tvm, bool copy, std::string_view strv) noexcept {
         strv,
         hash
     );
+    tvm.push(Value(string));
     tvm.strings.add(tvm, Value{string});
+    tvm.pop();
     return string;
 }
 
