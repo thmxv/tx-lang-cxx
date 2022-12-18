@@ -209,7 +209,7 @@ inline constexpr VM::~VM() noexcept {
     frames.destroy(*this);
     global_indices.destroy(*this);
     global_values.destroy(*this);
-    globals.destroy(*this);
+    global_signatures.destroy(*this);
     strings.destroy(*this);
     free_objects(*this, objects);
     gray_stack.destroy(*this);
@@ -242,13 +242,18 @@ inline void VM::runtime_error_impl() noexcept {
     reset_stack();
 }
 
-// TX_VM_CONSTEXPR
-inline InterpretResult VM::interpret(std::string_view source) noexcept {
-    Parser current_parser(*this, source);
+inline ObjFunction* VM::compile(std::string_view source) noexcept {
+    Parser current_parser(*this);
     parser = &current_parser;
     ensure_stack_space(1);
-    ObjFunction* function = parser->compile();
+    ObjFunction* function = parser->compile(source);
     parser = nullptr;
+    return function;
+}
+
+// TX_VM_CONSTEXPR
+inline InterpretResult VM::interpret(std::string_view source) noexcept {
+    ObjFunction* function = compile(source);
     if (function == nullptr) { return InterpretResult::COMPILE_ERROR; }
     push(Value{function});
     auto* closure = make_closure(*this, *function);
@@ -262,11 +267,11 @@ inline InterpretResult VM::interpret(std::string_view source) noexcept {
 }
 
 inline constexpr size_t
-VM::define_global(Value name, GlobalInfo signature, Value val) noexcept {
+VM::define_global(Value name, Global signature, Value val) noexcept {
     // NOTE: maybe do the GC push/pop dance here
     auto new_index = global_values.size();
     global_values.push_back(*this, val);
-    globals.push_back(*this, signature);
+    global_signatures.push_back(*this, signature);
     global_indices.set(*this, name, Value{static_cast<int_t>(new_index)});
     return new_index;
 }
@@ -298,9 +303,10 @@ inline void VM::define_native(std::string_view name, NativeFn fun) noexcept {
     push(Value{allocate_object<ObjNative>(*this, fun)});
     define_global(
         stack[0],
-        GlobalInfo{
-            .signature = GlobalSignature{.is_const = true},
-            .is_defined = true},
+        Global{
+            .is_defined = true,
+            .is_const = true,
+        },
         stack[1]
     );
     pop();
@@ -335,7 +341,7 @@ inline constexpr void VM::ensure_stack_space(i32 needed) noexcept {
 [[nodiscard]] inline constexpr bool
 VM::call(ObjClosure& closure, size_t arg_c) noexcept {
     // TODO: make this a compile time error
-    if (arg_c != closure.function.arity) {
+    if (arg_c != closure.function.arity) [[unlikely]] {
         runtime_error(
             "Expected {:d} arguments but got {:d}.",
             closure.function.arity,
@@ -343,7 +349,7 @@ VM::call(ObjClosure& closure, size_t arg_c) noexcept {
         );
         return false;
     }
-    if (frames.size() == FRAMES_MAX) {
+    if (frames.size() == FRAMES_MAX) [[unlikely]] {
         runtime_error("Stack overflow.");
         return false;
     }
@@ -360,7 +366,7 @@ VM::call(ObjClosure& closure, size_t arg_c) noexcept {
 
 [[nodiscard]] inline constexpr bool
 VM::call_value(Value callee, size_t arg_c) noexcept {
-    if (callee.is_object()) {
+    if (callee.is_object()) [[likely]] {
         auto& obj = callee.as_object();
         switch (obj.type) {
             using enum ObjType;
@@ -372,7 +378,7 @@ VM::call_value(Value callee, size_t arg_c) noexcept {
                     *this,
                     NativeInOut(std::prev(stack.end(), arg_c + 1), arg_c + 1)
                 );
-                if (success == NativeResult::SUCCESS) {
+                if (success == NativeResult::SUCCESS) [[likely]] {
                     // Return value already put in right slot by native func.
                     // Do not erase it :)
                     stack.erase(std::prev(stack.cend(), arg_c), stack.cend());
@@ -385,7 +391,9 @@ VM::call_value(Value callee, size_t arg_c) noexcept {
                 );
                 return false;
             }
-            default: break;
+                // clang-format off
+            [[unlikely]] default : break;
+                // clang-format on
         }
     }
     // TODO: make this a compile time error
@@ -601,7 +609,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
 
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
-    // clang-format off
+// clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -678,13 +686,13 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_GLOBAL) : {
-                if (do_get_global<1>(frame)) {
+                if (do_get_global<1>(frame)) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GET_GLOBAL_LONG) : {
-                if (do_get_global<3>(frame)) {
+                if (do_get_global<3>(frame)) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
@@ -698,13 +706,13 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_GLOBAL) : {
-                if (do_set_global<1>(frame)) {
+                if (do_set_global<1>(frame)) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SET_GLOBAL_LONG) : {
-                if (do_set_global<3>(frame)) {
+                if (do_set_global<3>(frame)) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
@@ -738,54 +746,54 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GREATER) : {
-                if (binary_op<std::greater>()) {
+                if (binary_op<std::greater>()) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(LESS) : {
-                if (binary_op<std::less>()) {
+                if (binary_op<std::less>()) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(GREATER_EQUAL) : {
-                if (binary_op<std::greater_equal>()) {
+                if (binary_op<std::greater_equal>()) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(LESS_EQUAL) : {
-                if (binary_op<std::less_equal>()) {
+                if (binary_op<std::less_equal>()) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(ADD) : {
-                if (binary_op<std::plus>()) {
+                if (binary_op<std::plus>()) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(SUBSTRACT) : {
-                if (binary_op<std::minus>()) {
+                if (binary_op<std::minus>()) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(MULTIPLY) : {
-                if (binary_op<std::multiplies>()) {
+                if (binary_op<std::multiplies>()) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(DIVIDE) : {
                 if (peek(0).is_int() && peek(1).is_int()
-                    && peek(0).as_int() == 0) {
+                    && peek(0).as_int() == 0) [[unlikely]] {
                     runtime_error("Integer division by zero.");
                     return InterpretResult::RUNTIME_ERROR;
                 }
-                if (binary_op<std::divides>()) {
+                if (binary_op<std::divides>()) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 TX_VM_BREAK();
@@ -795,7 +803,9 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
                 TX_VM_BREAK();
             }
             TX_VM_CASE(NEGATE) : {
-                if (negate_op()) { return InterpretResult::RUNTIME_ERROR; }
+                if (negate_op()) [[unlikely]] {
+                    return InterpretResult::RUNTIME_ERROR;
+                }
                 TX_VM_BREAK();
             }
             TX_VM_CASE(JUMP) : {
@@ -824,7 +834,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
             }
             TX_VM_CASE(CALL) : {
                 auto arg_count = frame->read_multibyte_operand<1>();
-                if (!call_value(peek(arg_count), arg_count)) {
+                if (!call_value(peek(arg_count), arg_count)) [[unlikely]] {
                     return InterpretResult::RUNTIME_ERROR;
                 }
                 frame = &frames.back();
@@ -851,7 +861,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
                 const auto* frame_slots = frame->slots;
                 close_upvalues(frame_slots);
                 frames.pop_back();
-                if (frames.empty()) {
+                if (frames.empty()) [[unlikely]] {
                     pop();
                     assert(stack.empty());
                     return InterpretResult::OK;
@@ -866,7 +876,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-// clang-format off
+    // clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK

@@ -4,7 +4,6 @@
 #include "tx/fixed_array.hxx"
 #include "tx/scanner.hxx"
 #include "tx/table.hxx"
-#include "tx/vm.hxx"
 
 #include <gsl/gsl>
 
@@ -62,6 +61,18 @@ struct Local {
             : name(name_)
             , depth(dpth)
             , is_const(is_constant) {}
+};
+
+struct Global {
+    static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
+
+    bool is_defined{false};
+    bool is_const{true};
+
+    friend constexpr bool operator==(const Global& lhs, const Global& rhs) {
+        // FIXME: Maybe make a substructure with signature without is_defined
+        return lhs.is_const == rhs.is_const;
+    }
 };
 
 struct Loop {
@@ -127,7 +138,7 @@ using ParameterList = DynArray<Parameter>;
 
 class Parser {
     VM& parent_vm;
-    Scanner scanner;
+    Scanner* scanner{nullptr};
     Token current{};
     Token previous{};
     bool had_error{false};
@@ -135,11 +146,9 @@ class Parser {
     Compiler* current_compiler{nullptr};
 
   public:
-    constexpr Parser(VM& tvm, std::string_view source) noexcept
-            : parent_vm(tvm)
-            , scanner(parent_vm, source) {}
+    constexpr explicit Parser(VM& tvm) noexcept : parent_vm(tvm) {}
 
-    [[nodiscard]] ObjFunction* compile() noexcept;
+    [[nodiscard]] ObjFunction* compile(std::string_view source) noexcept;
 
   private:
     void error_at_impl(const Token& token) noexcept;
@@ -243,8 +252,7 @@ class Parser {
 
     [[nodiscard]] i32 resolve_global(const Token& name) noexcept;
 
-    [[nodiscard]] size_t
-    add_global(Value identifier, GlobalSignature sig) noexcept;
+    [[nodiscard]] size_t add_global(Value identifier, Global sig) noexcept;
 
     [[nodiscard]] size_t declare_global_variable(bool is_const) noexcept;
     constexpr void add_local(const Token& name, bool is_const) noexcept;

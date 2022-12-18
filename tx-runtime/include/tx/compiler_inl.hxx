@@ -47,7 +47,11 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
     };
 }
 
-[[nodiscard]] inline ObjFunction* Parser::compile() noexcept {
+[[nodiscard]] inline ObjFunction* Parser::compile(std::string_view source
+) noexcept {
+    assert(scanner == nullptr);
+    Scanner lex(parent_vm, source);
+    scanner = &lex;
     Compiler comp{};
     begin_compiler(comp, FunctionType::SCRIPT, std::nullopt);
     advance();
@@ -55,13 +59,19 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
     emit_instruction(OpCode::NIL);
     auto& fun = end_compiler();
     comp.destroy(parent_vm);
-    for (const auto& [name, idx] : parent_vm.global_indices) {
-        const auto& global = parent_vm.globals[size_cast(idx.as_int())];
-        if (!global.is_defined) {
-            error(
-                FMT_STRING("Global variable '{}' declared but not defined."),
-                name.as_object().as<ObjString>()
-            );
+    scanner = nullptr;
+    // TODO: Maybe do not do this at all
+    if (!parent_vm.options.allow_end_compile_with_undefined_global) {
+        for (const auto& [name, idx] : parent_vm.global_indices) {
+            const auto& global =
+                parent_vm.global_signatures[size_cast(idx.as_int())];
+            if (!global.is_defined) {
+                error(
+                    FMT_STRING("Global variable '{}' declared but not defined."
+                    ),
+                    name.as_object().as<ObjString>()
+                );
+            }
         }
     }
     return had_error ? nullptr : &fun;
@@ -83,7 +93,7 @@ inline void Parser::error_at_impl(const Token& token) noexcept {
 inline constexpr void Parser::advance() noexcept {
     previous = current;
     for (;;) {
-        current = scanner.scan_token();
+        current = scanner->scan_token();
         if constexpr (HAS_DEBUG_FEATURES) {
             if (parent_vm.options.print_tokens) { print_token(current); }
         }
@@ -488,9 +498,9 @@ Parser::named_variable(const Token& name, bool can_assign) noexcept {
     } else if ((idx = resolve_global(name)) != -1) {
         get_op = OpCode::GET_GLOBAL;
         set_op = OpCode::SET_GLOBAL;
-        is_const = parent_vm.globals[idx].signature.is_const;
+        is_const = parent_vm.global_signatures[idx].is_const;
         if (current_compiler->scope_depth == 0) {
-            if (!parent_vm.globals[idx].is_defined) {
+            if (!parent_vm.global_signatures[idx].is_defined) {
                 error(FMT_STRING(
                     "Use of forward declared global before definition."
                 ));
@@ -678,21 +688,16 @@ inline i32 Parser::resolve_global(const Token& name) noexcept {
     return -1;
 }
 
-inline size_t
-Parser::add_global(Value identifier, GlobalSignature sig) noexcept {
+inline size_t Parser::add_global(Value identifier, Global sig) noexcept {
     parent_vm.push(identifier);
-    auto result = parent_vm.define_global(
-        identifier,
-        GlobalInfo{.signature = sig, .is_defined = false},
-        Value{val_none}
-    );
+    auto result = parent_vm.define_global(identifier, sig, Value{val_none});
     parent_vm.pop();
     return result;
 }
 
 inline size_t Parser::declare_global_variable(bool is_const) noexcept {
     assert(current_compiler->scope_depth == 0);
-    GlobalSignature sig{is_const};
+    Global sig{.is_const = is_const};
     const auto& name = previous;
     auto identifier = Value{make_string(
         parent_vm,
@@ -702,9 +707,9 @@ inline size_t Parser::declare_global_variable(bool is_const) noexcept {
     const auto* idx_ptr = parent_vm.global_indices.get(identifier);
     if (idx_ptr != nullptr) {
         const auto idx = size_cast(idx_ptr->as_int());
-        const auto global_info = parent_vm.globals[idx];
-        if (sig == global_info.signature) {
-            if (!global_info.is_defined) {
+        const auto global = parent_vm.global_signatures[idx];
+        if (sig == global) {
+            if (!global.is_defined) {
                 // definition of a (forward) declared but not yet defined var
             } else if (!parent_vm.options.allow_global_redefinition) {
                 error(FMT_STRING("Redefinition of global variable."));
@@ -763,7 +768,7 @@ inline constexpr i32 Parser::parse_variable(std::string_view error_message
 inline constexpr void Parser::mark_initialized(i32 global_idx) noexcept {
     if (current_compiler->scope_depth == 0) {
         assert(global_idx >= 0);
-        parent_vm.globals[global_idx].is_defined = true;
+        parent_vm.global_signatures[global_idx].is_defined = true;
         return;
     }
     current_compiler->locals.back().depth = current_compiler->scope_depth;

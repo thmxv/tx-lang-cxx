@@ -2,6 +2,7 @@
 
 #include "tx/chunk.hxx"
 #include "tx/common.hxx"
+#include "tx/compiler.hxx"
 #include "tx/fixed_array.hxx"
 
 #include "tx/table.hxx"
@@ -25,25 +26,7 @@ struct VMOptions {
     // REPL specific options
     bool allow_pointer_to_source_content = true;
     bool allow_global_redefinition = false;
-};
-
-// Move to compiler.hxx
-struct GlobalSignature {
-    bool is_const{true};
-
-    friend constexpr bool operator==(
-        const GlobalSignature& lhs,
-        const GlobalSignature& rhs
-    ) = default;
-};
-// Move to compiler.hxx
-struct GlobalInfo {
-    static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
-
-    GlobalSignature signature;
-    // NOTE: globals are defined at runtine and are == val_none when not defined
-    // This is set at compile time in order to detect use before defininiton
-    bool is_defined{false};
+    bool allow_end_compile_with_undefined_global = false;
 };
 
 struct CallFrame {
@@ -64,9 +47,6 @@ struct CallFrame {
 
     [[nodiscard]] constexpr ByteCode read_byte() noexcept;
 
-    [[nodiscard]] constexpr std::tuple<bool, size_t> read_closure_operand(
-    ) noexcept;
-
     template <u32 N>
     [[nodiscard]] constexpr size_t read_multibyte_operand() noexcept {
         auto result = ::tx::read_multibyte_operand<N>(instruction_ptr);
@@ -80,6 +60,9 @@ struct CallFrame {
         return closure.function.chunk.constants[size_cast(constant_idx)];
     }
 
+    [[nodiscard]] constexpr std::tuple<bool, size_t> read_closure_operand(
+    ) noexcept;
+
     void print_instruction() const noexcept;
 };
 
@@ -90,24 +73,26 @@ using Allocator = std::pmr::polymorphic_allocator<std::byte>;
 class VM {
     using CallFrames = DynArray<CallFrame>;
     using Stack = DynArray<Value>;
-    using GlobalArray = DynArray<GlobalInfo>;
+    using GlobalArray = DynArray<Global>;
     using GrayStack = DynArray<Obj*, size_t, false>;
 
     VMOptions options{};
     Allocator allocator{};
-    Parser* parser = nullptr;
+    Parser* parser{nullptr};
     CallFrames frames{};
     Stack stack;
-    ValueMap global_indices;
     ValueArray global_values;
-    // Move to Parser
-    GlobalArray globals;
     ValueSet strings;
     ObjUpvalue* open_upvalues{nullptr};
     size_t bytes_allocated{0};
-    size_t next_gc{1024 * 1024};
+    size_t next_gc{GC_START};
     gsl::owner<Obj*> objects = nullptr;
     GrayStack gray_stack;
+
+    // Only strictly needed by the parser,
+    // but need to persist for REPL and error messages
+    ValueMap global_indices;
+    GlobalArray global_signatures;
 
   public:
     VM() = delete;
@@ -133,6 +118,8 @@ class VM {
 
     // TX_VM_CONSTEXPR
     InterpretResult interpret(std::string_view source) noexcept;
+
+    inline ObjFunction* compile(std::string_view source) noexcept;
 
     // TX_VM_CONSTEXPR
     [[gnu::flatten]] InterpretResult run() noexcept;
@@ -171,7 +158,7 @@ class VM {
     void debug_trace(const ByteCode* iptr) const noexcept;
 
     constexpr size_t
-    define_global(Value name, GlobalInfo signature, Value val) noexcept;
+    define_global(Value name, Global signature, Value val) noexcept;
 
     [[nodiscard]] constexpr std::string_view get_global_name(size_t index
     ) const noexcept;

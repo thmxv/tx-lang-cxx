@@ -256,6 +256,7 @@ int main(int argc, const char** argv) noexcept {
     if (args.file_path == nullptr) {
         tvm.get_options().allow_pointer_to_source_content = false;
         tvm.get_options().allow_global_redefinition = true;
+        tvm.get_options().allow_end_compile_with_undefined_global = true;
         tx::run_repl(tvm);
     } else {
         if (args.use_stdin) {
@@ -263,8 +264,6 @@ int main(int argc, const char** argv) noexcept {
                 FMT_STRING("UNIMPLEMENTED: Cannot read from <stdin> yet.\n")
             );
         } else {
-            // tvm.get_options().allow_pointer_to_souce_content = false;
-            // tvm.get_options().allow_global_redefinition = true;
             tx::run_file(tvm, args.file_path);
         }
     }

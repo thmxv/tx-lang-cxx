@@ -38,6 +38,7 @@ inline constexpr size_t FRAMES_MAX = 1U << 10U;
 inline constexpr size_t STACK_START = FRAMES_START * 256;
 inline constexpr size_t LOCALS_MAX = 1U << 24U;
 inline constexpr size_t MAX_UPVALUES = 1U << 24U;
+inline constexpr size_t GC_START = size_t{1024} * 1024;
 
 // Usefull short type aliases
 using i8 = std::int8_t;
