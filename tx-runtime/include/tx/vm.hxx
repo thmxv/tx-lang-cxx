@@ -5,6 +5,7 @@
 #include "tx/fixed_array.hxx"
 
 #include "tx/table.hxx"
+#include <fmt/core.h>
 #include <memory_resource>
 #include <string_view>
 
@@ -159,8 +160,9 @@ class VM {
     void runtime_error_impl() noexcept;
 
     template <typename... Args>
-    void runtime_error(std::string_view fmt, Args&&... args) noexcept {
-        fmt::print(stderr, fmt::runtime(fmt), std::forward<Args>(args)...);
+    void
+    runtime_error(fmt::format_string<Args...> fmt, Args&&... args) noexcept {
+        fmt::print(stderr, fmt, args...);
         runtime_error_impl();
     }
 

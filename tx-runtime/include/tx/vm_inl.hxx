@@ -139,7 +139,7 @@ inline NativeResult std_sleep_for_native(VM& /*tvm*/, NativeInOut inout) {
 inline NativeResult std_println_native(VM& /*tvm*/, NativeInOut inout) {
     const auto args = inout.args();
     assert(args.size() == 1);
-    fmt::print("{}\n", args[0]);
+    fmt::print(FMT_STRING("{}\n"), args[0]);
     inout.return_value() = Value{val_nil};
     return NativeResult::SUCCESS;
 }
@@ -226,7 +226,7 @@ inline constexpr void VM::reset_stack() noexcept {
 }
 
 inline void VM::runtime_error_impl() noexcept {
-    fmt::print(stderr, "\n");
+    fmt::print(stderr, FMT_STRING("\n"));
     for (size_t i = frames.size() - 1; i >= 0; --i) {
         const auto& frame = frames[i];
         const auto& function = frame.closure.function;
@@ -234,7 +234,7 @@ inline void VM::runtime_error_impl() noexcept {
                            - 1;
         fmt::print(
             stderr,
-            "[line {:d}] in {:s}\n",
+            FMT_STRING("[line {:d}] in {:s}\n"),
             function.chunk.get_line(static_cast<i32>(instruction)),
             function.get_display_name()
         );
@@ -379,7 +379,10 @@ VM::call_value(Value callee, size_t arg_c) noexcept {
                     return true;
                 }
                 const auto& return_value = *std::prev(stack.cend(), arg_c + 1);
-                runtime_error(return_value.as_object().as<ObjString>());
+                runtime_error(
+                    FMT_STRING("{:s}"),
+                    return_value.as_object().as<ObjString>()
+                );
                 return false;
             }
             default: break;
@@ -598,7 +601,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
 
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
-// clang-format off
+    // clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -863,7 +866,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-    // clang-format off
+// clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK

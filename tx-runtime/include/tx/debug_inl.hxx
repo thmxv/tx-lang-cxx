@@ -54,7 +54,7 @@ constant_instruction(const ByteCode* ptr, const Chunk& chunk) noexcept {
     assert(count == N);
     const auto constant_idx = read_multibyte_operand<N>(std::next(ptr));
     fmt::print(
-        "{:18s} {:4d} '{}'\n",
+        FMT_STRING("{:18s} {:4d} '{}'\n"),
         name,
         constant_idx,
         chunk.constants[size_cast(constant_idx)]
@@ -73,7 +73,7 @@ closure_instruction(const ByteCode* ptr, const Chunk& chunk) noexcept {
     const auto constant_idx = read_multibyte_operand<N>(ptr);
     std::advance(ptr, N);
     fmt::print(
-        "{:18s} {:4d} '{}'\n",
+        FMT_STRING("{:18s} {:4d} '{}'\n"),
         name,
         constant_idx,
         chunk.constants[size_cast(constant_idx)]
@@ -101,7 +101,7 @@ template <u32 N>
     const auto count = get_byte_count_following_opcode(instruction);
     assert(count == N);
     const auto constant_idx = read_multibyte_operand<N>(std::next(ptr));
-    fmt::print("{:18s} {:4d}\n", name, constant_idx);
+    fmt::print(FMT_STRING("{:18s} {:4d}\n"), name, constant_idx);
     return std::next(ptr, 1 + N);
 }
 
@@ -115,7 +115,7 @@ jump_instruction(const ByteCode* ptr, size_t sign, size_t offset) {
     const auto jump = static_cast<u16>(read_multibyte_operand<2>(std::next(ptr))
     );
     fmt::print(
-        "{:18s} {:4d} -> {:d}\n",
+        FMT_STRING("{:18s} {:4d} -> {:d}\n"),
         name,
         offset,
         offset + 1 + 2 + sign * jump
@@ -198,7 +198,7 @@ inline void print_token(const Token& token) noexcept {
         fmt::print(FMT_STRING("{:4d} "), token.line);
         line = token.line;
     } else {
-        fmt::print("   | ");
+        fmt::print(FMT_STRING("   | "));
     }
     // TODO: trim, remove newlines and other perturbing chars, ...
     fmt::print(
@@ -207,7 +207,7 @@ inline void print_token(const Token& token) noexcept {
         token.lexeme
     );
     if (!token.value.is_none()) { fmt::print(FMT_STRING("{}"), token.value); }
-    fmt::print("\n");
+    fmt::print(FMT_STRING("\n"));
 }
 
 inline void print_tokens(VM& tvm, std::string_view source) noexcept {

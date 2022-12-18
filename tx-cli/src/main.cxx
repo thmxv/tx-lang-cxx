@@ -47,11 +47,15 @@ V_/_    https://github.com/thmxv/tx-lang
 
 void print_title() noexcept { fmt::print(FMT_STRING("Tx v{}\n"), tx::VERSION); }
 
-void print_greeting() noexcept { fmt::print(greeting_str, tx::VERSION); }
+void print_greeting() noexcept {
+    fmt::print(FMT_STRING(greeting_str), tx::VERSION);
+}
 
-void print_usage() noexcept { fmt::print(usage_str); }
+void print_usage() noexcept { fmt::print(FMT_STRING(usage_str)); }
 
-void print_debug_usage() noexcept { fmt::print(stderr, usage_debug_str); }
+void print_debug_usage() noexcept {
+    fmt::print(stderr, FMT_STRING(usage_debug_str));
+}
 
 struct ArgsOptions {
     bool help = false;
@@ -79,7 +83,7 @@ parse_arguments(int argc, const char** argv) {
             if (idx >= args.size()) {
                 fmt::print(
                     stderr,
-                    "Expecting debug option argument after '-D'.\n"
+                    FMT_STRING("Expecting debug option argument after '-D'.\n")
                 );
                 print_debug_usage();
                 tx::print_usage();
@@ -112,7 +116,10 @@ parse_arguments(int argc, const char** argv) {
         } else if (arg == "-c" or arg == "--command") {
             ++idx;
             if (idx >= args.size()) {
-                fmt::print(stderr, "Expecting command argument after '-c'.\n");
+                fmt::print(
+                    stderr,
+                    FMT_STRING("Expecting command argument after '-c'.\n")
+                );
                 tx::print_usage();
                 return std::nullopt;
             }
@@ -208,9 +215,9 @@ void run_repl(VM& tvm) {
     print_greeting();
     std::array<char, REPL_LINE_MAX_LEN> line{};
     while (true) {
-        fmt::print("\n> ");
+        fmt::print(FMT_STRING("\n> "));
         if (std::fgets(line.begin(), line.size(), stdin) == nullptr) {
-            fmt::print("\n");
+            fmt::print(FMT_STRING("\n"));
             break;
         }
         const std::string_view source{line.data()};

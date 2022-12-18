@@ -212,7 +212,11 @@ inline constexpr void mark_roots(VM& tvm) noexcept {
 inline constexpr void blacken_object(VM& tvm, Obj* obj) noexcept {
     if constexpr (HAS_DEBUG_FEATURES) {
         if (tvm.get_options().trace_gc) {
-            fmt::print("{} blacken {}\n", fmt::ptr(obj), Value(obj));
+            fmt::print(
+                FMT_STRING("{} blacken {}\n"),
+                fmt::ptr(obj),
+                Value(obj)
+            );
         }
     }
     switch (obj->type) {
@@ -276,7 +280,9 @@ table_remove_white(VM& /*tvm*/, ValueMap& table) noexcept {
 
 inline constexpr void collect_garbage(VM& tvm) noexcept {
     if constexpr (HAS_DEBUG_FEATURES) {
-        if (tvm.get_options().trace_gc) { fmt::print("-- GC begin\n"); }
+        if (tvm.get_options().trace_gc) {
+            fmt::print(FMT_STRING("-- GC begin\n"));
+        }
     }
     auto before = tvm.bytes_allocated;
     mark_roots(tvm);

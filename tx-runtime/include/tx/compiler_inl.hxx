@@ -55,35 +55,29 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
     emit_instruction(OpCode::NIL);
     auto& fun = end_compiler();
     comp.destroy(parent_vm);
-    for (const auto& val : parent_vm.globals) {
-        if (!val.is_defined) {
-            error("Global variable declared but not defined.");
+    for (const auto& [name, idx] : parent_vm.global_indices) {
+        const auto& global = parent_vm.globals[size_cast(idx.as_int())];
+        if (!global.is_defined) {
+            error(
+                FMT_STRING("Global variable '{}' declared but not defined."),
+                name.as_object().as<ObjString>()
+            );
         }
     }
     return had_error ? nullptr : &fun;
 }
 
-inline void
-Parser::error_at(const Token& token, std::string_view message) noexcept {
-    if (panic_mode) { return; }
+inline void Parser::error_at_impl(const Token& token) noexcept {
     panic_mode = true;
     had_error = true;
-    fmt::print(stderr, "[line {:d}] Error", token.line);
+    fmt::print(stderr, FMT_STRING("[line {:d}] Error"), token.line);
     if (token.type == TokenType::END_OF_FILE) {
-        fmt::print(stderr, " at end");
+        fmt::print(stderr, FMT_STRING(" at end: "));
     } else if (token.type == TokenType::ERROR) {
+        fmt::print(stderr, FMT_STRING(": "));
     } else {
-        fmt::print(stderr, " at '{:s}'", token.lexeme);
+        fmt::print(stderr, FMT_STRING(" at '{:s}': "), token.lexeme);
     }
-    fmt::print(stderr, ": {:s}\n", message);
-}
-
-inline void Parser::error(std::string_view message) noexcept {
-    error_at(previous, message);
-}
-
-inline void Parser::error_at_current(std::string_view message) noexcept {
-    error_at(current, message);
 }
 
 inline constexpr void Parser::advance() noexcept {
@@ -94,7 +88,7 @@ inline constexpr void Parser::advance() noexcept {
             if (parent_vm.options.print_tokens) { print_token(current); }
         }
         if (current.type != TokenType::ERROR) { break; }
-        error_at_current(current.lexeme.cbegin());
+        error_at_current(FMT_STRING("{:s}"), current.lexeme);
     }
 }
 
@@ -104,7 +98,7 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
         advance();
         return;
     }
-    error_at_current(message);
+    error_at_current(FMT_STRING("{:s}"), message);
 }
 
 [[nodiscard]] inline constexpr bool Parser::check(TokenType type
@@ -223,7 +217,7 @@ Parser::emit_closure(Compiler& compiler, ObjFunction& function) noexcept {
 inline constexpr void Parser::emit_loop(size_t loop_start) noexcept {
     auto offset = current_chunk().code.size() - loop_start + 2 + 1;
     if (offset > std::numeric_limits<u16>::max()) {
-        error("Loop body too large.");
+        error(FMT_STRING("Loop body too large."));
     }
     emit_instruction<2>(OpCode::LOOP, offset);
 }
@@ -231,7 +225,7 @@ inline constexpr void Parser::emit_loop(size_t loop_start) noexcept {
 inline constexpr void Parser::patch_jump(i32 offset) noexcept {
     auto jump_distance = current_chunk().code.size() - offset - 2;
     if (jump_distance > std::numeric_limits<u16>::max()) {
-        error("Too much code to jump over.");
+        error(FMT_STRING("Too much code to jump over."));
     }
     auto* ptr = &current_chunk().code[offset];
     ::tx::write_multibyte_operand<2>(ptr, jump_distance);
@@ -266,9 +260,12 @@ inline void Parser::begin_compiler(
     if constexpr (HAS_DEBUG_FEATURES) {
         if (parent_vm.get_options().print_bytecode) {
             if (!had_error) {
-                // fmt::print("Argument count: {:d}\n", fun->arity);
-                // fmt::print("Upvalue count: {:d}\n", fun->upvalue_count);
-                // fmt::print("Max slots: {:d}\n", fun->max_slots);
+                // fmt::print(FMT_STRING("Argument count: {:d}\n"), fun.arity);
+                // fmt::print(
+                //     FMT_STRING("Upvalue count: {:d}\n"),
+                //     fun.upvalue_count
+                // );
+                // fmt::print(FMT_STRING("Max slots: {:d}\n"), fun.max_slots);
                 disassemble_chunk(current_chunk(), fun.get_display_name());
             }
         }
@@ -381,7 +378,9 @@ Parser::binary(TypeInfo lhs, bool /*can_assign*/) noexcept {
     do {
         if (check(RIGHT_PAREN)) { break; }
         expression();
-        if (arg_count == 255) { error("Can't have more than 255 arguments."); }
+        if (arg_count == 255) {
+            error(FMT_STRING("Can't have more than 255 arguments."));
+        }
         ++arg_count;
     } while (match(COMMA));
     consume(RIGHT_PAREN, "Expect ')' after arguments.");
@@ -424,7 +423,9 @@ Parser::resolve_local(Compiler& compiler, const Token& name) noexcept {
         const Local& local = compiler.locals[i];
         if (identifiers_equal(name, local.name)) {
             if (local.depth == -1) {
-                error("Can't read local variable in its own initializer.");
+                error(FMT_STRING(
+                    "Can't read local variable in its own initializer."
+                ));
             }
             return i;
         }
@@ -446,7 +447,7 @@ inline constexpr size_t Parser::add_upvalue(
         }
     }
     if (upvalue_count == MAX_UPVALUES) {
-        error("Too much closure variables in function.");
+        error(FMT_STRING("Too much closure variables in function."));
         return 0;
     }
     compiler.upvalues.emplace_back(parent_vm, index, is_local, is_const);
@@ -490,15 +491,17 @@ Parser::named_variable(const Token& name, bool can_assign) noexcept {
         is_const = parent_vm.globals[idx].signature.is_const;
         if (current_compiler->scope_depth == 0) {
             if (!parent_vm.globals[idx].is_defined) {
-                error("Use of forward declared global before definition.");
+                error(FMT_STRING(
+                    "Use of forward declared global before definition."
+                ));
             }
         }
     } else {
-        error("Cannot find value with this name in current scope.");
+        error(FMT_STRING("Cannot find value with this name in current scope."));
         return TypeInfo{};
     }
     if (can_assign && match(EQUAL)) {
-        if (is_const) { error("Immutable assignment target."); }
+        if (is_const) { error(FMT_STRING("Immutable assignment target.")); }
         auto rhs = expression();
         (void)rhs;
         emit_var_length_instruction(set_op, idx);
@@ -540,7 +543,9 @@ inline constexpr TypeInfo Parser::block_no_scope() noexcept {
                         emit_instruction(OpCode::POP);
                         continue;
                     }
-                    error("Expect ';' or '}' after expression inside block.");
+                    error(FMT_STRING(
+                        "Expect ';' or '}}' after expression inside block."
+                    ));
             }
         }
     }
@@ -577,7 +582,8 @@ inline constexpr TypeInfo Parser::if_expr(bool /*can_assign*/) noexcept {
                 advance();
                 else_result = block();
                 break;
-            default: error_at_current("Expect '{' before else body.");
+            default:
+                error_at_current(FMT_STRING("Expect '{{' before else body."));
         }
     } else {
         else_result = TypeInfo{};
@@ -644,7 +650,7 @@ Parser::parse_precedence(Precedence precedence, bool do_advance) noexcept {
     auto token_type = previous.type;
     const ParsePrefixFn prefix_rule = get_rule(previous.type).prefix;
     if (prefix_rule == nullptr) {
-        error("Expect expression.");
+        error(FMT_STRING("Expect expression."));
         return ParseResult{.token_type = ERROR, .type_info = {}};
     }
     const bool can_assign = precedence <= Precedence::ASSIGNMENT;
@@ -655,7 +661,9 @@ Parser::parse_precedence(Precedence precedence, bool do_advance) noexcept {
         const ParseInfixFn infix_rule = get_rule(previous.type).infix;
         result = std::invoke(infix_rule, *this, result, can_assign);
     }
-    if (can_assign && match(EQUAL)) { error("Invalid assignment target."); }
+    if (can_assign && match(EQUAL)) {
+        error(FMT_STRING("Invalid assignment target."));
+    }
     return ParseResult{.token_type = token_type, .type_info = result};
 }
 
@@ -699,10 +707,10 @@ inline size_t Parser::declare_global_variable(bool is_const) noexcept {
             if (!global_info.is_defined) {
                 // definition of a (forward) declared but not yet defined var
             } else if (!parent_vm.options.allow_global_redefinition) {
-                error("Redefinition of global variable.");
+                error(FMT_STRING("Redefinition of global variable."));
             }
         } else {
-            error("Redeclaration of global variable.");
+            error(FMT_STRING("Redeclaration of global variable."));
         }
     }
     return idx_ptr == nullptr ? add_global(identifier, sig)
@@ -712,7 +720,7 @@ inline size_t Parser::declare_global_variable(bool is_const) noexcept {
 inline constexpr void
 Parser::add_local(const Token& name, bool is_const) noexcept {
     if (current_compiler->locals.size() == LOCALS_MAX) {
-        error("Too many local variables in function.");
+        error(FMT_STRING("Too many local variables in function."));
         return;
     }
     current_compiler->locals.emplace_back(parent_vm, name, -1, is_const);
@@ -729,17 +737,20 @@ Parser::declare_local_variable(const Token& name, bool is_const) noexcept {
             break;
         }
         if (identifiers_equal(name, local.name)) {
-            error_at(name, "Already a variable with this name in this scope.");
+            error_at(
+                name,
+                FMT_STRING("Already a variable with this name in this scope.")
+            );
         }
     }
     add_local(name, is_const);
 }
 
-inline constexpr i32 Parser::parse_variable(const char* error_message
+inline constexpr i32 Parser::parse_variable(std::string_view error_message
 ) noexcept {
     auto is_const = previous.type != VAR;
     if (!match(TokenType::IDENTIFIER)) {
-        error_at_current(error_message);
+        error_at_current(FMT_STRING("{:s}"), error_message);
         return -1;
     }
     if (current_compiler->scope_depth > 0) {
@@ -775,7 +786,8 @@ inline constexpr ParameterList Parser::parameter_list() noexcept {
     do {
         if (check(RIGHT_PAREN)) { break; }
         if (result.size() == 255) {
-            error_at_current("Can't have more than 255 parameters.");
+            error_at_current(FMT_STRING("Can't have more than 255 parameters.")
+            );
         }
         // TODO: need in, out or inout (in by default)
         // what about out for immutable types? -> error
@@ -783,7 +795,7 @@ inline constexpr ParameterList Parser::parameter_list() noexcept {
         // places
         auto is_const = previous.type != OUT;
         if (!match(TokenType::IDENTIFIER)) {
-            error_at_current("Expect parameter name.");
+            error_at_current(FMT_STRING("Expect parameter name."));
         }
         result.emplace_back(parent_vm, previous, is_const);
     } while (match(COMMA));
@@ -837,7 +849,9 @@ inline constexpr void Parser::var_declaration() noexcept {
         define_variable(global_idx);
     } else {
         if (current_compiler->scope_depth > 0) {
-            error("Local variable should be initialized in declaration.");
+            error(FMT_STRING(
+                "Local variable should be initialized in declaration."
+            ));
         }
     }
     consume(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
@@ -878,7 +892,7 @@ inline constexpr void Parser::emit_pop_innermost_loop(bool skip_top_expression
 
 inline constexpr void Parser::break_statement() noexcept {
     if (current_compiler->innermost_loop == nullptr) {
-        error("Can't use 'break' outside of a loop.");
+        error(FMT_STRING("Can't use 'break' outside of a loop."));
     }
     const bool is_loop_expr = current_compiler->innermost_loop->is_loop_expr;
     if (is_loop_expr) {
@@ -898,7 +912,7 @@ inline constexpr void Parser::break_statement() noexcept {
 
 inline constexpr void Parser::continue_statement() noexcept {
     if (current_compiler->innermost_loop == nullptr) {
-        error("Can't use 'continue' outside of a loop.");
+        error(FMT_STRING("Can't use 'continue' outside of a loop."));
     }
     consume(SEMICOLON, "Expect ; after 'continue'.");
     emit_pop_innermost_loop(false);
@@ -907,7 +921,7 @@ inline constexpr void Parser::continue_statement() noexcept {
 
 inline constexpr void Parser::return_statement() noexcept {
     if (current_compiler->function_type == FunctionType::SCRIPT) {
-        error("Can't return from top-level code.");
+        error(FMT_STRING("Can't return from top-level code."));
     }
     if (match(SEMICOLON)) {
         emit_instruction(OpCode::NIL);
@@ -951,7 +965,7 @@ inline constexpr std::optional<ParseResult> Parser::statement_or_expression(
             return std::nullopt;
         }
         if (!check(LEFT_PAREN)) {
-            error("Expect function name or '(' after 'fn'.");
+            error(FMT_STRING("Expect function name or '(' after 'fn'."));
         }
         return expression(false);
     }

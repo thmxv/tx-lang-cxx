@@ -139,27 +139,33 @@ class Parser {
             : parent_vm(tvm)
             , scanner(parent_vm, source) {}
 
-    // constexpr ~Parser() {}
-    // Parser(const Parser&) = delete;
-    // Parser(Parser&&) = delete;
-    // Parser& operator=(const Parser&) = delete;
-    // Parser& operator=(Parser&&) = delete;
-
     [[nodiscard]] ObjFunction* compile() noexcept;
 
   private:
-    void error_at(const Token& token, std::string_view message) noexcept;
+    void error_at_impl(const Token& token) noexcept;
 
-    // template <typename... Args>
-    // void error_at(const Token& token, std::string_view fmt, Args&&... args)
-    // noexcept {
-    //     error_at_impl(token);
-    //     fmt::print(stderr, fmt::runtime(fmt), args...);
-    //     fmt::print(stderr, "\n");
-    // }
+    template <typename... Args>
+    void error_at(
+        const Token& token,
+        fmt::format_string<Args...> fmt,
+        Args&&... args
+    ) noexcept {
+        if (panic_mode) { return; }
+        error_at_impl(token);
+        fmt::print(stderr, fmt, args...);
+        fmt::print(stderr, FMT_STRING("\n"));
+    }
 
-    void error(std::string_view message) noexcept;
-    void error_at_current(std::string_view message) noexcept;
+    template <typename... Args>
+    void error(fmt::format_string<Args...> fmt, Args&&... args) noexcept {
+        error_at(previous, fmt, args...);
+    }
+
+    template <typename... Args>
+    void
+    error_at_current(fmt::format_string<Args...> fmt, Args&&... args) noexcept {
+        error_at(current, fmt, args...);
+    }
 
     constexpr void advance() noexcept;
     constexpr void consume(TokenType type, std::string_view message) noexcept;
@@ -254,7 +260,7 @@ class Parser {
     constexpr ParseResult
     parse_precedence(Precedence, bool do_advance = true) noexcept;
 
-    [[nodiscard]] constexpr i32 parse_variable(const char* error_message
+    [[nodiscard]] constexpr i32 parse_variable(std::string_view error_message
     ) noexcept;
 
     [[nodiscard]] constexpr u8 argument_list();
