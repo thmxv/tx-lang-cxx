@@ -29,6 +29,7 @@ namespace tx {
 inline NativeResult core_version_string_native(VM& tvm, NativeInOut inout) {
     const auto args = inout.args();
     assert(args.empty());
+    (void)args;
     inout.return_value() = Value{make_string(tvm, false, VERSION)};
     return NativeResult::SUCCESS;
 }
@@ -37,6 +38,7 @@ inline constexpr NativeResult
 core_version_major_native(VM& /*tvm*/, NativeInOut inout) {
     const auto args = inout.args();
     assert(args.empty());
+    (void)args;
     inout.return_value() = Value{static_cast<int_t>(VERSION_MAJOR)};
     return NativeResult::SUCCESS;
 }
@@ -45,6 +47,7 @@ inline constexpr NativeResult
 core_version_minor_native(VM& /*tvm*/, NativeInOut inout) {
     const auto args = inout.args();
     assert(args.empty());
+    (void)args;
     inout.return_value() = Value{static_cast<int_t>(VERSION_MINOR)};
     return NativeResult::SUCCESS;
 }
@@ -53,6 +56,7 @@ inline constexpr NativeResult
 core_version_patch_native(VM& /*tvm*/, NativeInOut inout) {
     const auto args = inout.args();
     assert(args.empty());
+    (void)args;
     inout.return_value() = Value{static_cast<int_t>(VERSION_PATCH)};
     return NativeResult::SUCCESS;
 }
@@ -61,6 +65,7 @@ inline constexpr NativeResult
 core_version_tweak_native(VM& /*tvm*/, NativeInOut inout) {
     const auto args = inout.args();
     assert(args.empty());
+    (void)args;
     inout.return_value() = Value{static_cast<int_t>(VERSION_TWEAK)};
     return NativeResult::SUCCESS;
 }
@@ -80,6 +85,7 @@ inline NativeResult core_assert_native(VM& /*tvm*/, NativeInOut inout) {
 inline NativeResult std_cpu_clock_read_native(VM& /*tvm*/, NativeInOut inout) {
     const auto args = inout.args();
     assert(args.empty());
+    (void)args;
     inout.return_value() = Value{std::clock()};
     return NativeResult::SUCCESS;
 }
@@ -103,6 +109,7 @@ using TimePoint =
 inline NativeResult std_wall_clock_read_native(VM& /*tvm*/, NativeInOut inout) {
     const auto args = inout.args();
     assert(args.empty());
+    (void)args;
     const auto val = time_point_cast<DurationInt>(
         std::chrono::high_resolution_clock::now()
     );
@@ -261,7 +268,6 @@ inline InterpretResult VM::interpret(std::string_view source) noexcept {
     push(Value{closure});
     (void)call(*closure, 0);
     auto result = run();
-    // closure->destroy(*this);
     assert(stack.empty());
     return result;
 }
@@ -494,6 +500,8 @@ inline void VM::assert_stack_effect(const ByteCode* iptr) const noexcept {
             assert(
                 delta == get_opcode_stack_effect(previous_opc, previous_operand)
             );
+            (void)previous_operand;
+            (void)delta;
         }
     }
     previous_size = current_size;

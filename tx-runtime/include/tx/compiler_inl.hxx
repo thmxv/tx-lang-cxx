@@ -185,7 +185,7 @@ Parser::emit_closure(Compiler& compiler, ObjFunction& function) noexcept {
         assert(length >= 1);
         assert(length <= 3);
         const u8 flags = static_cast<u8>(
-            (upvalue.is_local << 7U) | (length & 0b01111111U)
+            static_cast<u32>(upvalue.is_local << 7U) | (length & 0b01111111U)
         );
         assert(length == (flags & 0b01111111U));
         assert(upvalue.is_local == bool(flags & 0b10000000U));

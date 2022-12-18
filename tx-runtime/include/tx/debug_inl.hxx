@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tx/common.hxx"
 #include "tx/debug.hxx"
 //
 #include "tx/chunk.hxx"
@@ -50,8 +51,7 @@ template <u32 N>
 constant_instruction(const ByteCode* ptr, const Chunk& chunk) noexcept {
     const OpCode instruction = ptr->as_opcode();
     const auto* name = get_opcode_name(instruction);
-    const auto count = get_byte_count_following_opcode(instruction);
-    assert(count == N);
+    assert(N == get_byte_count_following_opcode(instruction));
     const auto constant_idx = read_multibyte_operand<N>(std::next(ptr));
     fmt::print(
         FMT_STRING("{:18s} {:4d} '{}'\n"),
@@ -68,8 +68,7 @@ closure_instruction(const ByteCode* ptr, const Chunk& chunk) noexcept {
     const OpCode instruction = ptr->as_opcode();
     std::advance(ptr, 1);
     const auto* name = get_opcode_name(instruction);
-    const auto count = get_byte_count_following_opcode(instruction);
-    assert(count == N);
+    assert(N == get_byte_count_following_opcode(instruction));
     const auto constant_idx = read_multibyte_operand<N>(ptr);
     std::advance(ptr, N);
     fmt::print(
@@ -98,8 +97,7 @@ template <u32 N>
 ) noexcept {
     const OpCode instruction = ptr->as_opcode();
     const auto* name = get_opcode_name(instruction);
-    const auto count = get_byte_count_following_opcode(instruction);
-    assert(count == N);
+    assert(N == get_byte_count_following_opcode(instruction));
     const auto constant_idx = read_multibyte_operand<N>(std::next(ptr));
     fmt::print(FMT_STRING("{:18s} {:4d}\n"), name, constant_idx);
     return std::next(ptr, 1 + N);
@@ -110,8 +108,7 @@ jump_instruction(const ByteCode* ptr, size_t sign, size_t offset) {
     assert(sign == -1 || sign == 1);
     const OpCode instruction = ptr->as_opcode();
     const auto* name = get_opcode_name(instruction);
-    const auto count = get_byte_count_following_opcode(instruction);
-    assert(count == 2);
+    assert(2 == get_byte_count_following_opcode(instruction));
     const auto jump = static_cast<u16>(read_multibyte_operand<2>(std::next(ptr))
     );
     fmt::print(
@@ -127,8 +124,7 @@ jump_instruction(const ByteCode* ptr, size_t sign, size_t offset) {
 ) noexcept {
     const OpCode instruction = ptr->as_opcode();
     const auto* name = get_opcode_name(instruction);
-    const auto count = get_byte_count_following_opcode(instruction);
-    assert(count == 0);
+    assert(0 == get_byte_count_following_opcode(instruction));
     fmt::print(FMT_STRING("{:18s}\n"), name);
     return std::next(ptr);
 }
