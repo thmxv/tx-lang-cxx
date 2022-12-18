@@ -285,14 +285,6 @@ VM::define_global(Value name, Global signature, Value val) noexcept {
 [[nodiscard]] constexpr std::string_view VM::get_global_name(size_t index
 ) const noexcept {
     assert(index < global_values.size());
-    // auto iter = std::find_if(
-    //     global_indices.cbegin(),
-    //     global_indices.cend(),
-    //     // global_indices,
-    //     [=](const auto& entry) { return entry.second.as_int() == index; }
-    // );
-    // assert(iter != global_indices.cend());
-    // return iter->first.as_object().as<ObjString>();
     for (const auto& entry : global_indices) {
         // cppcheck-suppress useStlAlgorithm
         if (entry.second.as_int() == index) {

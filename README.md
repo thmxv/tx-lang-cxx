@@ -28,9 +28,6 @@ Tx is still very much a work in progress.
 
 - Make declare_global signature same as declare_local
 - Pass Token by reference, replace Token by string_view in some cases
-- Benchmark without checking if globals are defined at runtime. Forbid forward 
-  declaration if gains are significant.
-- Allow forward declaration of global var using fn declaration
 - Reserve with, type, Type, abstract, override and final keywords
 - Move Global info from VM to Parser, keep parser inbetween repl evals
 - Better float formatting: 1.0e20 instead of 1.e20
