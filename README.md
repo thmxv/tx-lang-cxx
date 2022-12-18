@@ -26,12 +26,12 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
-- Make sure GC and allocator are "in sync". Meaning the GC always trigger 
-  every time it would be necessary for the pool allocator to grow.
-- Benchmark without checking at runtime if globals are defined. Forbid forward 
+- Make declare_global signature same as declare_local
+- Pass Token by reference, replace Token by string_view in some cases
+- Benchmark without checking if globals are defined at runtime. Forbid forward 
   declaration if gains are significant.
 - Allow forward declaration of global var using fn declaration
-- Reserve type, Type, abstract, override and final keywords
+- Reserve with, type, Type, abstract, override and final keywords
 - Move Global info from VM to Parser, keep parser inbetween repl evals
 - Better float formatting: 1.0e20 instead of 1.e20
 - Check arity/signature of native fn
@@ -43,7 +43,10 @@ Tx is still very much a work in progress.
 
 ### To consider
 
+- Make sure GC and allocator are "in sync". Meaning the GC is always triggered
+  before the pool allocator falls-back to the upstream allocator.
 - Chapter 25 challenges
+- Chapter 26 challenges
 - Allow "var a = a;" in the case of shadowing and not assigning to self
 - Option to set maximum recursion level, starting stack and frame array size, 
   and minimum memory consumption (do not round to next power of 2)

@@ -35,7 +35,7 @@ inline constexpr i32 get_opcode_stack_effect(OpCode opc, size_t operand) {
     if (opc == CALL || opc == END_SCOPE || opc == END_SCOPE_LONG) {
         return -operand;
     }
-    return opcode_stack_effect_table[to_underlying(opc)];
+    return gsl::at(opcode_stack_effect_table, to_underlying(opc));
 }
 
 inline constexpr bool ParseResult::is_block_expr() const noexcept {
@@ -63,7 +63,8 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
     return had_error ? nullptr : &fun;
 }
 
-inline void Parser::error_at(Token& token, std::string_view message) noexcept {
+inline void
+Parser::error_at(const Token& token, std::string_view message) noexcept {
     if (panic_mode) { return; }
     panic_mode = true;
     had_error = true;
@@ -600,7 +601,11 @@ inline constexpr TypeInfo Parser::loop_expr(bool /*can_assign*/) noexcept {
 }
 
 inline TypeInfo Parser::fn_expr(bool /*can_assign*/) noexcept {
-    function(FunctionType::FUNCTION, "");
+    consume(LEFT_PAREN, "Expect '(' after 'fn'.");
+    auto params = parameter_list();
+    consume(LEFT_BRACE, "Expect '{' before function body.");
+    function_body(FunctionType::FUNCTION, "", params);
+    params.destroy(parent_vm);
     return TypeInfo{};
 }
 
@@ -704,7 +709,8 @@ inline size_t Parser::declare_global_variable(bool is_const) noexcept {
                               : size_cast(idx_ptr->as_int());
 }
 
-inline constexpr void Parser::add_local(Token name, bool is_const) noexcept {
+inline constexpr void
+Parser::add_local(const Token& name, bool is_const) noexcept {
     if (current_compiler->locals.size() == LOCALS_MAX) {
         error("Too many local variables in function.");
         return;
@@ -712,9 +718,10 @@ inline constexpr void Parser::add_local(Token name, bool is_const) noexcept {
     current_compiler->locals.emplace_back(parent_vm, name, -1, is_const);
 }
 
-inline constexpr void Parser::declare_local_variable(bool is_const) noexcept {
+inline constexpr void
+Parser::declare_local_variable(const Token& name, bool is_const) noexcept {
     assert(current_compiler->scope_depth > 0);
-    const auto& name = previous;
+    // const auto& name = previous;
     // TODO: use ranges
     for (auto i = current_compiler->locals.size() - 1; i >= 0; --i) {
         const auto& local = current_compiler->locals[i];
@@ -722,7 +729,7 @@ inline constexpr void Parser::declare_local_variable(bool is_const) noexcept {
             break;
         }
         if (identifiers_equal(name, local.name)) {
-            error("Already a variable with this name in this scope.");
+            error_at(name, "Already a variable with this name in this scope.");
         }
     }
     add_local(name, is_const);
@@ -736,7 +743,7 @@ inline constexpr i32 Parser::parse_variable(const char* error_message
         return -1;
     }
     if (current_compiler->scope_depth > 0) {
-        declare_local_variable(is_const);
+        declare_local_variable(previous, is_const);
         return -1;
     }
     return declare_global_variable(is_const);
@@ -763,29 +770,40 @@ inline constexpr ParseResult Parser::expression(bool do_advance) noexcept {
     return parse_precedence(Precedence::ASSIGNMENT, do_advance);
 }
 
-inline void
-Parser::function(FunctionType type, std::string_view name) noexcept {
+inline constexpr ParameterList Parser::parameter_list() noexcept {
+    ParameterList result;
+    do {
+        if (check(RIGHT_PAREN)) { break; }
+        if (result.size() == 255) {
+            error_at_current("Can't have more than 255 parameters.");
+        }
+        // TODO: need in, out or inout (in by default)
+        // what about out for immutable types? -> error
+        // FIXME: duplicate code with parse_variable, use consume? in both
+        // places
+        auto is_const = previous.type != OUT;
+        if (!match(TokenType::IDENTIFIER)) {
+            error_at_current("Expect parameter name.");
+        }
+        result.emplace_back(parent_vm, previous, is_const);
+    } while (match(COMMA));
+    consume(RIGHT_PAREN, "Expect ')' after parameters.");
+    return result;
+}
+
+inline void Parser::function_body(
+    FunctionType type,
+    std::string_view name,
+    const ParameterList& params
+) noexcept {
     Compiler compiler;
     begin_compiler(compiler, type, name);
     begin_scope();
-    consume(
-        LEFT_PAREN,
-        name.empty() ? "Expect '(' after 'fn'."
-                     : "Expect '(' after function name."
-    );
-    do {
-        if (check(RIGHT_PAREN)) { break; }
-        ++current_compiler->function->arity;
-        if (current_compiler->function->arity > 255) {
-            error_at_current("Can't have more than 255 parameters.");
-        }
-        // TODO: need in out or inout (in by default)
-        // what about out for immutable types? -> error
-        auto constant = parse_variable("Expect parameter name.");
-        define_variable(constant);
-    } while (match(COMMA));
-    consume(RIGHT_PAREN, "Expect ')' after parameters.");
-    consume(LEFT_BRACE, "Expect '{' before function body.");
+    current_compiler->function->arity = params.size();
+    for (const auto& param : params) {
+        declare_local_variable(param.name, param.is_const);
+        define_variable(-1);
+    }
     auto block_result = block_no_scope();
     (void)block_result;
     // end_scope(); // NOTE: Not necessary
@@ -796,11 +814,20 @@ Parser::function(FunctionType type, std::string_view name) noexcept {
 
 inline void Parser::fn_declaration() noexcept {
     auto global_idx = parse_variable("Expect funtion name.");
-    mark_initialized(global_idx);
-    function(FunctionType::FUNCTION, previous.lexeme);
-    define_variable(global_idx);
-    // NOTE: Do not permit trailing semicolon after fn declaration (for now)
-    // (void)match(SEMICOLON);
+    auto name = previous.lexeme;
+    consume(LEFT_PAREN, "Expect '(' after function name.");
+    auto params = parameter_list();
+    if (match(LEFT_BRACE)) {
+        mark_initialized(global_idx);
+        function_body(FunctionType::FUNCTION, name, params);
+        define_variable(global_idx);
+        // NOTE: Do not permit trailing semicolon after inline fn definition
+        // (for now)
+        // (void)match(SEMICOLON);
+    } else {
+        consume(SEMICOLON, "Expect '{' or ';' after function declaration.");
+    }
+    params.destroy(parent_vm);
 }
 
 inline constexpr void Parser::var_declaration() noexcept {
@@ -922,6 +949,9 @@ inline constexpr std::optional<ParseResult> Parser::statement_or_expression(
         if (check(IDENTIFIER)) {
             fn_declaration();
             return std::nullopt;
+        }
+        if (!check(LEFT_PAREN)) {
+            error("Expect function name or '(' after 'fn'.");
         }
         return expression(false);
     }

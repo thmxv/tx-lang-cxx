@@ -1,7 +1,7 @@
 #!/usr/bin/env tx
 
-let is_odd;
-# fn is_odd(n);
+# let is_odd;
+fn is_odd(n);
 
 fn is_even(n) {
   if (n == 0) { return true; }

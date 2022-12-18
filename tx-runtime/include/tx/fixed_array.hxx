@@ -184,10 +184,12 @@ class FixedCapacityArray {
         return operator[](count - 1);
     }
 
-    [[nodiscard]] constexpr T* data() noexcept { return &(operator[](0)); }
+    [[nodiscard]] constexpr T* data() noexcept {
+        return std::launder(reinterpret_cast<T*>(data_buff));
+    }
 
     [[nodiscard]] constexpr const T* data() const noexcept {
-        return &(operator[](0));
+        return std::launder(reinterpret_cast<const T*>(data_buff));
     }
 
     [[nodiscard]] constexpr T* begin() noexcept { return data(); }

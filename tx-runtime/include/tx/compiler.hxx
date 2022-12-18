@@ -58,7 +58,7 @@ struct Local {
     bool is_captured{false};
     bool is_const{true};
 
-    Local(Token name_, i32 dpth, bool is_constant)
+    Local(const Token& name_, i32 dpth, bool is_constant)
             : name(name_)
             , depth(dpth)
             , is_const(is_constant) {}
@@ -112,6 +112,19 @@ struct Compiler {
     }
 };
 
+struct Parameter {
+    static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
+
+    Token name;
+    bool is_const;
+
+    constexpr explicit Parameter(const Token& name_, bool is_const_) noexcept
+            : name(name_)
+            , is_const(is_const_) {}
+};
+
+using ParameterList = DynArray<Parameter>;
+
 class Parser {
     VM& parent_vm;
     Scanner scanner;
@@ -135,10 +148,10 @@ class Parser {
     [[nodiscard]] ObjFunction* compile() noexcept;
 
   private:
-    void error_at(Token& token, std::string_view message) noexcept;
+    void error_at(const Token& token, std::string_view message) noexcept;
 
     // template <typename... Args>
-    // void error_at(Token& token, std::string_view fmt, Args&&... args)
+    // void error_at(const Token& token, std::string_view fmt, Args&&... args)
     // noexcept {
     //     error_at_impl(token);
     //     fmt::print(stderr, fmt::runtime(fmt), args...);
@@ -228,8 +241,9 @@ class Parser {
     add_global(Value identifier, GlobalSignature sig) noexcept;
 
     [[nodiscard]] size_t declare_global_variable(bool is_const) noexcept;
-    constexpr void add_local(Token name, bool is_const) noexcept;
-    constexpr void declare_local_variable(bool is_const) noexcept;
+    constexpr void add_local(const Token& name, bool is_const) noexcept;
+    constexpr void
+    declare_local_variable(const Token& name, bool is_const) noexcept;
     constexpr void mark_initialized(i32 global_idx) noexcept;
     constexpr void define_variable(i32 global_idx) noexcept;
 
@@ -247,7 +261,13 @@ class Parser {
 
     constexpr TypeInfo block_no_scope() noexcept;
     constexpr ParseResult expression(bool do_advance = true) noexcept;
-    void function(FunctionType type, std::string_view name) noexcept;
+
+    constexpr ParameterList parameter_list() noexcept;
+    void function_body(
+        FunctionType type,
+        std::string_view name,
+        const ParameterList& params
+    ) noexcept;
     void fn_declaration() noexcept;
     constexpr void var_declaration() noexcept;
     constexpr void while_statement() noexcept;
