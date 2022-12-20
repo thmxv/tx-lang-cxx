@@ -229,6 +229,7 @@ class Test:
         index = 0
         while index < len(error_lines):
             line = error_lines[index]
+            line_index = index
             index += 1
             match = SYNTAX_ERROR_RE.search(line)
             if match:
@@ -248,7 +249,10 @@ class Test:
                             continue
                 if num_unexpected < 10:
                     self.fail("Unexpected error:")
-                    self.fail(line)
+                    # self.fail(line)
+                    while line_index < index:
+                        self.fail(error_lines[line_index])
+                        line_index += 1
                 num_unexpected += 1
             elif line != "":
                 if num_unexpected < 10:

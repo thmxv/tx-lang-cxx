@@ -26,6 +26,7 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Maybe add option to error_token to mark the end of the token or the start
 - Tests for all the error_token paths
 - File name in runtime error
 - Multi-line entry in REPL
@@ -34,7 +35,6 @@ Tx is still very much a work in progress.
 - Reserve keywords pub, with, type, Type, abstract, override, final
 - Better float formatting: 1.0e20 instead of 1.e20. Test print/parse loop
 - Check arity/signature of native fn
-- Better and more conform error messages. compile and runtime
 - Fix TODOs in the code
 - Replace runtime errors by compile time (keep runtime error in degug)
 - Go over all the tests one more time (Some do not make much sense for tx
