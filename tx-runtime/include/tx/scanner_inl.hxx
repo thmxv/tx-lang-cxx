@@ -64,27 +64,23 @@ inline constexpr char Scanner::advance() noexcept {
 ) const noexcept {
     return Token{
         .type = type,
-        .lexeme{start, static_cast<std::size_t>(std::distance(start, current))},
+        .lexeme{start, current},
         .line = line,
         .value = Value(val_none)
     };
 }
 
-[[nodiscard]] inline constexpr Token Scanner::error_token(
-    std::string_view message
+[[nodiscard]] inline Token Scanner::error_token(std::string_view message
 ) const noexcept {
     using enum TokenType;
-    return Token{
-        .type = ERROR,
-        .lexeme = message,
-        .line = line,
-        .value = Value(val_none)};
+    auto result = make_token(ERROR);
+    result.value = Value(make_string(parent_vm, false, message));
+    return result;
 }
 
 inline constexpr void Scanner::skip_whitespace() noexcept {
     for (;;) {
-        const char chr = peek();
-        switch (chr) {
+        switch (peek()) {
             case ' ':
             case '\r':
             case '\t': {
@@ -271,7 +267,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     }
 }
 
-[[nodiscard]] inline constexpr Token Scanner::hex_number() noexcept {
+[[nodiscard]] inline Token Scanner::hex_number() noexcept {
     advance();
     while (is_hex_digit(peek()) || peek() == '_') { advance(); }
     if (std::distance(start, current)
@@ -300,7 +296,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     return token;
 }
 
-[[nodiscard]] inline constexpr Token Scanner::raw_string() noexcept {
+[[nodiscard]] inline Token Scanner::raw_string() noexcept {
     advance();
     advance();
     while ((peek() != '"' || peek_next() != '"' || peek_next(2) != '"')

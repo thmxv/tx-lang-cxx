@@ -117,9 +117,11 @@ class VM {
     }
 
     // TX_VM_CONSTEXPR
-    InterpretResult interpret(std::string_view source) noexcept;
+    InterpretResult
+    interpret(std::string_view file_path, std::string_view source) noexcept;
 
-    inline ObjFunction* compile(std::string_view source) noexcept;
+    inline ObjFunction*
+    compile(std::string_view file_path, std::string_view source) noexcept;
 
     // TX_VM_CONSTEXPR
     [[gnu::flatten]] InterpretResult run() noexcept;
@@ -149,6 +151,7 @@ class VM {
     template <typename... Args>
     void
     runtime_error(fmt::format_string<Args...> fmt, Args&&... args) noexcept {
+        fmt::print(stderr, FMT_STRING("Runtime error: "));
         fmt::print(stderr, fmt, args...);
         runtime_error_impl();
     }

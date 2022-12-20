@@ -1,0 +1,2 @@
+# [2] Syntax error: Unterminated scientific notation.
+var a = 1.3e;

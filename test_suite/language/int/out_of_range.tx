@@ -1,0 +1,8 @@
+# [2] Syntax error: Numeric literal out of range.
+var a = 111111111111111111111111111111111111;
+# [4] Syntax error: Numeric literal too long.
+var b = 1111111111111111111111111111111111111111111111111111111111111111111111;
+# [6] Syntax error: Hexadecimal integer literal out of range.
+var c = 0xffffffffffffffffffffffffffffffffff;
+# [8] Syntax error: Hexadecimal integer literal too long.
+var d = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;

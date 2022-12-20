@@ -1,1 +1,1 @@
-core_assert(false, "My test runtime error.");  # expect runtime error: My test runtime error.
+core_assert(false, "My test runtime error.");  # Runtime error: My test runtime error.

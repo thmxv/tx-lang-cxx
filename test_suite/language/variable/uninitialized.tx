@@ -1,4 +1,4 @@
 var a;
-# [line 3] Error at 'a': Use of forward declared global before definition.
+# [3] Syntax error at 'a': Use of forward declared global before definition.
 std_println(a);
-# [line 5] Error at end: Global variable 'a' declared but not defined.
+# [4] Syntax error at end: Global variable 'a' declared but not defined.

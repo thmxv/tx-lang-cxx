@@ -2,6 +2,6 @@
 
 let global = nil;
 fn f_() {
-  # [line 6] Error at '=': Immutable assignment target.
+  # [6] Syntax error at '=': Immutable assignment target.
   global = "after";
 }

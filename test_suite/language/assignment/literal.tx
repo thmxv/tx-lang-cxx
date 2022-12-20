@@ -1,1 +1,1 @@
-true = "value"; # Error at '=': Invalid assignment target.
+true = "value"; # Syntax error at '=': Invalid assignment target.

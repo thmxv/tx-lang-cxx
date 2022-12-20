@@ -153,10 +153,15 @@ struct ObjFunction : Obj {
     i32 max_slots{0};
     Chunk chunk;
     ObjString* name{nullptr};
+    std::string_view module_file_path;
 
-    constexpr explicit ObjFunction(i32 reserved_slots) noexcept
+    constexpr explicit ObjFunction(
+        i32 reserved_slots,
+        std::string_view module
+    ) noexcept
             : Obj{ObjType::FUNCTION}
-            , max_slots(reserved_slots) {}
+            , max_slots(reserved_slots)
+            , module_file_path(module) {}
 
     constexpr void destroy(VM& tvm) noexcept { chunk.destroy(tvm); }
 

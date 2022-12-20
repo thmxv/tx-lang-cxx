@@ -15,7 +15,7 @@ fn foo() {
   var a14 = nil;
   var a15 = nil;
   var a16 = nil;
-  foo(); # expect runtime error: Stack overflow.
+  foo(); # Runtime error: Stack overflow.
 }
 
 foo();

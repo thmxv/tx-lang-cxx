@@ -1,7 +1,7 @@
 {
   fn isEven(n) {
     if (n == 0) { return true; }
-    # [line 5] Error at 'isOdd': Cannot find value with this name in current scope.
+    # [5] Syntax error at 'isOdd': Cannot find value with this name in current scope.
     return isOdd(n - 1);
   }
 

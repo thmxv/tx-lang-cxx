@@ -202,7 +202,7 @@ parse_arguments(int argc, const char** argv) {
 
 void run_file(VM& tvm, const char* path) {
     const auto source = read_file(path);
-    const InterpretResult result = tvm.interpret(source);
+    const InterpretResult result = tvm.interpret(path, source);
     if (result == InterpretResult::COMPILE_ERROR) {
         exit(ExitCode::DATA_ERROR);
     }
@@ -221,7 +221,7 @@ void run_repl(VM& tvm) {
             break;
         }
         const std::string_view source{line.data()};
-        (void)tvm.interpret(source);
+        (void)tvm.interpret("<stdin>", source);
     }
 }
 

@@ -1,2 +1,2 @@
-# [line 2] Error at '.': Expect ';' after expression.
+# [2] Syntax error at '.': Expect ';' after expression.
 123.

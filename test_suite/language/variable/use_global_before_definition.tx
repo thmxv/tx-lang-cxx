@@ -3,7 +3,7 @@
 let a;
 
 fn f() {
-  std_println(a);  # expect runtime error: Undefined variable 'a'.
+  std_println(a);  # Runtime error: Undefined variable 'a'.
 }
 
 f();

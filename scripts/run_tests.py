@@ -40,13 +40,17 @@ if not isfile(CLI_APP_WITH_EXT):
     print("File not found: " + CLI_APP)
     sys.exit(1)
 
+# Regex's for source files
 OUTPUT_EXPECT = re.compile(r"# expect: ?(.*)")
-ERROR_EXPECT = re.compile(r"# (Error.*)")
-ERROR_LINE_EXPECT = re.compile(r"# \[line (\d+)\] (Error.*)")
-RUNTIME_ERROR_EXPECT = re.compile(r"# expect runtime error: (.+)")
-SYNTAX_ERROR_RE = re.compile(r"\[.*line (\d+)\] (Error.+)")
-STACK_TRACE_RE = re.compile(r"\[line (\d+)\]")
+ERROR_EXPECT = re.compile(r"# (Syntax error.+)")
+ERROR_LINE_EXPECT = re.compile(r"# \[(\d+)\] (Syntax error.+)")
+RUNTIME_ERROR_EXPECT = re.compile(r"# (Runtime error:.+)")
 NONTEST_RE = re.compile(r"# nontest")
+# Regex's for program output
+SYNTAX_ERROR_RE = re.compile(r"(Syntax error.+)")
+SYNTAX_ERROR_LOC_RE = re.compile(r"  (.*?):(\d+):(\d+)")
+SYNTAX_ERROR_HINT_RE = re.compile(r"  \d* \| .*")
+STACK_TRACE_RE = re.compile(r"  \[(.*?):(\d+)\] in .*")
 
 passed = 0
 failed = 0
@@ -84,7 +88,7 @@ class Test:
     def __init__(self, path):
         self.path = path
         self.output = []
-        self.compile_errors = set()
+        self.compile_errors = {}
         self.runtime_error_line = 0
         self.runtime_error_message = None
         self.exit_code = 0
@@ -104,9 +108,7 @@ class Test:
 
                 match = ERROR_EXPECT.search(line)
                 if match:
-                    self.compile_errors.add(
-                        "[{0}] {1}".format(line_num, match.group(1))
-                    )
+                    self.compile_errors[match.group(1)] = (self.path, line_num)
 
                     # If we expect a compile error, it should exit with
                     # EX_DATAERR.
@@ -115,9 +117,7 @@ class Test:
 
                 match = ERROR_LINE_EXPECT.search(line)
                 if match:
-                    self.compile_errors.add(
-                        "[{0}] {1}".format(match.group(1), match.group(2))
-                    )
+                    self.compile_errors[match.group(2)] = (self.path, match.group(1))
 
                     # If we expect a compile error, it should exit with
                     # EX_DATAERR.
@@ -207,7 +207,14 @@ class Test:
             for stack_line in stack_lines:
                 self.fail(stack_line)
         else:
-            stack_line = int(match.group(1))
+            file_path = match.group(1)
+            stack_line = int(match.group(2))
+            if file_path != self.path:
+                self.fail(
+                    "Expected runtime error on file {0} but was on file {1}.",
+                    self.path,
+                    file_path
+                )
             if stack_line != self.runtime_error_line:
                 self.fail(
                     "Expected runtime error on line {0} but was on line {1}.",
@@ -219,17 +226,30 @@ class Test:
         # Validate that every compile error was expected.
         found_errors = set()
         num_unexpected = 0
-        for line in error_lines:
+        index = 0
+        while index < len(error_lines):
+            line = error_lines[index]
+            index += 1
             match = SYNTAX_ERROR_RE.search(line)
             if match:
-                error = "[{0}] {1}".format(match.group(1), match.group(2))
-                if error in self.compile_errors:
-                    found_errors.add(error)
-                else:
-                    if num_unexpected < 10:
-                        self.fail("Unexpected error:")
-                        self.fail(line)
-                    num_unexpected += 1
+                error = match.group(1)
+                match2 = SYNTAX_ERROR_LOC_RE.search(error_lines[index])
+                if match2:
+                    index += 1
+                    while SYNTAX_ERROR_HINT_RE.search(error_lines[index]):
+                        index += 1
+                    if error in self.compile_errors:
+                        expected = self.compile_errors[error]
+                        # col_num = match2.group(3)
+                        if match2.group(1) == expected[0] and (
+                            int(match2.group(2)) == int(expected[1])
+                        ):
+                            found_errors.add(error)
+                            continue
+                if num_unexpected < 10:
+                    self.fail("Unexpected error:")
+                    self.fail(line)
+                num_unexpected += 1
             elif line != "":
                 if num_unexpected < 10:
                     self.fail("Unexpected output on stderr:")
@@ -240,8 +260,12 @@ class Test:
             self.fail("(truncated " + str(num_unexpected - 10) + " more...)")
 
         # Validate that every expected error occurred.
-        for error in self.compile_errors - found_errors:
-            self.fail("Missing expected error: {0}", error)
+        for error in self.compile_errors.keys() - found_errors:
+            self.fail(
+                "Missing expected error: [{0}] {1}",
+                self.compile_errors[error][1],
+                error,
+            )
 
     def validate_exit_code(self, exit_code, error_lines):
         if exit_code == self.exit_code:

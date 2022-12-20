@@ -3,5 +3,5 @@ var a = "1
 2
 3
 ";
-# [line 7] Error at 'err': Cannot find value with this name in current scope.
+# [7] Syntax error at 'err': Cannot find value with this name in current scope.
 err;

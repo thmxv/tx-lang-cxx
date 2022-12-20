@@ -26,11 +26,13 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
-- Make declare_global signature same as declare_local
-- Pass Token by reference, replace Token by string_view in some cases
-- Reserve with, type, Type, abstract, override and final keywords
-- Move Global info from VM to Parser, keep parser inbetween repl evals
-- Better float formatting: 1.0e20 instead of 1.e20
+- Tests for all the error_token paths
+- File name in runtime error
+- Multi-line entry in REPL
+- Fix error in REPL in entry that follows an error
+- Support expression result in REPL
+- Reserve keywords pub, with, type, Type, abstract, override, final
+- Better float formatting: 1.0e20 instead of 1.e20. Test print/parse loop
 - Check arity/signature of native fn
 - Better and more conform error messages. compile and runtime
 - Fix TODOs in the code
@@ -40,7 +42,7 @@ Tx is still very much a work in progress.
 
 ### To consider
 
-- Make sure GC and allocator are "in sync". Meaning the GC is always triggered
+- Sync GC and allocator, meaning the GC is always triggered
   before the pool allocator falls-back to the upstream allocator.
 - Chapter 25 challenges
 - Chapter 26 challenges
@@ -76,6 +78,7 @@ Tx is still very much a work in progress.
 - [X] Closure
 - [X] Garbage collection
 - [ ] Backlog/FIXMEs/TODOs
+- [ ] CI, coverage, fuzzing, ...
 
 ### v0.2.0
 
@@ -119,6 +122,7 @@ Tx is still very much a work in progress.
 - [ ] Fibers
 - [ ] Threads
 - [ ] Async and await
+- [ ] Add 'with' statement
 - [ ] Package/dependency manager
 - [ ] Tools (debugger, ...)
 - [ ] Virtual env

@@ -1,0 +1,4 @@
+# [2] Syntax error: Numeric literal out of range.
+var a = 1.1e10000000000000000000000;
+# [4] Syntax error: Numeric literal too long.
+var b = 1.11111111111111111111111111111111111111111111111111111111111111111111;

@@ -1,1 +1,1 @@
-123(); # expect runtime error: Can only call functions.
+123(); # Runtime error: Can only call functions.

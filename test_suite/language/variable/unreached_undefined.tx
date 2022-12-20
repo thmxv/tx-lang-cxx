@@ -1,5 +1,5 @@
 if (false) {
-  # [line 3] Error at 'notDefined': Cannot find value with this name in current scope.
+  # [3] Syntax error at 'notDefined': Cannot find value with this name in current scope.
   std_println(notDefined);
 }
 

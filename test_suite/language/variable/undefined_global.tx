@@ -1,2 +1,2 @@
-# [line 2] Error at 'notDefined': Cannot find value with this name in current scope.
+# [2] Syntax error at 'notDefined': Cannot find value with this name in current scope.
 std_println(notDefined);

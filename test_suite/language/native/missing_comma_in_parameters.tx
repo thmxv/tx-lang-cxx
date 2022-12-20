@@ -1,2 +1,2 @@
-# [line 2] Error at '"bad"': Expect ')' after arguments.
+# [2] Syntax error at '"bad"': Expect ')' after arguments.
 core_assert(true "bad");

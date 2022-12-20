@@ -1,2 +1,2 @@
-# [line 2] Error at '456': Expect '{' before else body.
+# [2] Syntax error at '456': Expect '{' before else body.
 if true {} else 456;

@@ -4,5 +4,5 @@ let a = 1;
 let b = nil;
 fn foo(a) {}
 
-# [line 8] Error: Unexpected character.
+# [8] Syntax error: Unexpected character.
 foo(a $ b);

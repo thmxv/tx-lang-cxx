@@ -47,11 +47,12 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
     };
 }
 
-[[nodiscard]] inline ObjFunction* Parser::compile(std::string_view source
-) noexcept {
+[[nodiscard]] inline ObjFunction*
+Parser::compile(std::string_view file_path, std::string_view source) noexcept {
     assert(scanner == nullptr);
     Scanner lex(parent_vm, source);
     scanner = &lex;
+    module_file_path = file_path;
     Compiler comp{};
     begin_compiler(comp, FunctionType::SCRIPT, std::nullopt);
     advance();
@@ -59,7 +60,6 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
     emit_instruction(OpCode::NIL);
     auto& fun = end_compiler();
     comp.destroy(parent_vm);
-    scanner = nullptr;
     // TODO: Maybe do not do this at all
     if (!parent_vm.options.allow_end_compile_with_undefined_global) {
         for (const auto& [name, idx] : parent_vm.global_indices) {
@@ -74,13 +74,15 @@ inline constexpr bool ParseResult::is_block_expr() const noexcept {
             }
         }
     }
+    module_file_path = std::string_view();
+    scanner = nullptr;
     return had_error ? nullptr : &fun;
 }
 
-inline void Parser::error_at_impl(const Token& token) noexcept {
+inline void Parser::error_at_impl1(const Token& token) noexcept {
     panic_mode = true;
     had_error = true;
-    fmt::print(stderr, FMT_STRING("[line {:d}] Error"), token.line);
+    fmt::print(stderr, FMT_STRING("Syntax error"));
     if (token.type == TokenType::END_OF_FILE) {
         fmt::print(stderr, FMT_STRING(" at end: "));
     } else if (token.type == TokenType::ERROR) {
@@ -88,6 +90,73 @@ inline void Parser::error_at_impl(const Token& token) noexcept {
     } else {
         fmt::print(stderr, FMT_STRING(" at '{:s}': "), token.lexeme);
     }
+}
+
+// FIXME: optionally underlying other token and more lines
+inline void Parser::error_at_impl2(const Token& token) noexcept {
+    fmt::print(stderr, FMT_STRING("\n"));
+    size_t line_number = token.line;
+    bool is_at_end = (token.type == TokenType::END_OF_FILE)
+                     || (token.type == TokenType::ERROR
+                         // cppcheck-suppress mismatchingContainerExpression
+                         && token.lexeme.cend() == scanner->source.cend());
+    if (is_at_end) { line_number -= 1; }
+    const auto line = get_text_of_line(scanner->source, line_number);
+    i64 col = 1;
+    std::size_t len = 1;
+    bool mark_start = true;
+    assert(
+        // cppcheck-suppress mismatchingContainerExpression
+        scanner->source.cbegin() <= token.lexeme.cbegin()
+        // cppcheck-suppress mismatchingContainerExpression
+        // cppcheck-suppress knownConditionTrueFalse ; FIXME: False positive?
+        && token.lexeme.cend() <= scanner->source.cend()
+    );
+    // FIXME: utf8 distance not byte distance
+    // cppcheck-suppress mismatchingContainerExpression
+    col = std::distance(line.cbegin(), token.lexeme.cbegin());
+    len = token.lexeme.size();
+    auto blanks = col;
+    if (col < 0 || is_at_end) {
+        // cppcheck-suppress mismatchingContainerExpression
+        col = std::distance(line.cbegin(), token.lexeme.cend()) - 1;
+        blanks = col + 1 - static_cast<i64>(len);
+        if (blanks < 0) {
+            len = static_cast<std::size_t>(col) + 1;
+            blanks = col + 1 - static_cast<i64>(len);
+        }
+        mark_start = false;
+    }
+    if (col < 0) { col = 0; }
+    if (token.type == TokenType::END_OF_FILE) { col -= 1; }
+
+    fmt::print(
+        stderr,
+        FMT_STRING("  {:s}:{:d}:{:d}\n"),
+        module_file_path.empty() ? "<unknown>" : module_file_path,
+        line_number,
+        col + 1
+    );
+    const auto line_num_digits = count_digit(token.line) + 2;
+    fmt::print(
+        stderr,
+        FMT_STRING("{0: >{2}d} | {1:s}\n"),
+        line_number,
+        line,
+        line_num_digits
+    );
+    const auto* fmt = mark_start ? "{0: >{3}} | {1: >{4}}{2:~<{5}}\n"
+                                : "{0: >{3}} | {1: >{4}}{2:~>{5}}\n";
+    fmt::print(
+        stderr,
+        fmt::runtime(fmt),
+        "",
+        "",
+        "^",
+        line_num_digits,
+        blanks,
+        len
+    );
 }
 
 inline constexpr void Parser::advance() noexcept {
@@ -98,7 +167,10 @@ inline constexpr void Parser::advance() noexcept {
             if (parent_vm.options.print_tokens) { print_token(current); }
         }
         if (current.type != TokenType::ERROR) { break; }
-        error_at_current(FMT_STRING("{:s}"), current.lexeme);
+        error_at_current(
+            FMT_STRING("{:s}"),
+            current.value.as_object().as<ObjString>()
+        );
     }
 }
 
@@ -250,7 +322,8 @@ inline void Parser::begin_compiler(
     compiler.function_type = type;
     compiler.function = allocate_object<ObjFunction>(
         parent_vm,
-        compiler.locals.size()
+        compiler.locals.size(),
+        module_file_path
     );
     current_compiler = &compiler;
     // Reserve first local for methods, use empty string as name to prevent use

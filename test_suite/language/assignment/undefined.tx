@@ -1,2 +1,2 @@
-# [line 2] Error at 'unknown': Cannot find value with this name in current scope.
+# [2] Syntax error at 'unknown': Cannot find value with this name in current scope.
 unknown = "what";

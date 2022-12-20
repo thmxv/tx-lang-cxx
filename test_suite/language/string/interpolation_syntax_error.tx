@@ -1,0 +1,3 @@
+# [3] Syntax error: Expect '{' after '$'.
+# [3] Syntax error: Unexpected character.
+"string with unescaped '$' not followed by '{'"

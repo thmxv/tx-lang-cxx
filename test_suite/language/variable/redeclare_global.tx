@@ -1,4 +1,4 @@
 var a = "1";
-# [line 3] Error at 'a': Redeclaration of global variable.
+# [3] Syntax error at 'a': Redeclaration of global variable.
 let a;
 std_println(a);

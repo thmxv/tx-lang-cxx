@@ -80,4 +80,33 @@ template <typename Enum>
     return ++n;
 }
 
+[[nodiscard]] inline constexpr size_t count_digit(size_t number) noexcept {
+    int count = 0;
+    while (number != 0) {
+        number = number / 10;
+        ++count;
+    }
+    return count;
+}
+
+[[nodiscard]] inline constexpr std::string_view
+get_text_of_line(std::string_view source, size_t line) {
+    size_t current_line = 1;
+    const char* begin = nullptr;
+    const char* end = nullptr;
+    for (const auto& chr : source) {
+        if (current_line == line && begin == nullptr) { begin = &chr; }
+        if (chr == '\n') {
+            if ( current_line == line) {
+                end = &chr;
+                break;
+            }
+            ++current_line;
+        }
+    }
+    if (begin == nullptr) { begin = source.cbegin(); }
+    if (end == nullptr) { end = source.cend(); }
+    return {begin, end};
+}
+
 }  // namespace tx

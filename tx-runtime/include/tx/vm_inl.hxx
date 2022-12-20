@@ -241,7 +241,8 @@ inline void VM::runtime_error_impl() noexcept {
                            - 1;
         fmt::print(
             stderr,
-            FMT_STRING("[line {:d}] in {:s}\n"),
+            FMT_STRING("  [{:s}:{:d}] in {:s}\n"),
+            function.module_file_path,
             function.chunk.get_line(static_cast<i32>(instruction)),
             function.get_display_name()
         );
@@ -249,18 +250,20 @@ inline void VM::runtime_error_impl() noexcept {
     reset_stack();
 }
 
-inline ObjFunction* VM::compile(std::string_view source) noexcept {
+inline ObjFunction*
+VM::compile(std::string_view file_path, std::string_view source) noexcept {
     Parser current_parser(*this);
     parser = &current_parser;
     ensure_stack_space(1);
-    ObjFunction* function = parser->compile(source);
+    ObjFunction* function = parser->compile(file_path, source);
     parser = nullptr;
     return function;
 }
 
 // TX_VM_CONSTEXPR
-inline InterpretResult VM::interpret(std::string_view source) noexcept {
-    ObjFunction* function = compile(source);
+inline InterpretResult
+VM::interpret(std::string_view file_path, std::string_view source) noexcept {
+    ObjFunction* function = compile(file_path, source);
     if (function == nullptr) { return InterpretResult::COMPILE_ERROR; }
     push(Value{function});
     auto* closure = make_closure(*this, *function);
@@ -609,7 +612,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
 
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
-// clang-format off
+    // clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -876,7 +879,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-    // clang-format off
+// clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK

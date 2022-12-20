@@ -1,2 +1,2 @@
-# [line 3] Error: Unterminated string.
+# [2] Syntax error: Unterminated string.
 "this string has no close quote

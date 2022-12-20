@@ -5,6 +5,7 @@
 #include "tx/scanner.hxx"
 #include "tx/table.hxx"
 
+#include "tx/utils.hxx"
 #include <gsl/gsl>
 
 #include <string_view>
@@ -144,14 +145,17 @@ class Parser {
     bool had_error{false};
     bool panic_mode{false};
     Compiler* current_compiler{nullptr};
+    std::string_view module_file_path;
 
   public:
     constexpr explicit Parser(VM& tvm) noexcept : parent_vm(tvm) {}
 
-    [[nodiscard]] ObjFunction* compile(std::string_view source) noexcept;
+    [[nodiscard]] ObjFunction*
+    compile(std::string_view file_path, std::string_view source) noexcept;
 
   private:
-    void error_at_impl(const Token& token) noexcept;
+    void error_at_impl1(const Token& token) noexcept;
+    void error_at_impl2(const Token& token) noexcept;
 
     template <typename... Args>
     void error_at(
@@ -160,9 +164,9 @@ class Parser {
         Args&&... args
     ) noexcept {
         if (panic_mode) { return; }
-        error_at_impl(token);
+        error_at_impl1(token);
         fmt::print(stderr, fmt, args...);
-        fmt::print(stderr, FMT_STRING("\n"));
+        error_at_impl2(token);
     }
 
     template <typename... Args>
@@ -277,12 +281,15 @@ class Parser {
     constexpr ParseResult expression(bool do_advance = true) noexcept;
 
     constexpr ParameterList parameter_list() noexcept;
+
     void function_body(
         FunctionType type,
         std::string_view name,
         const ParameterList& params
     ) noexcept;
+
     void fn_declaration() noexcept;
+
     constexpr void var_declaration() noexcept;
     constexpr void while_statement() noexcept;
     constexpr void emit_pop_innermost_loop(bool skip_top_expression) noexcept;

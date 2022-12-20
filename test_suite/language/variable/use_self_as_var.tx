@@ -1,2 +1,2 @@
-# [line 2] Error at 'self': Expect variable name.
+# [2] Syntax error at 'self': Expect variable name.
 var self = "value";

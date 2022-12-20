@@ -62,7 +62,7 @@ class Scanner {
     [[nodiscard]] constexpr bool match(char expected) noexcept;
     [[nodiscard]] constexpr Token make_token(TokenType type) const noexcept;
 
-    [[nodiscard]] constexpr Token error_token(std::string_view message
+    [[nodiscard]] Token error_token(std::string_view message
     ) const noexcept;
 
     constexpr void skip_whitespace() noexcept;
@@ -76,8 +76,8 @@ class Scanner {
     [[nodiscard]] constexpr TokenType identifier_type() const noexcept;
     [[nodiscard]] constexpr Token identifier() noexcept;
     [[nodiscard]] constexpr Token number() noexcept;
-    [[nodiscard]] constexpr Token hex_number() noexcept;
-    [[nodiscard]] constexpr Token raw_string() noexcept;
+    [[nodiscard]] Token hex_number() noexcept;
+    [[nodiscard]] Token raw_string() noexcept;
     [[nodiscard]] constexpr std::optional<u32> hex_escape(size_t digits
     ) noexcept;
 
@@ -85,6 +85,9 @@ class Scanner {
     utf8_escape(size_t digits, DynArray<char>& dst) noexcept;
 
     [[nodiscard]] constexpr Token string() noexcept;
+
+    // Friends
+    friend class Parser;
 };
 
 }  // namespace tx
