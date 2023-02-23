@@ -1,6 +1,6 @@
 #!/usr/bin/env tx
 
-let a;
+let a: Int;
 
 fn f() {
   std_println(a);  # Runtime error: Undefined variable 'a'.

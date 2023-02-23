@@ -1,12 +1,12 @@
-fn returnArg(arg) {
+fn returnArg(arg: Any) {
   return arg;
 }
 
-fn returnFunCallWithArg(fnc, arg) {
+fn returnFunCallWithArg(fnc: Fn<<Str>, Nil>, arg: Str) {
   return returnArg(fnc)(arg);
 }
 
-fn printArg(arg) {
+fn printArg(arg: Str) {
   std_println(arg);
 }
 

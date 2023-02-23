@@ -27,8 +27,7 @@ inline constexpr std::array opcode_length_table = {
 };
 // clang-format on
 
-static inline constexpr size_t get_byte_count_following_opcode(OpCode opc
-) noexcept {
+inline constexpr size_t get_byte_count_following_opcode(OpCode opc) noexcept {
     return opcode_length_table[to_underlying(opc)];
 }
 
@@ -62,7 +61,7 @@ struct LineStart {
 };
 
 template <u32 N>
-constexpr inline void
+inline constexpr void
 write_multibyte_operand(ByteCode*& ptr, size_t value) noexcept {
     static_assert(N <= 3);
     const auto val = static_cast<u32>(value);
@@ -72,7 +71,7 @@ write_multibyte_operand(ByteCode*& ptr, size_t value) noexcept {
 }
 
 template <u32 N>
-constexpr inline size_t read_multibyte_operand(const ByteCode* ptr) noexcept {
+inline constexpr size_t read_multibyte_operand(const ByteCode* ptr) noexcept {
     static_assert(N <= 3);
     u32 result = 0;
     for (u32 i = 0; i < N; ++i) {
@@ -81,7 +80,7 @@ constexpr inline size_t read_multibyte_operand(const ByteCode* ptr) noexcept {
     return size_cast(result);
 }
 
-constexpr inline std::tuple<bool, size_t, u8> read_closure_operand(
+inline constexpr std::tuple<bool, size_t, u8> read_closure_operand(
     const ByteCode* ptr
 ) noexcept {
     u8 flags = ptr->as_u8();
@@ -115,9 +114,7 @@ struct Chunk {
     }
 
     constexpr void write_line(VM& tvm, size_t line) {
-        if (!lines.empty() && lines[lines.size() - 1].line == line) {
-            return;
-        }
+        if (!lines.empty() && lines[lines.size() - 1].line == line) { return; }
         lines.emplace_back(tvm, code.size(), line);
     }
 
@@ -134,7 +131,7 @@ struct Chunk {
     }
 
     template <u32 N>
-    constexpr inline void
+    constexpr void
     write_multibyte_operand(VM& tvm, size_t line, size_t operand) noexcept {
         static_assert(N <= 3);
         write_line(tvm, line);
@@ -145,7 +142,7 @@ struct Chunk {
     }
 
     template <u32 N>
-    constexpr inline void write_instruction(
+    constexpr void write_instruction(
         VM& tvm,
         size_t line,
         OpCode opc,

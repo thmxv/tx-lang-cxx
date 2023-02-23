@@ -161,7 +161,7 @@ class VM {
     void debug_trace(const ByteCode* iptr) const noexcept;
 
     constexpr size_t
-    define_global(Value name, Global signature, Value val) noexcept;
+    add_global(Value name, Global&& signature, Value val) noexcept;
 
     [[nodiscard]] constexpr std::string_view get_global_name(size_t index
     ) const noexcept;

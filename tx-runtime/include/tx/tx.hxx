@@ -16,6 +16,7 @@
 #include "tx/object.hxx"
 #include "tx/scanner.hxx"
 #include "tx/table.hxx"
+#include "tx/type.hxx"
 #include "tx/type_traits.hxx"
 #include "tx/unicode.hxx"
 #include "tx/utils.hxx"
@@ -27,6 +28,7 @@
 #include "tx/memory_inl.hxx"
 #include "tx/object_inl.hxx"
 #include "tx/scanner_inl.hxx"
+#include "tx/type_inl.hxx"
 #include "tx/value_inl.hxx"
 #include "tx/vm_inl.hxx"
 

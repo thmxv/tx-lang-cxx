@@ -11,7 +11,7 @@
 
 namespace tx {
 
-// Pseudo random non-null numbers generated using code from cppreference:
+// Pseudo random non-null numbers generated using following commented code
 inline constexpr u32 HASH_NIL = 0x1735b84b;
 inline constexpr u32 HASH_FALSE = 0x7674b793;
 inline constexpr u32 HASH_TRUE = 0x4a2da019;
@@ -58,7 +58,7 @@ template <>
 struct Hash<Obj> {
     constexpr u32 operator()(const Obj& obj) const noexcept {
         switch (obj.type) {
-            using enum ObjType;
+            using enum Obj::ObjType;
             case STRING: return obj.as<ObjString>().hash;
             case CLOSURE:
             case FUNCTION:
@@ -77,7 +77,7 @@ template <>
 struct Hash<Value> {
     constexpr u32 operator()(Value const& val) const noexcept {
         switch (val.type) {
-            using enum ValueType;
+            using enum Value::ValueType;
             case NONE: unreachable();
             case NIL: return HASH_NIL;
             case BOOL: return val.as_bool() ? HASH_TRUE : HASH_FALSE;

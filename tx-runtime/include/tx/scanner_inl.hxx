@@ -189,13 +189,20 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
         case 't': return check_keyword(1, "rue", TRUE);
         case 'v': return check_keyword(1, "ar", VAR);
         case 'w': return check_keyword(1, "hile", WHILE);
-        case 'A': return check_keyword(1, "ny", ANY);
-        case 'B': return check_keyword(1, "ool", BOOL);
-        case 'C': return check_keyword(1, "har", CHAR);
-        case 'F': return check_keyword(1, "loat", FLOAT);
-        case 'I': return check_keyword(1, "nt", INT);
+        case 'A': return check_keyword(1, "ny", ANY_TYPE);
+        case 'B': return check_keyword(1, "ool", BOOL_TYPE);
+        case 'C': return check_keyword(1, "har", CHAR_TYPE);
+        case 'F':
+            if (std::distance(start, current) > 1) {
+                switch (*std::next(start)) {
+                    case 'l': return check_keyword(2, "oat", FLOAT_TYPE);
+                    case 'n': return check_keyword(2, "", FN_TYPE);
+                }
+            }
+            break;
+        case 'I': return check_keyword(1, "nt", INT_TYPE);
         case 'N': return check_keyword(1, "il", NIL_TYPE);
-        case 'S': return check_keyword(1, "tr", STR);
+        case 'S': return check_keyword(1, "tr", STR_TYPE);
     }
     return TokenType::IDENTIFIER;
 }

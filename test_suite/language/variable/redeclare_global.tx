@@ -1,4 +1,4 @@
 var a = "1";
 # [3] Syntax error at 'a': Redeclaration of global variable.
-let a;
+let a: Any;
 std_println(a);

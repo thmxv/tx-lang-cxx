@@ -74,7 +74,7 @@ inline NativeResult core_assert_native(VM& /*tvm*/, NativeInOut inout) {
     const auto args = inout.args();
     assert(args.size() == 2);
     assert(args[1].is_object() && args[1].as_object().is_string());
-    if (args[0].is_falsey()) {
+    if (args[0].is_falsey()) [[unlikely]] {
         inout.return_value() = Value{args[1]};
         return NativeResult::RUNTIME_ERROR;
     }
@@ -106,6 +106,7 @@ using DurationInt = std::chrono::duration<int_t, std::micro>;
 using DurationFloat = std::chrono::duration<float_t>;
 using TimePoint =
     std::chrono::time_point<std::chrono::high_resolution_clock, DurationInt>;
+
 inline NativeResult std_wall_clock_read_native(VM& /*tvm*/, NativeInOut inout) {
     const auto args = inout.args();
     assert(args.empty());
@@ -169,7 +170,7 @@ float_sqrt_native(VM& /*tvm*/, NativeInOut inout) {
     const auto res = std::sqrt(val);
     // FIXME: we should save/restore except flags instead of just clearing
     // after. Or maybe just do not care and let them propagate
-    if (std::isnan(res)) { std::feclearexcept(FE_INVALID); }
+    if (std::isnan(res)) [[unlikely]] { std::feclearexcept(FE_INVALID); }
     inout.return_value() = Value{res};
     return NativeResult::SUCCESS;
 }
@@ -216,6 +217,7 @@ inline constexpr VM::~VM() noexcept {
     frames.destroy(*this);
     global_indices.destroy(*this);
     global_values.destroy(*this);
+    for (auto& global : global_signatures) { global.destroy(*this); }
     global_signatures.destroy(*this);
     strings.destroy(*this);
     free_objects(*this, objects);
@@ -276,16 +278,16 @@ VM::interpret(std::string_view file_path, std::string_view source) noexcept {
 }
 
 inline constexpr size_t
-VM::define_global(Value name, Global signature, Value val) noexcept {
+VM::add_global(Value name, Global&& signature, Value val) noexcept {
     // NOTE: maybe do the GC push/pop dance here
     auto new_index = global_values.size();
     global_values.push_back(*this, val);
-    global_signatures.push_back(*this, signature);
+    global_signatures.push_back(*this, std::move(signature));
     global_indices.set(*this, name, Value{static_cast<int_t>(new_index)});
     return new_index;
 }
 
-[[nodiscard]] constexpr std::string_view VM::get_global_name(size_t index
+[[nodiscard]] inline constexpr std::string_view VM::get_global_name(size_t index
 ) const noexcept {
     assert(index < global_values.size());
     for (const auto& entry : global_indices) {
@@ -302,7 +304,7 @@ inline void VM::define_native(std::string_view name, NativeFn fun) noexcept {
     ensure_stack_space(2);
     push(Value{make_string(*this, false, name)});
     push(Value{allocate_object<ObjNative>(*this, fun)});
-    define_global(
+    add_global(
         stack[0],
         Global{
             .is_defined = true,
@@ -370,7 +372,7 @@ VM::call_value(Value callee, size_t arg_c) noexcept {
     if (callee.is_object()) [[likely]] {
         auto& obj = callee.as_object();
         switch (obj.type) {
-            using enum ObjType;
+            using enum Obj::ObjType;
             case CLOSURE: return call(obj.as<ObjClosure>(), arg_c);
             case NATIVE: {
                 auto& native = obj.as<ObjNative>();
@@ -435,7 +437,7 @@ inline constexpr void VM::close_upvalues(const Value* last) noexcept {
         result = Value(-pop().as_int());
     } else if (peek(0).is_float()) {
         result = Value(-pop().as_float());
-    } else {
+    } else [[unlikely]] {
         // TODO: make this a compile time error
         runtime_error("Operand must be a number.");
         return true;
@@ -445,8 +447,8 @@ inline constexpr void VM::close_upvalues(const Value* last) noexcept {
 }
 
 template <template <typename> typename Op>
-[[nodiscard]] constexpr bool VM::binary_op() noexcept {
-    if (!peek(0).is_number() || !peek(1).is_number()) {
+[[nodiscard]] inline constexpr bool VM::binary_op() noexcept {
+    if (!peek(0).is_number() || !peek(1).is_number()) [[unlikely]] {
         // TODO: make this a compile time error
         runtime_error("Operands must be numbers.");
         return true;
@@ -612,7 +614,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
 
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
-    // clang-format off
+// clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -879,7 +881,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-// clang-format off
+    // clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK

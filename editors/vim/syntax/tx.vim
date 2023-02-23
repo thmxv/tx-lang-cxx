@@ -58,6 +58,7 @@ let s:tx_syntax_keywords = {
     \ ,              "Map"
     \ ,              "Self"
     \ ,              "Tuple"
+    \ ,              "Any"
     \ ,             ]
     \ , 'txConstant' :["self"
     \ ,              "nil"

@@ -61,8 +61,6 @@ inline void* reallocate_impl(
     size_t new_size,
     size_t alignment
 ) noexcept {
-    // assert(old_size >= 0);
-    // assert(new_size >= 0);
     if constexpr (TRIGGER_GC) {
         tvm.bytes_allocated += new_size - old_size;
         if (new_size > old_size) {
@@ -116,7 +114,7 @@ inline void free_object(VM& tvm, Obj* object) noexcept {
         }
     }
     switch (object->type) {
-        using enum ObjType;
+        using enum Obj::ObjType;
         case CLOSURE: {
             auto& closure = object->as<ObjClosure>();
             closure.destroy(tvm);
@@ -220,7 +218,7 @@ inline constexpr void blacken_object(VM& tvm, Obj* obj) noexcept {
         }
     }
     switch (obj->type) {
-        using enum ObjType;
+        using enum Obj::ObjType;
         case CLOSURE: {
             auto& closure = obj->as<ObjClosure>();
             mark_object(tvm, &closure.function);
@@ -230,7 +228,7 @@ inline constexpr void blacken_object(VM& tvm, Obj* obj) noexcept {
             break;
         }
         case FUNCTION: {
-            auto& function = obj->as<ObjFunction>();
+            const auto& function = obj->as<ObjFunction>();
             mark_object(tvm, function.name);
             mark_array(tvm, function.chunk.constants);
             break;
@@ -289,7 +287,6 @@ inline constexpr void collect_garbage(VM& tvm) noexcept {
     trace_references(tvm);
     table_remove_white(tvm, tvm.strings);
     sweep(tvm);
-    // tvm.next_gc = tvm.bytes_allocated * GC_HEAP_GROW_FACTOR;
     if constexpr (HAS_DEBUG_FEATURES) {
         if (tvm.get_options().trace_gc) {
             fmt::print(

@@ -1,14 +1,14 @@
 #!/usr/bin/env tx
 
-# let is_odd;
-fn is_odd(n);
+# let is_odd: Fn<<Int> Bool>;
+fn is_odd(n: Int) -> Bool;
 
-fn is_even(n) {
+fn is_even(n: Int) -> Bool {
   if (n == 0) { return true; }
   return is_odd(n - 1);
 }
 
-fn is_odd(n) {
+fn is_odd(n: Int) -> Bool {
   if (n == 0) { return false; }
   return is_even(n - 1);
 }

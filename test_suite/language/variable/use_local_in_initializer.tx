@@ -1,4 +1,13 @@
 var a = "outer";
 {
-  var a = a; # Syntax error at 'a': Can't read local variable in its own initializer.
+  
+  var a = a;  # Was Syntax error at 'a': Can't read local variable in its own initializer.
+  std_println(a);  # expect outer
+  a = "inner";
+  std_println(a);  # expect inner
+}
+std_println(a);  # expect outer
+
+{
+  var b = b;  # Syntax error at 'b': Cannot find value with this name in current scope.
 }

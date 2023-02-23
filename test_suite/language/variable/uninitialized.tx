@@ -1,4 +1,4 @@
-var a;
+var a: Str;
 # [3] Syntax error at 'a': Use of forward declared global before definition.
 std_println(a);
 # [4] Syntax error at end: Global variable 'a' declared but not defined.

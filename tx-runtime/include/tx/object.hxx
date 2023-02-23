@@ -18,15 +18,15 @@ namespace tx {
 
 class VM;
 
-enum class ObjType : u8 {
-    CLOSURE,
-    FUNCTION,
-    NATIVE,
-    STRING,
-    UPVALUE,
-};
-
 struct Obj {
+    enum class ObjType : u8 {
+        CLOSURE,
+        FUNCTION,
+        NATIVE,
+        STRING,
+        UPVALUE,
+    };
+
     ObjType type;
     bool is_marked = false;
     gsl::owner<Obj*> next_object = nullptr;
@@ -91,7 +91,7 @@ struct ObjString : Obj {
     bool owns_chars = false;
     gsl::owner<const char*> data_ptr = nullptr;
 
-// clang-format off
+    // clang-format off
     #ifdef __clang__
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Wc99-extensions"

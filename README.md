@@ -26,8 +26,9 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
-- Maybe add option to error_token to mark the end of the token or the start
-- Tests for all the error_token paths
+- Maybe add option to error_token to mark the end of the token or the start in
+  error message hint
+- Tests for all the error_token() code paths
 - File name in runtime error
 - Multi-line entry in REPL
 - Fix error in REPL in entry that follows an error
@@ -42,6 +43,7 @@ Tx is still very much a work in progress.
 
 ### To consider
 
+- Make not operator postfix and ! instead of 'not'
 - Sync GC and allocator, meaning the GC is always triggered
   before the pool allocator falls-back to the upstream allocator.
 - Chapter 25 challenges

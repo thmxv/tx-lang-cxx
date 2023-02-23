@@ -7,16 +7,6 @@
 
 namespace tx {
 
-enum class ValueType {
-    NONE,
-    NIL,
-    BOOL,
-    INT,
-    FLOAT,
-    CHAR,
-    OBJECT,
-};
-
 struct Obj;
 
 struct ValNone {};
@@ -28,6 +18,15 @@ inline constexpr ValNil val_nil;
 struct Value {
     static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
 
+    enum class ValueType {
+        NONE,
+        NIL,
+        BOOL,
+        INT,
+        FLOAT,
+        CHAR,
+        OBJECT,
+    };
     using enum ValueType;
 
     ValueType type;
@@ -83,7 +82,7 @@ struct Value {
     }
 
     [[nodiscard]] constexpr float_t as_float_force() const noexcept {
-        assert(is_int()|| is_float());
+        assert(is_int() || is_float());
         return type == INT ? static_cast<float_t>(as_int()) : as_float();
     }
 

@@ -17,7 +17,9 @@ namespace tx {
 // storage in order to destroy the data and free the memory.
 
 template <typename T, typename SizeT = size_t, bool TRIGGER_GC = true>
-    requires is_trivially_relocatable_v<T> && std::is_integral_v<SizeT>
+    requires std::is_integral_v<SizeT>
+// FIXME: move trivially_reloc requirement to function that needs it?
+// requires is_trivially_relocatable_v<T> && std::is_integral_v<SizeT>
 class DynArray {
     SizeT count = 0;
     SizeT capacity_ = 0;
@@ -42,7 +44,9 @@ class DynArray {
             : count(size)
             , capacity_(size) {
         assert(size >= 0);
-        if (size > 0) { data_ptr = grow_array<T, TRIGGER_GC>(tvm, nullptr, 0, size); }
+        if (size > 0) {
+            data_ptr = grow_array<T, TRIGGER_GC>(tvm, nullptr, 0, size);
+        }
         std::uninitialized_fill_n(data_ptr, count, value);
     }
 
@@ -60,13 +64,10 @@ class DynArray {
     constexpr DynArray& operator=(const DynArray& other) noexcept = delete;
 
     constexpr DynArray& operator=(DynArray&& other) noexcept {
-        destroy();
-        count = other.count;
-        capacity_ = other.capacity_;
-        data_ptr = other.data_ptr;  // NOLINT
-        other.count = 0;
-        other.capacity_ = 0;
-        other.data_ptr = nullptr;
+        using std::swap;
+        swap(count, other.count);
+        swap(capacity_, other.capacity_);
+        swap(data_ptr, other.data_ptr);
         return *this;
     }
 
@@ -85,7 +86,25 @@ class DynArray {
         }
     }
 
-    constexpr void clear() noexcept(std::is_nothrow_destructible_v<T>) {
+    [[nodiscard]] constexpr DynArray copy(VM& tvm) const noexcept {
+        DynArray result;
+        result.count = count;
+        result.capacity_ = count;
+        if (result.capacity_ > 0) {
+            result.data_ptr =
+                grow_array<T, TRIGGER_GC>(tvm, nullptr, 0, result.capacity_);
+        }
+        if constexpr (TxCopyable<T>) {
+            for (SizeT i = 0; i < count; ++i) {
+                std::construct_at(&result.data_ptr[i], data_ptr[i].copy(tvm));
+            }
+        } else {
+            std::uninitialized_copy_n(data_ptr, count, result.data_ptr);
+        }
+        return result;
+    }
+
+    constexpr void clear() noexcept {  //(std::is_nothrow_destructible_v<T>) {
         std::destroy_n(data_ptr, count);
         count = 0;
     }
@@ -120,6 +139,7 @@ class DynArray {
     }
 
     [[nodiscard]] constexpr bool empty() const noexcept { return count == 0; }
+    [[nodiscard]] constexpr bool is_empty() const noexcept { return empty(); }
 
     // cppcheck-suppress constParameter
     constexpr void resize(VM& tvm, SizeT new_size) noexcept {
@@ -139,18 +159,29 @@ class DynArray {
     }
 
     constexpr void reserve(VM& tvm, SizeT new_cap) noexcept {
-        data_ptr = grow_array<T,TRIGGER_GC>(tvm, data_ptr, capacity_, new_cap);
+        static_assert(is_trivially_relocatable_v<T>);
+        data_ptr = grow_array<T, TRIGGER_GC>(tvm, data_ptr, capacity_, new_cap);
         capacity_ = new_cap;
     }
 
-    constexpr void push_back(VM& tvm, T value) noexcept {
+    constexpr void push_back(VM& tvm, const T& value) noexcept {
         if (capacity_ == count) { reserve(tvm, grow_capacity(capacity_)); }
         push_back_unsafe(value);
     }
 
-    constexpr void push_back_unsafe(T value) noexcept {
+    constexpr void push_back(VM& tvm, T&& value) noexcept {
+        if (capacity_ == count) { reserve(tvm, grow_capacity(capacity_)); }
+        push_back_unsafe(std::move(value));
+    }
+
+    constexpr void push_back_unsafe(const T& value) noexcept {
         assert(count < capacity_);
         std::construct_at(std::next(data_ptr, count++), value);
+    }
+
+    constexpr void push_back_unsafe(T&& value) noexcept {
+        assert(count < capacity_);
+        std::construct_at(std::next(data_ptr, count++), std::move(value));
     }
 
     template <typename... Args>
@@ -239,6 +270,15 @@ class DynArray {
 
     [[nodiscard]] constexpr const_reverse_iterator crend() const noexcept {
         return std::reverse_iterator(cbegin());
+    }
+
+    friend constexpr bool
+    operator==(const DynArray& lhs, const DynArray& rhs) noexcept {
+        if (lhs.size() != rhs.size()) { return false; }
+        for (size_t i = 0; i < lhs.size(); ++i) {
+            if (lhs[i] != rhs[i]) { return false; }
+        }
+        return true;
     }
 };
 }  // namespace tx

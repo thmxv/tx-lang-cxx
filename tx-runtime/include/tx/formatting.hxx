@@ -5,16 +5,13 @@
 #include "tx/object.hxx"
 
 #include <fmt/format.h>
-#include <math.h>
-
-#include <cmath>
 
 template <>
 struct fmt::formatter<tx::Value> : formatter<string_view> {
     template <typename FormatContext>
     constexpr auto format(const tx::Value value, FormatContext& ctx) noexcept {
         switch (value.type) {
-            using enum tx::ValueType;
+            using enum tx::Value::ValueType;
             case NONE: return fmt::format_to(ctx.out(), "<none>");
             case NIL: return fmt::format_to(ctx.out(), "nil");
             case BOOL: return fmt::format_to(ctx.out(), "{}", value.as_bool());
@@ -53,21 +50,22 @@ struct fmt::formatter<tx::Obj> : formatter<string_view> {
     template <typename FormatContext>
     constexpr auto format(const tx::Obj& obj, FormatContext& ctx) {
         switch (obj.type) {
-            case tx::ObjType::CLOSURE: {
+            using enum tx::Obj::ObjType;
+            case CLOSURE: {
                 const auto& closure = obj.as<tx::ObjClosure>();
                 return format_function(closure.function, ctx);
             }
-            case tx::ObjType::FUNCTION: {
+            case FUNCTION: {
                 const auto& function = obj.as<tx::ObjFunction>();
                 return format_function(function, ctx);
             }
-            case tx::ObjType::NATIVE:
+            case NATIVE:
                 return fmt::format_to(ctx.out(), "<native fn>");
-            case tx::ObjType::STRING: {
+            case STRING: {
                 const auto& str = obj.as<tx::ObjString>();
                 return fmt::format_to(ctx.out(), "{:s}", std::string_view(str));
             }
-            case tx::ObjType::UPVALUE:
+            case UPVALUE:
                 return fmt::format_to(ctx.out(), "<upvalue>");
         }
         tx::unreachable();

@@ -1,23 +1,21 @@
 #pragma once
 
 #include "tx/chunk.hxx"
-#include "tx/fixed_array.hxx"
+#include "tx/dyn_array.hxx"
 #include "tx/scanner.hxx"
 #include "tx/table.hxx"
-
+#include "tx/type.hxx"
 #include "tx/utils.hxx"
+
 #include <gsl/gsl>
 
 #include <string_view>
+#include <memory>
 #include <utility>
 
 namespace tx {
 
-inline constexpr i32 get_opcode_stack_effect(OpCode opc, size_t operand);
-
-struct TypeInfo {
-    // TODO
-};
+constexpr i32 get_opcode_stack_effect(OpCode opc, size_t operand);
 
 enum class Precedence {
     NONE,
@@ -34,15 +32,17 @@ enum class Precedence {
 };
 
 struct ParseResult {
-    TokenType token_type;
-    TypeInfo type_info;
+    TokenType token_type;  // NOTE: Used to check if expr is block expr
+    TypeSet type_set{};
 
     [[nodiscard]] constexpr bool is_block_expr() const noexcept;
+
+    constexpr void destroy(VM& tvm) noexcept { type_set.destroy(tvm); }
 };
 
 class Parser;
-using ParsePrefixFn = TypeInfo (Parser::*)(bool can_assign);
-using ParseInfixFn = TypeInfo (Parser::*)(TypeInfo lhs, bool can_assign);
+using ParsePrefixFn = TypeSet (Parser::*)(bool can_assign);
+using ParseInfixFn = TypeSet (Parser::*)(TypeSet lhs, bool can_assign);
 
 struct ParseRule {
     ParsePrefixFn prefix;
@@ -57,11 +57,15 @@ struct Local {
     i32 depth{0};
     bool is_captured{false};
     bool is_const{true};
+    TypeSet type_set{};
 
-    Local(const Token& name_, i32 dpth, bool is_constant)
+    Local(const Token& name_, i32 dpth, bool is_constant, TypeSet&& types)
             : name(name_)
             , depth(dpth)
-            , is_const(is_constant) {}
+            , is_const(is_constant)
+            , type_set(std::move(types)) {}
+
+    constexpr void destroy(VM& tvm) noexcept;
 };
 
 struct Global {
@@ -69,11 +73,14 @@ struct Global {
 
     bool is_defined{false};
     bool is_const{true};
+    TypeSet type_set{};
 
     friend constexpr bool operator==(const Global& lhs, const Global& rhs) {
         // FIXME: Maybe make a substructure with signature without is_defined
         return lhs.is_const == rhs.is_const;
     }
+
+    constexpr void destroy(VM& tvm) noexcept;
 };
 
 struct Loop {
@@ -119,6 +126,7 @@ struct Compiler {
 
     constexpr void destroy(VM& tvm) noexcept {
         constant_indices.destroy(tvm);
+        for (auto& local : locals) { local.destroy(tvm); }
         locals.destroy(tvm);
         upvalues.destroy(tvm);
     }
@@ -129,13 +137,34 @@ struct Parameter {
 
     Token name;
     bool is_const;
+    // TypeSet types;
 
-    constexpr explicit Parameter(const Token& name_, bool is_const_) noexcept
+    constexpr explicit Parameter(
+        const Token& name_,
+        bool is_const_
+        // TypeSet&& types_
+    ) noexcept
             : name(name_)
-            , is_const(is_const_) {}
+            , is_const(is_const_)
+    // , types(std::move(types_))
+    {}
+
+    // constexpr void destroy(VM& tvm) noexcept { types.destroy(tvm); }
 };
 
 using ParameterList = DynArray<Parameter>;
+
+struct ParametersAndReturn {
+    ParameterList parameters{};
+    TypeInfoFunction type_info;
+
+    constexpr void destroy(VM& tvm) noexcept {
+        // for (auto& param : parameters) { param.destroy(tvm); }
+        parameters.destroy(tvm);
+        // return_types.destroy(tvm);
+        type_info.destroy(tvm);
+    }
+};
 
 class Parser {
     VM& parent_vm;
@@ -154,8 +183,8 @@ class Parser {
     compile(std::string_view file_path, std::string_view source) noexcept;
 
   private:
-    void error_at_impl1(const Token& token) noexcept;
-    void error_at_impl2(const Token& token) noexcept;
+    void error_at_impl_begin(const Token& token) noexcept;
+    void error_at_impl_end(const Token& token) noexcept;
 
     template <typename... Args>
     void error_at(
@@ -164,9 +193,9 @@ class Parser {
         Args&&... args
     ) noexcept {
         if (panic_mode) { return; }
-        error_at_impl1(token);
+        error_at_impl_begin(token);
         fmt::print(stderr, fmt, args...);
-        error_at_impl2(token);
+        error_at_impl_end(token);
     }
 
     template <typename... Args>
@@ -241,7 +270,9 @@ class Parser {
     constexpr void begin_loop(Loop& loop, bool is_loop_expr = false) noexcept;
     constexpr void end_loop() noexcept;
 
+    // FIXME: Make static or move to anonymous namespace
     [[nodiscard]] constexpr i32
+    // cppcheck-suppress functionStatic
     resolve_local(Compiler& compiler, const Token& name) noexcept;
 
     [[nodiscard]] constexpr size_t add_upvalue(
@@ -256,12 +287,29 @@ class Parser {
 
     [[nodiscard]] i32 resolve_global(const Token& name) noexcept;
 
-    [[nodiscard]] size_t add_global(Value identifier, Global sig) noexcept;
+    [[nodiscard]] size_t add_global(Value identifier, Global&& sig) noexcept;
 
-    [[nodiscard]] size_t declare_global_variable(bool is_const) noexcept;
-    constexpr void add_local(const Token& name, bool is_const) noexcept;
+    [[nodiscard]] size_t declare_global_variable(
+        const Token& name,
+        bool is_const,
+        TypeSet&& type_set
+    ) noexcept;
+
     constexpr void
-    declare_local_variable(const Token& name, bool is_const) noexcept;
+    add_local(const Token& name, bool is_const, TypeSet&& type_set) noexcept;
+
+    constexpr void declare_local_variable(
+        const Token& name,
+        bool is_const,
+        TypeSet&& type_set
+    ) noexcept;
+
+    [[nodiscard]] inline constexpr i32 declare_variable(
+        const Token& name,
+        bool is_const,
+        TypeSet&& type_set
+    ) noexcept;
+
     constexpr void mark_initialized(i32 global_idx) noexcept;
     constexpr void define_variable(i32 global_idx) noexcept;
 
@@ -269,26 +317,34 @@ class Parser {
         TokenType token_type
     ) noexcept;
 
-    constexpr ParseResult
+    [[nodiscard]] constexpr ParseResult
     parse_precedence(Precedence, bool do_advance = true) noexcept;
 
-    [[nodiscard]] constexpr i32 parse_variable(std::string_view error_message
-    ) noexcept;
+    [[nodiscard]] constexpr std::optional<std::tuple<Token, bool>>
+    parse_variable(std::string_view error_message) noexcept;
 
     [[nodiscard]] constexpr u8 argument_list();
 
-    constexpr TypeInfo block_no_scope() noexcept;
-    constexpr ParseResult expression(bool do_advance = true) noexcept;
+    [[nodiscard]] constexpr TypeSet block_no_scope() noexcept;
+    [[nodiscard]] constexpr ParseResult expression(
+        bool do_advance = true
+    ) noexcept;
 
-    constexpr ParameterList parameter_list() noexcept;
+    constexpr ParametersAndReturn parameter_list_and_return_type() noexcept;
 
     void function_body(
         FunctionType type,
         std::string_view name,
-        const ParameterList& params
+        ParametersAndReturn&& params_ret
     ) noexcept;
 
     void fn_declaration() noexcept;
+
+    [[nodiscard]] constexpr TypeInfo parse_type() noexcept;
+    [[nodiscard]] constexpr TypeSet type_set() noexcept;
+    [[nodiscard]] constexpr DynArray<TypeSet> type_set_list(
+        std::string_view message
+    ) noexcept;
 
     constexpr void var_declaration() noexcept;
     constexpr void while_statement() noexcept;
@@ -299,24 +355,26 @@ class Parser {
     constexpr void expression_statement() noexcept;
     constexpr void synchronize() noexcept;
 
-    constexpr std::optional<ParseResult> statement_or_expression() noexcept;
+    [[nodiscard]] constexpr std::optional<ParseResult> statement_or_expression(
+    ) noexcept;
     constexpr void statement() noexcept;
 
   public:
-    constexpr TypeInfo grouping(bool) noexcept;
-    constexpr TypeInfo literal(bool) noexcept;
-    constexpr TypeInfo named_variable(const Token& name, bool) noexcept;
-    constexpr TypeInfo variable(bool can_assign) noexcept;
-    constexpr TypeInfo unary(bool) noexcept;
-    constexpr TypeInfo block(bool = false) noexcept;
-    constexpr TypeInfo if_expr(bool = false) noexcept;
-    constexpr TypeInfo loop_expr(bool) noexcept;
-    TypeInfo fn_expr(bool) noexcept;
+    [[nodiscard]] constexpr TypeSet grouping(bool) noexcept;
+    [[nodiscard]] constexpr TypeSet literal(bool) noexcept;
+    [[nodiscard]] constexpr TypeSet
+    named_variable(const Token& name, bool) noexcept;
+    [[nodiscard]] constexpr TypeSet variable(bool can_assign) noexcept;
+    [[nodiscard]] constexpr TypeSet unary(bool) noexcept;
+    [[nodiscard]] constexpr TypeSet block(bool = false) noexcept;
+    [[nodiscard]] constexpr TypeSet if_expr(bool = false) noexcept;
+    [[nodiscard]] constexpr TypeSet loop_expr(bool) noexcept;
+    [[nodiscard]] TypeSet fn_expr(bool) noexcept;
 
-    constexpr TypeInfo binary(TypeInfo, bool) noexcept;
-    constexpr TypeInfo call(TypeInfo, bool) noexcept;
-    constexpr TypeInfo and_(TypeInfo, bool) noexcept;
-    constexpr TypeInfo or_(TypeInfo, bool) noexcept;
+    [[nodiscard]] constexpr TypeSet binary(TypeSet, bool) noexcept;
+    [[nodiscard]] constexpr TypeSet call(TypeSet, bool) noexcept;
+    [[nodiscard]] constexpr TypeSet and_(TypeSet, bool) noexcept;
+    [[nodiscard]] constexpr TypeSet or_(TypeSet, bool) noexcept;
 
     // Friends
     friend constexpr void mark_compiler_roots(VM& tvm) noexcept;
@@ -391,13 +449,14 @@ class ParseRules {
         [TRUE]            = {&p::literal,    nullptr,    P::NONE},
         [VAR]             = {nullptr,        nullptr,    P::NONE},
         [WHILE]           = {nullptr,        nullptr,    P::NONE},
-        [ANY]             = {nullptr,        nullptr,    P::NONE},
-        [BOOL]            = {nullptr,        nullptr,    P::NONE},
-        [CHAR]            = {nullptr,        nullptr,    P::NONE},
-        [FLOAT]           = {nullptr,        nullptr,    P::NONE},
-        [INT]             = {nullptr,        nullptr,    P::NONE},
+        [ANY_TYPE]        = {nullptr,        nullptr,    P::NONE},
+        [BOOL_TYPE]       = {nullptr,        nullptr,    P::NONE},
+        [CHAR_TYPE]       = {nullptr,        nullptr,    P::NONE},
+        [FLOAT_TYPE]      = {nullptr,        nullptr,    P::NONE},
+        [FN_TYPE]         = {nullptr,        nullptr,    P::NONE},
+        [INT_TYPE]        = {nullptr,        nullptr,    P::NONE},
         [NIL_TYPE]        = {nullptr,        nullptr,    P::NONE},
-        [STR]             = {nullptr,        nullptr,    P::NONE},
+        [STR_TYPE]        = {nullptr,        nullptr,    P::NONE},
         [ERROR]           = {nullptr,        nullptr,    P::NONE},
         [END_OF_FILE]     = {nullptr,        nullptr,    P::NONE},
     };

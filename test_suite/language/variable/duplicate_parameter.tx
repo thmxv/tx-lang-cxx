@@ -1,4 +1,4 @@
-fn foo(arg,
-        arg) { # Syntax error at 'arg': Already a variable with this name in this scope.
+fn foo(arg: Any
+      , arg: Any) { # Syntax error at 'arg': Already a variable with this name in this scope.
   "body";
 }

@@ -6,16 +6,10 @@
 #include <fmt/format.h>
 
 #include <cassert>
-#include <type_traits>
-
-// TODO remove and force clang 15
-#ifdef __clang__
-#include <experimental/source_location>
-using source_location = std::experimental::source_location;
-#else
+#include <gsl/util>
+#include <initializer_list>
 #include <source_location>
-using source_location = std::source_location;
-#endif
+#include <type_traits>
 
 namespace tx {
 
@@ -39,7 +33,7 @@ template <typename Enum>
 
 [[noreturn]] inline void report_and_abort(
     std::string_view message,
-    const source_location location = source_location::current()
+    const std::source_location location = std::source_location::current()
 ) noexcept {
     fmt::print(
         stderr,
@@ -54,7 +48,7 @@ template <typename Enum>
 }
 
 [[noreturn]] inline void unreachable(
-    const source_location location = source_location::current()
+    const std::source_location location = std::source_location::current()
 ) noexcept {
     if constexpr (IS_DEBUG_BUILD) {
         report_and_abort("This code should have been unreachable", location);
@@ -70,20 +64,24 @@ template <typename Enum>
 
 // From:
 // http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
-[[nodiscard]] inline constexpr i32 power_of_2_ceil(i32 n) noexcept {
-    n--;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    return ++n;
+[[nodiscard]] inline constexpr u32 power_of_2_ceil(u32 val) noexcept {
+    val--;
+    val |= val >> 1U;
+    val |= val >> 2U;
+    val |= val >> 4U;
+    val |= val >> 8U;   // NOLINT(*-magic-numbers)
+    val |= val >> 16U;  // NOLINT(*-magic-numbers)
+    return ++val;
+}
+
+[[nodiscard]] inline constexpr i32 power_of_2_ceil(i32 val) noexcept {
+    return gsl::narrow_cast<i32>(static_cast<std::make_unsigned_t<i32>>(val));
 }
 
 [[nodiscard]] inline constexpr size_t count_digit(size_t number) noexcept {
-    int count = 0;
+    size_t count = 0;
     while (number != 0) {
-        number = number / 10;
+        number = number / 10;  // NOLINT(*-magic-numbers)
         ++count;
     }
     return count;
@@ -97,7 +95,7 @@ get_text_of_line(std::string_view source, size_t line) {
     for (const auto& chr : source) {
         if (current_line == line && begin == nullptr) { begin = &chr; }
         if (chr == '\n') {
-            if ( current_line == line) {
+            if (current_line == line) {
                 end = &chr;
                 break;
             }

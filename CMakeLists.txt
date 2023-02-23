@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.23...3.24)
+cmake_minimum_required(VERSION 3.24...3.25)
 
 # Not ideal to use this global variable, but necessary to make sure
 # that tooling and projects use the same version
@@ -18,7 +18,8 @@ set(
   CACHE BOOL "Enable 'developer mode'"
 )
 
-# Change this to false if you want to disable warnings_as_errors in developer mode
+# Change this to false if you want to disable warnings_as_errors in developer
+# mode
 set(OPT_WARNINGS_AS_ERRORS_DEVELOPER_DEFAULT TRUE)
 
 # Generate compile_commands.json for LSP servers
@@ -29,7 +30,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(FetchContent)
 FetchContent_Declare(
   _project_options
-  URL https://github.com/aminya/project_options/archive/refs/tags/v0.25.2.zip
+  URL https://github.com/aminya/project_options/archive/refs/tags/v0.26.3.zip
 )
 FetchContent_MakeAvailable(_project_options)
 include(${_project_options_SOURCE_DIR}/Index.cmake)
@@ -46,13 +47,6 @@ project(
   HOMEPAGE_URL "%%myurl%%"
   LANGUAGES CXX C)
 
-# This variable is set by project() in CMake 3.21+
-string(
-  COMPARE EQUAL
-    "${CMAKE_SOURCE_DIR}"
-    "${PROJECT_SOURCE_DIR}"
-  PROJECT_IS_TOP_LEVEL
-)
 if(PROJECT_IS_TOP_LEVEL)
   # Consider the CTest module, which creates targets and options!
   # Only needed if you want to enable submissions to a CDash server.
@@ -67,7 +61,7 @@ string(SUBSTRING "${GIT_SHA}" 0 8 GIT_SHORT_SHA)
 
 set(
   TX_ENABLE_DEBUG_FEATURES FALSE
-  CACHE BOOL "Enable special feature usefull for debugging"
+  CACHE BOOL "Enable special features usefull for debugging"
 )
 
 get_property(BUILDING_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -97,13 +91,14 @@ endif()
 
 include(${_project_options_SOURCE_DIR}/src/DynamicProjectOptions.cmake)
 
-# defaulted_project_options sets recommended defaults and provides user and developer
-# modes and full GUI support for choosing options at configure time
+# defaulted_project_options sets recommended defaults and provides user and
+# developer modes and full GUI support for choosing options at configure time
 
 # for more flexibility, look into project_options() macro
 
 # Any default can be overridden
-# set(<feature_name>_DEFAULT <value>) - set default for both user and developer modes
+# set(<feature_name>_DEFAULT <value>) - set default for both user and
+#   developer modes
 # set(<feature_name>_DEVELOPER_DEFAULT <value>) - set default for developer mode
 # set(<feature_name>_USER_DEFAULT <value>) - set default for user mode
 
@@ -111,11 +106,12 @@ include(${_project_options_SOURCE_DIR}/src/DynamicProjectOptions.cmake)
 # This overwrites `project_options` and sets `project_warnings`
 # uncomment the options to enable them:
 dynamic_project_options(
-  # Note: PCH is disabled by default in developer mode because these headers become
-  # globally included and they can mask other errors
+  # Note: PCH is disabled by default in developer mode because these headers
+  # become globally included and they can mask other errors
   PCH_HEADERS
-  <vector>
-  <string> # This is a list of headers to pre-compile, here are some common ones
+    <string_view>
+    <memory>
+    <utility>
   ENABLE_CONAN
   # CONAN_OPTIONS    # Extra options to pass to conan
   # MSVC_WARNINGS    # Override the defaults for the MSVC warnings
@@ -127,7 +123,8 @@ dynamic_project_options(
   # We cannot act on a bug/missing feature of cppcheck
   --suppress=cppcheckError
   --suppress=internalAstError
-  # if a file does not have an internalAstError, we get an unmatchedSuppression error
+  # if a file does not have an internalAstError, we get an
+  # unmatchedSuppression error
   --suppress=unmatchedSuppression
   --suppress=passedByValue
   --suppress=syntaxError
@@ -144,12 +141,9 @@ target_compile_options(
       -fdata-sections
 )
 
-# TODO: The INTERFACE library NAMESPACE ALIAS are missing! CK
 add_library(tx-lang::project_options INTERFACE IMPORTED)
 add_library(tx-lang::project_warnings INTERFACE IMPORTED)
 
-# configure files based on CMake configuration options
-# add_subdirectory(configured_files)
 add_subdirectory(tx-runtime)
 add_subdirectory(tx-cli)
 
@@ -159,7 +153,8 @@ if(ENABLE_TESTING)
   enable_testing()
   message(
     AUTHOR_WARNING
-    "Building Tests. Be sure to check out test/constexpr_tests.cpp for constexpr testing"
+    "Building Tests. Be sure to check out test/constexpr_tests.cpp \
+    for constexpr testing"
   )
   add_subdirectory(test)
   add_subdirectory(scripts)
@@ -168,12 +163,17 @@ endif()
 
 option(ENABLE_FUZZING "Enable the fuzz tests" OFF)
 if(ENABLE_FUZZING)
-  message(AUTHOR_WARNING "Building Fuzz Tests, using fuzzing sanitizer https://www.llvm.org/docs/LibFuzzer.html")
+  message(
+    AUTHOR_WARNING
+    "Building Fuzz Tests, using fuzzing sanitizer \
+    https://www.llvm.org/docs/LibFuzzer.html"
+  )
   add_subdirectory(fuzz_test)
 endif()
 
-# If MSVC is being used, and ASAN is enabled, we need to set the debugger environment
-# so that it behaves well with MSVC's debugger, and we can run the target from visual studio
+# If MSVC is being used, and ASAN is enabled, we need to set the debugger
+# environment so that it behaves well with MSVC's debugger, and we can run
+# the target from visual studio
 if(MSVC)
   get_all_installable_targets(all_targets)
   message("all_targets=${all_targets}")

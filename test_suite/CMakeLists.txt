@@ -1,24 +1,8 @@
-# Test Suite
-# add_custom_command(
-#   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tx
-#   COMMAND ${CMAKE_COMMAND} -E copy_directory
-#     ${CMAKE_CURRENT_SOURCE_DIR}/tx
-#     ${CMAKE_CURRENT_BINARY_DIR}/tx
-# )
-# add_custom_target(
-#   copy_test_suite ALL
-#   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/tx
-# )
-# set_property(
-#   TARGET copy_test_suite
-#   APPEND PROPERTY ADDITIONAL_CLEAN_FILES ${CMAKE_CURRENT_BINARY_DIR}/tx
-# )
 add_custom_target(
   run_test_suite
   COMMAND ${CMAKE_BINARY_DIR}/scripts/run_tests.py
     ${CMAKE_BINARY_DIR}/tx-cli/tx
     ${CMAKE_CURRENT_SOURCE_DIR}
-  # DEPENDS copy_test_suite
 )
 
 add_test(
