@@ -102,6 +102,16 @@ operator==(const TypeInfo& lhs, const TypeInfo& rhs) noexcept {
     }
 }
 
+template <std::size_t N>
+constexpr TypeSet::TypeSet(VM& tvm, TypeInfo (&&type_infos)[N]) noexcept {
+    types.reserve(tvm, types.size() + size_cast(N));
+    std::for_each(
+        std::make_move_iterator(std::begin(type_infos)),
+        std::make_move_iterator(std::end(type_infos)),
+        [&](TypeInfo&& type_info) { this->add(tvm, std::move(type_info)); }
+    );
+}
+
 // NOLINTNEXTLINE(misc-no-recursion)
 inline constexpr void TypeSet::destroy(VM& tvm) noexcept {
     for (auto& type : types) { type.destroy(tvm); }
@@ -194,15 +204,15 @@ type_check_assign(const TypeInfo& lhs, const TypeInfo& rhs) noexcept {
         using enum TokenType;
         case BANG_EQUAL:
         case EQUAL_EQUAL:
-            // cppcheck-suppress returnDanglingLifetime
-            return {tvm, TypeInfo(TypeInfo::Type::BOOL)};
+            // cppcheck-suppress[returnDanglingLifetime]
+            return {tvm, {TypeInfo(TypeInfo::Type::BOOL)}};
         case LEFT_CHEVRON:
         case LESS_EQUAL:
         case RIGHT_CHEVRON:
         case GREATER_EQUAL: {
             if (!type_check_comparison(lhs, rhs)) { return {}; }
             // cppcheck-suppress returnDanglingLifetime
-            return {tvm, TypeInfo(TypeInfo::Type::BOOL)};
+            return {tvm, {TypeInfo(TypeInfo::Type::BOOL)}};
         }
         case PLUS:
         case MINUS:

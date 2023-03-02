@@ -2,6 +2,7 @@
 
 #include "tx/memory.hxx"
 #include "tx/type_traits.hxx"
+#include "tx/utils.hxx"
 
 #include <gsl/gsl>
 
@@ -61,6 +62,18 @@ class DynArray {
         other.data_ptr = nullptr;
     }
 
+    // NOTE: Using C array to work around the lack of support for move
+    // semantics by std::initializer_list (std::array does not works)
+    template <std::size_t N>
+    constexpr DynArray(VM& tvm, T (&&content)[N]) noexcept {
+        reserve(tvm, size() + size_cast(N));
+        std::for_each(
+            std::make_move_iterator(std::begin(content)),
+            std::make_move_iterator(std::end(content)),
+            [&](T&& item) { this->emplace_back(tvm, std::move(item)); }
+        );
+    }
+
     constexpr DynArray& operator=(const DynArray& other) noexcept = delete;
 
     constexpr DynArray& operator=(DynArray&& other) noexcept {
@@ -104,7 +117,7 @@ class DynArray {
         return result;
     }
 
-    constexpr void clear() noexcept {  //(std::is_nothrow_destructible_v<T>) {
+    constexpr void clear() noexcept(std::is_nothrow_destructible_v<T>) {
         std::destroy_n(data_ptr, count);
         count = 0;
     }
@@ -159,6 +172,7 @@ class DynArray {
     }
 
     constexpr void reserve(VM& tvm, SizeT new_cap) noexcept {
+        if (new_cap <= capacity_) { return; }
         static_assert(is_trivially_relocatable_v<T>);
         data_ptr = grow_array<T, TRIGGER_GC>(tvm, data_ptr, capacity_, new_cap);
         capacity_ = new_cap;

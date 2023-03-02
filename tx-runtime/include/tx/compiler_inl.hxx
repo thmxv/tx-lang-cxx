@@ -479,7 +479,7 @@ inline constexpr TypeSet
 Parser::call(TypeSet lhs, bool /*can_assign*/) noexcept {
     auto arg_types = argument_list();
     auto result = type_check_call(parent_vm, lhs, arg_types);
-    if(result.is_empty()) {
+    if (result.is_empty()) {
         error(FMT_STRING("Incompatible types in function call."));
     }
     emit_instruction<1>(OpCode::CALL, arg_types.size());
@@ -502,27 +502,27 @@ inline constexpr TypeSet Parser::literal(bool /*can_assign*/) noexcept {
             emit_instruction(OpCode::NIL);
             // FIXME: Why the cppcheck error? False positive?
             // cppcheck-suppress returnDanglingLifetime
-            return {parent_vm, TypeInfo(TypeInfo::Type::NIL)};
+            return {parent_vm, {TypeInfo(TypeInfo::Type::NIL)}};
         case FALSE:
             emit_instruction(OpCode::FALSE);
             // cppcheck-suppress returnDanglingLifetime
-            return {parent_vm, TypeInfo(TypeInfo::Type::BOOL)};
+            return {parent_vm, {TypeInfo(TypeInfo::Type::BOOL)}};
         case TRUE:
             emit_instruction(OpCode::TRUE);
             // cppcheck-suppress returnDanglingLifetime
-            return {parent_vm, TypeInfo(TypeInfo::Type::BOOL)};
+            return {parent_vm, {TypeInfo(TypeInfo::Type::BOOL)}};
         case FLOAT_LITERAL:
             emit_constant(previous.value);
             // cppcheck-suppress returnDanglingLifetime
-            return {parent_vm, TypeInfo(TypeInfo::Type::FLOAT)};
+            return {parent_vm, {TypeInfo(TypeInfo::Type::FLOAT)}};
         case INTEGER_LITERAL:
             emit_constant(previous.value);
             // cppcheck-suppress returnDanglingLifetime
-            return {parent_vm, TypeInfo(TypeInfo::Type::INT)};
+            return {parent_vm, {TypeInfo(TypeInfo::Type::INT)}};
         case STRING_LITERAL:
             emit_constant(previous.value);
             // cppcheck-suppress returnDanglingLifetime
-            return {parent_vm, TypeInfo(TypeInfo::Type::STRING)};
+            return {parent_vm, {TypeInfo(TypeInfo::Type::STRING)}};
         default: unreachable();
     }
 }
@@ -687,7 +687,7 @@ inline constexpr TypeSet Parser::block_no_scope() noexcept {
     if (!final_expr_opt.has_value()) {
         emit_instruction(OpCode::NIL);
         // cppcheck-suppress[returnDanglingLifetime]
-        return TypeSet{parent_vm, TypeInfo(TypeInfo::Type::NIL)};
+        return {parent_vm, {TypeInfo(TypeInfo::Type::NIL)}};
     }
     return std::move(final_expr_opt.value().type_set);
 }
@@ -756,7 +756,8 @@ inline TypeSet Parser::fn_expr(bool /*can_assign*/) noexcept {
     function_body(FunctionType::FUNCTION, "", std::move(params_ret));
     // cppcheck-suppress[accessMoved]
     params_ret.destroy(parent_vm);
-    return {parent_vm, std::move(ti_result)};
+    // cppcheck-suppress[returnDanglingLifetime]
+    return {parent_vm, {std::move(ti_result)}};
 }
 
 // FIXME: type check
@@ -969,9 +970,9 @@ inline constexpr ParametersAndReturn Parser::parameter_list_and_return_type(
         consume(TokenType::RIGHT_CHEVRON, "Expect '>' after '-'.");
         result.type_info.return_type = parse_type_set();
     } else {
-        result.type_info.return_type = TypeSet{
+        result.type_info.return_type = {
             parent_vm,
-            TypeInfo{TypeInfo::Type::NIL}};
+            {TypeInfo{TypeInfo::Type::NIL}}};
     }
     return result;
 }
@@ -1020,7 +1021,7 @@ inline void Parser::fn_declaration() noexcept {
     auto global_idx = declare_variable(
         name,
         is_const,
-        TypeSet{parent_vm, TypeInfo{params_ret.type_info.copy(parent_vm)}}
+        {parent_vm, {TypeInfo{params_ret.type_info.copy(parent_vm)}}}
     );
     if (match(LEFT_BRACE)) {
         mark_initialized(global_idx);

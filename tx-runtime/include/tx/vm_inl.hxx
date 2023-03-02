@@ -201,157 +201,144 @@ inline VM::VM(VMOptions opts, const Allocator& alloc) noexcept
     define_native(
         "core_version_string",
         core_version_string_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::STRING}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types = {},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::STRING}}},
+         }}}}
     );
     define_native(
         "core_version_major",
         core_version_major_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types = {},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::INT}}},
+         }}}}
     );
     define_native(
         "core_version_minor",
         core_version_minor_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types = {},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::INT}}},
+         }}}}
     );
     define_native(
         "core_version_patch",
         core_version_patch_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types = {},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::INT}}},
+         }}}}
     );
     define_native(
         "core_version_tweak",
         core_version_tweak_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types = {},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::INT}}},
+         }}}}
     );
     define_native(
         "core_assert",
         core_assert_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types =
-                    {
-                        /* TODO */
-                        // *this,
-                        // TypeSet{*this, TypeInfo{TypeInfo::Type::ANY}},
-                        // TypeSet{*this, TypeInfo{TypeInfo::Type::STRING}},
-                    },
-                .return_type = {*this, TypeInfo{TypeInfo::Type::NIL}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types =
+                 {*this,
+                  {
+                      TypeSet{*this, {TypeInfo{TypeInfo::Type::ANY}}},
+                      TypeSet{*this, {TypeInfo{TypeInfo::Type::STRING}}},
+                  }},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::NIL}}},
+         }}}}
     );
     define_native(
         "std_cpu_clock_read",
         std_cpu_clock_read_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types = {},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::INT}}},
+         }}}}
     );
     define_native(
         "std_cpu_clock_elapsed",
         std_cpu_clock_elapsed_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {/* TODO */},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::FLOAT}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types =
+                 {*this, {TypeSet{*this, {TypeInfo{TypeInfo::Type::INT}}}}},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::FLOAT}}},
+         }}}}
     );
     define_native(
         "std_wall_clock_read",
         std_wall_clock_read_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types = {},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::INT}}},
+         }}}}
     );
     define_native(
         "std_wall_clock_elapsed",
         std_wall_clock_elapsed_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::FLOAT}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types =
+                 {*this, {TypeSet{*this, {TypeInfo{TypeInfo::Type::INT}}}}},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::FLOAT}}},
+         }}}}
     );
     define_native(
         "std_sleep_for",
         std_sleep_for_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {/* TODO */},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::NIL}},
-            }}}
-    );
-
-    TypeSetArray std_println_native_param_types{};
-    std_println_native_param_types.emplace_back(
-        *this,
-        TypeSet{*this, TypeInfo{TypeInfo::Type::ANY}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types =
+                 {*this,
+                  {TypeSet{
+                      *this,
+                      {TypeInfo{TypeInfo::Type::INT},
+                       TypeInfo{TypeInfo::Type::FLOAT}}}}},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::NIL}}},
+         }}}}
     );
     define_native(
         "std_println",
         std_println_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = std::move(std_println_native_param_types),
-                .return_type = {*this, TypeInfo{TypeInfo::Type::NIL}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             // TODO: Force Str parameter, not Any
+             .parameter_types =
+                 {*this, {{*this, {TypeInfo{TypeInfo::Type::ANY}}}}},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::NIL}}},
+         }}}}
     );
-    // cppcheck-suppress[accessMoved]
-    std_println_native_param_types.destroy(*this);
-
     define_native(
         "Float_has_integer_value",
         float_has_integer_value_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {/* TODO */},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::BOOL}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types =
+                 {*this, {{*this, {TypeInfo{TypeInfo::Type::FLOAT}}}}},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::BOOL}}},
+         }}}}
     );
     define_native(
         "Float_sqrt",
         float_sqrt_native,
-        TypeSet{
-            *this,
-            TypeInfo{TypeInfoFunction{
-                .parameter_types = {/* TODO */},
-                .return_type = {*this, TypeInfo{TypeInfo::Type::FLOAT}},
-            }}}
+        {*this,
+         {TypeInfo{TypeInfoFunction{
+             .parameter_types =
+                 {*this, {{*this, {TypeInfo{TypeInfo::Type::FLOAT}}}}},
+             .return_type = {*this, {TypeInfo{TypeInfo::Type::FLOAT}}},
+         }}}}
     );
 }
 
@@ -530,8 +517,8 @@ VM::call_value(Value callee, size_t arg_c) noexcept {
                     NativeInOut(std::prev(stack.end(), arg_c + 1), arg_c + 1)
                 );
                 if (success == NativeResult::SUCCESS) [[likely]] {
-                    // Return value already put in right slot by native func.
-                    // Do not erase it :)
+                    // Return value already put in right slot by native
+                    // func. Do not erase it :)
                     stack.erase(std::prev(stack.cend(), arg_c), stack.cend());
                     return true;
                 }
@@ -762,7 +749,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
 
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
-// clang-format off
+    // clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -1029,7 +1016,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-    // clang-format off
+// clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK

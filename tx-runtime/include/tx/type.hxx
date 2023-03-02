@@ -3,6 +3,7 @@
 #include "tx/dyn_array.hxx"
 #include "tx/scanner.hxx"
 #include "tx/utils.hxx"
+#include <bits/ranges_algo.h>
 
 namespace tx {
 
@@ -17,14 +18,14 @@ struct TypeSet {
     DynArray<TypeInfo> types;
 
     constexpr TypeSet() noexcept = default;
-    // constexpr TypeSet(TypeSet&& other) noexcept = default;
 
     constexpr explicit TypeSet(DynArray<TypeInfo>&& types_) noexcept
             : types(std::move(types_)) {}
 
-    constexpr TypeSet(VM& tvm, TypeInfo&& type_info) noexcept {
-        add(tvm, std::move(type_info));
-    }
+    // NOTE: Using C array to work around the lack of support for move
+    // semantics by std::initializer_list (std::array does not works)
+    template <std::size_t N>
+    constexpr TypeSet(VM& tvm, TypeInfo (&&type_infos)[N]) noexcept;
 
     constexpr void destroy(VM& tvm) noexcept;
 
