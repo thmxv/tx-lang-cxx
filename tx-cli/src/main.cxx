@@ -154,11 +154,23 @@ parse_arguments(int argc, const char** argv) {
         );
         exit(ExitCode::IO_ERROR);
     }
+    // NOTE: getc/ferror to detect is file is directory
+    if ((void)std::getc(file); std::ferror(file) != 0) {
+        fmt::print(
+            stderr,
+            FMT_STRING("Could not read file \"{:s}\": {}\n"),
+            path,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            std::strerror(errno)
+        );
+        (void)std::fclose(file);
+        exit(ExitCode::IO_ERROR);
+    }
     auto is_error = std::fseek(file, 0L, SEEK_END);
     if (is_error != 0) {
         fmt::print(
             stderr,
-            FMT_STRING("Could not seek in file \"{:s}\":{}\n"),
+            FMT_STRING("Could not seek in file \"{:s}\": {}\n"),
             path,
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
             std::strerror(errno)
