@@ -10,8 +10,8 @@ std_println(false or false); # expect: false
 std_println(false or false or false); # expect: false
 
 # Short-circuit at the first true argument.
-var a = "before";
-var b = "before";
+var a: Str or Bool = "before";
+var b: Str or Bool = "before";
 (a = false) or
     (b = true) or
     (a = "bad");

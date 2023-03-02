@@ -26,10 +26,11 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Fix crash when passing a directory insted of a file to tx-cli
+- Replace gsl Expect macro to something less likely to collide
 - Maybe add option to error_token to mark the end of the token or the start in
   error message hint
 - Tests for all the error_token() code paths
-- File name in runtime error
 - Multi-line entry in REPL
 - Fix error in REPL in entry that follows an error
 - Support expression result in REPL

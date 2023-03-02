@@ -166,8 +166,11 @@ class VM {
     [[nodiscard]] constexpr std::string_view get_global_name(size_t index
     ) const noexcept;
 
-    // TODO: pass full signature, for the compiler to verify calls
-    void define_native(std::string_view name, NativeFn fun) noexcept;
+    void define_native(
+        std::string_view name,
+        NativeFn fun,
+        TypeSet&& type_set
+    ) noexcept;
 
     void constexpr ensure_stack_space(i32 needed) noexcept;
 

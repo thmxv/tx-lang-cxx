@@ -1,4 +1,4 @@
-var f = nil;
+var f: Nil or Fn<<>, Nil> = nil;
 
 fn f1() {
   var a = "a";

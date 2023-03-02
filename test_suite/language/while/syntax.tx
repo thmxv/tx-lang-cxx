@@ -1,4 +1,4 @@
-# With ;
+# With ";"
 var a1 = 0;
 while a1 < 3 {
   std_println(a1);
@@ -8,7 +8,7 @@ while a1 < 3 {
 # expect: 1
 # expect: 2
 
-# Without ;
+# Without ";"
 var a2 = 0;
 while a2 < 3 {
   std_println(a2);

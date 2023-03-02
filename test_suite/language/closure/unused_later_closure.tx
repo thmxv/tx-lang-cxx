@@ -4,11 +4,9 @@
 # actually is. When "b" goes out of scope, we need to make sure we don't
 # prematurely close "a".
 
-var closure = nil;
-
+var closure: Nil or Fn<<>, Str> = nil;
 {
   var a = "a";
-
   {
     var b = "b";
     fn return_a() {

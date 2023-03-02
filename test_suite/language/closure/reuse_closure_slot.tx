@@ -1,5 +1,5 @@
 {
-  var f = nil;
+  var f: Nil or Fn<<>, Nil> = nil;
 
   {
     var a = "a";

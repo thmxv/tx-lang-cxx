@@ -1,5 +1,5 @@
-var f = nil;
-var g = nil;
+var f: Nil or Fn<<>, Nil> = nil;
+var g: Nil or Fn<<>, Nil> = nil;
 
 {
   var local = "local";

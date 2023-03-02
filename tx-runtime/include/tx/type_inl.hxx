@@ -1,9 +1,10 @@
 #pragma once
 
 #include "tx/type.hxx"
+#include <bits/ranges_algo.h>
 //
-
 #include <algorithm>
+#include <optional>
 #include <ranges>
 
 namespace tx {
@@ -46,7 +47,7 @@ inline constexpr TypeInfo& TypeInfo::operator=(TypeInfo&& rhs) noexcept {
         using enum Type;
         case FUNCTION:
             // FIXME: call move constructor if not FUNCTION
-            assert(rhs.type == Type::FUNCTION); // NOLINT(*-decay)
+            assert(rhs.type == Type::FUNCTION);  // NOLINT(*-decay)
             swap(as_function(), rhs.as_function());
             break;
         default: break;
@@ -137,43 +138,43 @@ operator==(const TypeSet& lhs, const TypeSet& rhs) noexcept {
 
 [[nodiscard]] inline constexpr bool
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-type_check_assign(const TypeSet& src, const TypeSet& dst) noexcept {
-    return std::ranges::all_of(src.types, [&](const auto& current_src) {
-        return type_check_assign(current_src, dst);
+type_check_assign(const TypeSet& lhs, const TypeSet& rhs) noexcept {
+    return std::ranges::all_of(rhs.types, [&](const auto& current_rhs) {
+        return type_check_assign(lhs, current_rhs);
     });
 }
 
 [[nodiscard]] inline constexpr bool
-type_check_assign(const TypeInfo& src, const TypeSet& dst) noexcept {
+type_check_assign(const TypeSet& lhs, const TypeInfo& rhs) noexcept {
     return std::ranges::find_if(
-               dst.types,
-               [&](const auto& current_dst) {
-                   return type_check_assign(src, current_dst);
+               lhs.types,
+               [&](const auto& current_lhs) {
+                   return type_check_assign(current_lhs, rhs);
                }
            )
-           != dst.types.end();
+           != lhs.types.end();
 }
 
 [[nodiscard]] inline constexpr bool
-type_check_assign(const TypeInfo& src, const TypeInfo& dst) noexcept {
-    if (dst.type == TypeInfo::Type::ANY) { return true; }
-    if (dst == src) { return true; }
-    if (dst.type == TypeInfo::Type::FLOAT && src.type == TypeInfo::Type::INT) {
+type_check_assign(const TypeInfo& lhs, const TypeInfo& rhs) noexcept {
+    if (lhs.type == TypeInfo::Type::ANY) { return true; }
+    if (lhs == rhs) { return true; }
+    if (lhs.type == TypeInfo::Type::FLOAT && rhs.type == TypeInfo::Type::INT) {
         return true;
     }
-    if (dst.type == TypeInfo::Type::FUNCTION
-        && src.type == TypeInfo::Type::FUNCTION) {
-        if (dst.as_function().parameter_types.size()
-            != src.as_function().parameter_types.size()) {
+    if (lhs.type == TypeInfo::Type::FUNCTION
+        && rhs.type == TypeInfo::Type::FUNCTION) {
+        if (lhs.as_function().parameter_types.size()
+            != rhs.as_function().parameter_types.size()) {
             return false;
         }
         // TODO: Use ranges (C++23)
         // for (const auto pair :
         //      std::views::zip(from.fun.parameter_types, fun.parameter_types))
-        for (size_t i = 0; i < dst.as_function().parameter_types.size(); ++i) {
+        for (size_t i = 0; i < lhs.as_function().parameter_types.size(); ++i) {
             if (!type_check_assign(
-                    src.as_function().parameter_types[i],
-                    dst.as_function().parameter_types[i]
+                    rhs.as_function().parameter_types[i],
+                    lhs.as_function().parameter_types[i]
                 )) {
                 return false;
             }
@@ -198,23 +199,119 @@ type_check_assign(const TypeInfo& src, const TypeInfo& dst) noexcept {
         case LEFT_CHEVRON:
         case LESS_EQUAL:
         case RIGHT_CHEVRON:
-        case GREATER_EQUAL:
-            // FIXME: check operand
-            (void)lhs;
-            (void)rhs;
+        case GREATER_EQUAL: {
+            if (!type_check_comparison(lhs, rhs)) { return {}; }
             // cppcheck-suppress returnDanglingLifetime
             return {tvm, TypeInfo(TypeInfo::Type::BOOL)};
+        }
         case PLUS:
         case MINUS:
         case STAR:
-        case SLASH:
-            // FIXME: check operand
-            (void)lhs;
-            (void)rhs;
-            // cppcheck-suppress returnDanglingLifetime
-            return {tvm, TypeInfo(TypeInfo::Type::FLOAT)};
+        case SLASH: {
+            return type_check_arithmetic(tvm, lhs, rhs);
+        }
         default: unreachable();
     }
+}
+
+[[nodiscard]] constexpr bool
+type_check_comparison(const TypeSet& lhs, const TypeSet& rhs) noexcept {
+    return std::ranges::all_of(lhs.types, [&](const auto& current_lhs) {
+        return type_check_comparison(current_lhs, rhs);
+    });
+}
+
+[[nodiscard]] constexpr bool
+type_check_comparison(const TypeInfo& lhs, const TypeSet& rhs) noexcept {
+    return std::ranges::all_of(rhs.types, [&](const auto& current_rhs) {
+        return type_check_comparison(lhs, current_rhs);
+    });
+}
+
+[[nodiscard]] constexpr bool
+type_check_comparison(const TypeInfo& lhs, const TypeInfo& rhs) noexcept {
+    return lhs.is_number() && rhs.is_number();
+}
+
+[[nodiscard]] constexpr TypeSet type_check_arithmetic(
+    VM& tvm,
+    const TypeSet& lhs,
+    const TypeSet& rhs
+) noexcept {
+    TypeSet result{};
+    for (const TypeInfo& current_lhs : lhs.types) {
+        auto type_set = type_check_arithmetic(tvm, current_lhs, rhs);
+        if (type_set.is_empty()) { return {}; }
+        result.move_all_from(tvm, std::move(type_set));
+        // cppcheck-suppress[accessMoved]
+        type_set.destroy(tvm);
+    }
+    return result;
+}
+
+[[nodiscard]] constexpr TypeSet type_check_arithmetic(
+    VM& tvm,
+    const TypeInfo& lhs,
+    const TypeSet& rhs
+) noexcept {
+    TypeSet result{};
+    for (const TypeInfo& current_rhs : rhs.types) {
+        auto type = type_check_arithmetic(lhs, current_rhs);
+        if (type.is<TypeInfo::Type::NONE>()) {
+            result.destroy(tvm);
+            return {};
+        }
+        result.add(tvm, std::move(type));
+        // cppcheck-suppress[accessMoved]
+        type.destroy(tvm);
+    }
+    return result;
+}
+
+[[nodiscard]] constexpr TypeInfo
+type_check_arithmetic(const TypeInfo& lhs, const TypeInfo& rhs) noexcept {
+    if (lhs.is<TypeInfo::Type::INT>() && rhs.is<TypeInfo::Type::INT>()) {
+        return TypeInfo{TypeInfo::Type::INT};
+    }
+    if (lhs.is_number() && rhs.is_number()) {
+        return TypeInfo{TypeInfo::Type::FLOAT};
+    }
+    return TypeInfo{TypeInfo::Type::NONE};
+}
+
+[[nodiscard]] constexpr TypeSet type_check_call(
+    VM& tvm,
+    const TypeSet& callee,
+    const TypeSetArray& arg_types
+) noexcept {
+    TypeSet result{};
+    for (const auto& current_callee : callee.types) {
+        auto type_set = type_check_call(tvm, current_callee, arg_types);
+        if (type_set.is_empty()) {
+            result.destroy(tvm);
+            return {};
+        }
+        result.move_all_from(tvm, std::move(type_set));
+        // cppcheck-suppress[accessMoved]
+        type_set.destroy(tvm);
+    }
+    return result;
+}
+
+[[nodiscard]] constexpr TypeSet type_check_call(
+    VM& tvm,
+    const TypeInfo& callee,
+    const TypeSetArray& args_types
+) noexcept {
+    if (!callee.is<TypeInfo::Type::FUNCTION>()) { return {}; }
+    const auto& fun = callee.as_function();
+    if (fun.parameter_types.size() != args_types.size()) { return {}; }
+    for (i32 i = 0; i < args_types.size(); ++i) {
+        const auto& param_types = fun.parameter_types[i];
+        const auto& arg_types = args_types[i];
+        if (!type_check_assign(param_types, arg_types)) { return {}; }
+    }
+    return fun.return_type.copy(tvm);
 }
 
 }  // namespace tx

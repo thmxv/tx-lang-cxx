@@ -1,6 +1,6 @@
 # With explicit value
 var a1 = "outer";
-var b1 = fn() { var a1 = "inner"; a1 }();
+var b1 = fn() -> Str { var a1 = "inner"; a1 }();
 std_println(b1);  # expect: inner
 std_println(a1);  # expect: outer
 

@@ -17,6 +17,7 @@ struct TypeSet {
     DynArray<TypeInfo> types;
 
     constexpr TypeSet() noexcept = default;
+    // constexpr TypeSet(TypeSet&& other) noexcept = default;
 
     constexpr explicit TypeSet(DynArray<TypeInfo>&& types_) noexcept
             : types(std::move(types_)) {}
@@ -44,8 +45,10 @@ struct TypeSet {
 
 struct TypeInfoNone {};
 
+using TypeSetArray = DynArray<TypeSet>;
+
 struct TypeInfoFunction {
-    DynArray<TypeSet> parameter_types;
+    TypeSetArray parameter_types;
     TypeSet return_type;
 
     constexpr void destroy(VM& tvm) noexcept;
@@ -100,15 +103,19 @@ struct TypeInfo {
         return type == T;
     }
 
+    [[nodiscard]] constexpr bool is_number() const noexcept {
+        return (type == Type::INT) || (type == Type::FLOAT);
+    }
+
     [[nodiscard]] constexpr TypeInfoFunction& as_function() noexcept {
         assert(is<Type::FUNCTION>());  // NOLINT(*-decay)
-        return fun;  // NOLINT(*-union-access)
+        return fun;                    // NOLINT(*-union-access)
     }
 
     [[nodiscard]] constexpr const TypeInfoFunction& as_function(
     ) const noexcept {
         assert(is<Type::FUNCTION>());  // NOLINT(*-decay)
-        return fun;  // NOLINT(*-union-access)
+        return fun;                    // NOLINT(*-union-access)
     }
 
     friend constexpr bool
@@ -116,13 +123,11 @@ struct TypeInfo {
 };
 
 [[nodiscard]] constexpr bool
-type_check_assign(const TypeSet& src, const TypeSet& dst) noexcept;
-
+type_check_assign(const TypeSet& lhs, const TypeSet& rhs) noexcept;
 [[nodiscard]] constexpr bool
-type_check_assign(const TypeInfo& src, const TypeSet& dst) noexcept;
-
+type_check_assign(const TypeSet& lhs, const TypeInfo& rhs) noexcept;
 [[nodiscard]] constexpr bool
-type_check_assign(const TypeInfo& src, const TypeInfo& dst) noexcept;
+type_check_assign(const TypeInfo& lhs, const TypeInfo& rhs) noexcept;
 
 [[nodiscard]] constexpr TypeSet type_check_binary(
     VM& tvm,
@@ -132,6 +137,37 @@ type_check_assign(const TypeInfo& src, const TypeInfo& dst) noexcept;
 ) noexcept;
 
 [[nodiscard]] constexpr bool
+type_check_comparison(const TypeSet& lhs, const TypeSet& rhs) noexcept;
+[[nodiscard]] constexpr bool
+type_check_comparison(const TypeInfo& lhs, const TypeSet& rhs) noexcept;
+[[nodiscard]] constexpr bool
+type_check_comparison(const TypeInfo& lhs, const TypeInfo& rhs) noexcept;
+
+[[nodiscard]] constexpr TypeSet
+type_check_arithmetic(VM& tvm, const TypeSet& lhs, const TypeSet& rhs) noexcept;
+
+[[nodiscard]] constexpr TypeSet type_check_arithmetic(
+    VM& tvm,
+    const TypeInfo& lhs,
+    const TypeSet& rhs
+) noexcept;
+
+[[nodiscard]] constexpr TypeInfo
+type_check_arithmetic(const TypeInfo& lhs, const TypeInfo& rhs) noexcept;
+
+[[nodiscard]] constexpr bool
 type_check_unary(const TypeInfo& src, const TypeInfo& dst) noexcept;
+
+[[nodiscard]] constexpr TypeSet type_check_call(
+    VM& tvm,
+    const TypeSet& callee,
+    const TypeSetArray& arg_types
+) noexcept;
+
+[[nodiscard]] constexpr TypeSet type_check_call(
+    VM& tvm,
+    const TypeInfo& callee,
+    const TypeSetArray& args_types
+) noexcept;
 
 }  // namespace tx

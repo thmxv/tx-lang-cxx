@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tx/type.hxx"
 #include "tx/vm.hxx"
 //
 #include "tx/chunk.hxx"
@@ -170,7 +171,7 @@ float_sqrt_native(VM& /*tvm*/, NativeInOut inout) {
     const auto res = std::sqrt(val);
     // FIXME: we should save/restore except flags instead of just clearing
     // after. Or maybe just do not care and let them propagate
-    if (std::isnan(res)) [[unlikely]] { std::feclearexcept(FE_INVALID); }
+    // if (std::isnan(res)) [[unlikely]] { std::feclearexcept(FE_INVALID); }
     inout.return_value() = Value{res};
     return NativeResult::SUCCESS;
 }
@@ -196,20 +197,162 @@ inline VM::VM(VMOptions opts, const Allocator& alloc) noexcept
         stack.reserve(*this, STACK_START);
     }
 
-    define_native("core_version_string", core_version_string_native);
-    define_native("core_version_major", core_version_major_native);
-    define_native("core_version_minor", core_version_minor_native);
-    define_native("core_version_patch", core_version_patch_native);
-    define_native("core_version_tweak", core_version_tweak_native);
-    define_native("core_assert", core_assert_native);
-    define_native("std_cpu_clock_read", std_cpu_clock_read_native);
-    define_native("std_cpu_clock_elapsed", std_cpu_clock_elapsed_native);
-    define_native("std_wall_clock_read", std_wall_clock_read_native);
-    define_native("std_wall_clock_elapsed", std_wall_clock_elapsed_native);
-    define_native("std_sleep_for", std_sleep_for_native);
-    define_native("std_println", std_println_native);
-    define_native("Float_has_integer_value", float_has_integer_value_native);
-    define_native("Float_sqrt", float_sqrt_native);
+    // FIXME: detect signature automatically at compile time
+    define_native(
+        "core_version_string",
+        core_version_string_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::STRING}},
+            }}}
+    );
+    define_native(
+        "core_version_major",
+        core_version_major_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
+            }}}
+    );
+    define_native(
+        "core_version_minor",
+        core_version_minor_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
+            }}}
+    );
+    define_native(
+        "core_version_patch",
+        core_version_patch_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
+            }}}
+    );
+    define_native(
+        "core_version_tweak",
+        core_version_tweak_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
+            }}}
+    );
+    define_native(
+        "core_assert",
+        core_assert_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types =
+                    {
+                        /* TODO */
+                        // *this,
+                        // TypeSet{*this, TypeInfo{TypeInfo::Type::ANY}},
+                        // TypeSet{*this, TypeInfo{TypeInfo::Type::STRING}},
+                    },
+                .return_type = {*this, TypeInfo{TypeInfo::Type::NIL}},
+            }}}
+    );
+    define_native(
+        "std_cpu_clock_read",
+        std_cpu_clock_read_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
+            }}}
+    );
+    define_native(
+        "std_cpu_clock_elapsed",
+        std_cpu_clock_elapsed_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {/* TODO */},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::FLOAT}},
+            }}}
+    );
+    define_native(
+        "std_wall_clock_read",
+        std_wall_clock_read_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::INT}},
+            }}}
+    );
+    define_native(
+        "std_wall_clock_elapsed",
+        std_wall_clock_elapsed_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::FLOAT}},
+            }}}
+    );
+    define_native(
+        "std_sleep_for",
+        std_sleep_for_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {/* TODO */},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::NIL}},
+            }}}
+    );
+
+    TypeSetArray std_println_native_param_types{};
+    std_println_native_param_types.emplace_back(
+        *this,
+        TypeSet{*this, TypeInfo{TypeInfo::Type::ANY}}
+    );
+    define_native(
+        "std_println",
+        std_println_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = std::move(std_println_native_param_types),
+                .return_type = {*this, TypeInfo{TypeInfo::Type::NIL}},
+            }}}
+    );
+    // cppcheck-suppress[accessMoved]
+    std_println_native_param_types.destroy(*this);
+
+    define_native(
+        "Float_has_integer_value",
+        float_has_integer_value_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {/* TODO */},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::BOOL}},
+            }}}
+    );
+    define_native(
+        "Float_sqrt",
+        float_sqrt_native,
+        TypeSet{
+            *this,
+            TypeInfo{TypeInfoFunction{
+                .parameter_types = {/* TODO */},
+                .return_type = {*this, TypeInfo{TypeInfo::Type::FLOAT}},
+            }}}
+    );
 }
 
 inline constexpr VM::~VM() noexcept {
@@ -299,7 +442,11 @@ VM::add_global(Value name, Global&& signature, Value val) noexcept {
     unreachable();
 }
 
-inline void VM::define_native(std::string_view name, NativeFn fun) noexcept {
+inline void VM::define_native(
+    std::string_view name,
+    NativeFn fun,
+    TypeSet&& type_set
+) noexcept {
     assert(stack.empty());
     ensure_stack_space(2);
     push(Value{make_string(*this, false, name)});
@@ -309,6 +456,7 @@ inline void VM::define_native(std::string_view name, NativeFn fun) noexcept {
         Global{
             .is_defined = true,
             .is_const = true,
+            .type_set = std::move(type_set),
         },
         stack[1]
     );

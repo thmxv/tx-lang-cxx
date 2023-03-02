@@ -94,13 +94,11 @@ struct Upvalue {
     static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
 
     size_t index;
-    bool is_local :1;
-    bool is_const :1;
+    bool is_local;
 
-    constexpr Upvalue(size_t idx, bool is_local_, bool is_const_) noexcept
+    constexpr Upvalue(size_t idx, bool is_local_) noexcept
             : index(idx)
-            , is_local(is_local_)
-            , is_const(is_const_) {}
+            , is_local(is_local_) {}
 };
 
 enum struct FunctionType {
@@ -275,14 +273,10 @@ class Parser {
     // cppcheck-suppress functionStatic
     resolve_local(Compiler& compiler, const Token& name) noexcept;
 
-    [[nodiscard]] constexpr size_t add_upvalue(
-        Compiler& compiler,
-        size_t index,
-        bool is_local,
-        bool is_const
-    ) noexcept;
+    [[nodiscard]] constexpr size_t
+    add_upvalue(Compiler& compiler, size_t index, bool is_local) noexcept;
 
-    [[nodiscard]] constexpr i32
+    [[nodiscard]] constexpr std::tuple<i32, const Local*>
     resolve_upvalue(Compiler& compiler, const Token& name) noexcept;
 
     [[nodiscard]] i32 resolve_global(const Token& name) noexcept;
@@ -323,7 +317,7 @@ class Parser {
     [[nodiscard]] constexpr std::optional<std::tuple<Token, bool>>
     parse_variable(std::string_view error_message) noexcept;
 
-    [[nodiscard]] constexpr u8 argument_list();
+    [[nodiscard]] constexpr TypeSetArray argument_list();
 
     [[nodiscard]] constexpr TypeSet block_no_scope() noexcept;
     [[nodiscard]] constexpr ParseResult expression(
@@ -341,8 +335,8 @@ class Parser {
     void fn_declaration() noexcept;
 
     [[nodiscard]] constexpr TypeInfo parse_type() noexcept;
-    [[nodiscard]] constexpr TypeSet type_set() noexcept;
-    [[nodiscard]] constexpr DynArray<TypeSet> type_set_list(
+    [[nodiscard]] constexpr TypeSet parse_type_set() noexcept;
+    [[nodiscard]] constexpr TypeSetArray parse_type_set_list(
         std::string_view message
     ) noexcept;
 

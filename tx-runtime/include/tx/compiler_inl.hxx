@@ -10,6 +10,7 @@
 #include "tx/type.hxx"
 #include "tx/utils.hxx"
 #include "tx/vm.hxx"
+#include <fmt/format.h>
 
 #include <limits>
 #include <optional>
@@ -245,11 +246,11 @@ inline constexpr void Parser::emit_constant(Value value) noexcept {
 
 inline constexpr void
 Parser::emit_closure(Compiler& compiler, ObjFunction& function) noexcept {
+    Expects(function.upvalue_count == compiler.upvalues.size());
     emit_var_length_instruction(
         OpCode::CLOSURE,
         add_constant(Value{&function})
     );
-    assert(function.upvalue_count == compiler.upvalues.size());
     for (const auto& upvalue : compiler.upvalues) {
         assert(upvalue.index >= 0);
         assert(upvalue.index < size_cast(1U << 24U));
@@ -261,14 +262,9 @@ Parser::emit_closure(Compiler& compiler, ObjFunction& function) noexcept {
             }
             return result == 0 ? u8{1} : result;
         }(static_cast<usize>(upvalue.index));
-        assert(length == 1);
-        assert(length >= 1);
-        assert(length <= 3);
         const u8 flags = static_cast<u8>(
             static_cast<u32>(upvalue.is_local << 7U) | (length & 0b01111111U)
         );
-        assert(length == (flags & 0b01111111U));
-        assert(upvalue.is_local == bool(flags & 0b10000000U));
         emit_bytes(flags);
         if (length == 1) {
             current_chunk().write_multibyte_operand<1>(
@@ -434,7 +430,6 @@ inline constexpr void Parser::end_loop() noexcept {
                                            ->enclosing;
 }
 
-// FIXME: type check
 inline constexpr TypeSet
 Parser::binary(TypeSet lhs, bool /*can_assign*/) noexcept {
     auto token = previous;
@@ -445,7 +440,7 @@ Parser::binary(TypeSet lhs, bool /*can_assign*/) noexcept {
                    .type_set;
     auto result = type_check_binary(parent_vm, token.type, lhs, rhs);
     if (result.is_empty()) {
-        error_at(token, "Incompatible types for binary operation");
+        error_at(token, "Incompatible types in binary operation");
     } else {
         switch (token.type) {
             using enum TokenType;
@@ -467,29 +462,32 @@ Parser::binary(TypeSet lhs, bool /*can_assign*/) noexcept {
     return result;
 }
 
-[[nodiscard]] inline constexpr u8 Parser::argument_list() {
-    u8 arg_count = 0;
+[[nodiscard]] inline constexpr TypeSetArray Parser::argument_list() {
+    TypeSetArray result{};
     do {
         if (check(RIGHT_PAREN)) { break; }
-        auto typeset = expression();
-        if (arg_count == 255) {
+        result.emplace_back(parent_vm, std::move(expression().type_set));
+        if (result.size() == 256) {
             error(FMT_STRING("Can't have more than 255 arguments."));
         }
-        ++arg_count;
-        typeset.destroy(parent_vm);
     } while (match(COMMA));
     consume(RIGHT_PAREN, "Expect ')' after arguments.");
-    return arg_count;
+    return result;
 }
 
-// FIXME: type check
 inline constexpr TypeSet
 Parser::call(TypeSet lhs, bool /*can_assign*/) noexcept {
-    // TODO: check lhs is callable
-    auto arg_count = argument_list();
-    emit_instruction<1>(OpCode::CALL, arg_count);
+    auto arg_types = argument_list();
+    auto result = type_check_call(parent_vm, lhs, arg_types);
+    if(result.is_empty()) {
+        error(FMT_STRING("Incompatible types in function call."));
+    }
+    emit_instruction<1>(OpCode::CALL, arg_types.size());
     lhs.destroy(parent_vm);
-    return TypeSet{};
+    // FIXME: Make DynArray::destroy() call destroy on elements when required
+    for (auto& type_set : arg_types) { type_set.destroy(parent_vm); }
+    arg_types.destroy(parent_vm);
+    return result;
 }
 
 inline constexpr TypeSet Parser::grouping(bool /*can_assign*/) noexcept {
@@ -547,12 +545,8 @@ Parser::resolve_local(Compiler& compiler, const Token& name) noexcept {
     return -1;
 }
 
-inline constexpr size_t Parser::add_upvalue(
-    Compiler& compiler,
-    size_t index,
-    bool is_local,
-    bool is_const
-) noexcept {
+inline constexpr size_t
+Parser::add_upvalue(Compiler& compiler, size_t index, bool is_local) noexcept {
     auto upvalue_count = compiler.function->upvalue_count;
     for (size_t i = 0; i < upvalue_count; ++i) {
         const auto& upvalue = compiler.upvalues[i];
@@ -564,46 +558,52 @@ inline constexpr size_t Parser::add_upvalue(
         error(FMT_STRING("Too much closure variables in function."));
         return 0;
     }
-    compiler.upvalues.emplace_back(parent_vm, index, is_local, is_const);
+    compiler.upvalues.emplace_back(parent_vm, index, is_local);
     return compiler.function->upvalue_count++;
 }
 
-inline constexpr i32
+inline constexpr std::tuple<i32, const Local*>
 Parser::resolve_upvalue(Compiler& compiler, const Token& name) noexcept {
-    if (compiler.enclosing == nullptr) { return -1; }
-    auto local_idx = resolve_local(*compiler.enclosing, name);
-    if (local_idx != -1) {
+    if (compiler.enclosing == nullptr) { return {-1, nullptr}; }
+    if (auto local_idx = resolve_local(*compiler.enclosing, name);
+        local_idx != -1) {
         auto& local = compiler.enclosing->locals[local_idx];
         local.is_captured = true;
-        return add_upvalue(compiler, local_idx, true, local.is_const);
+        return {add_upvalue(compiler, local_idx, true), &local};
     }
-    auto upvalue_idx = resolve_upvalue(*compiler.enclosing, name);
-    if (upvalue_idx != -1) {
-        const auto& upvalue = compiler.enclosing->upvalues[upvalue_idx];
-        return add_upvalue(compiler, upvalue_idx, false, upvalue.is_const);
+    if (auto [upvalue_idx, var] = resolve_upvalue(*compiler.enclosing, name);
+        upvalue_idx != -1) {
+        return {add_upvalue(compiler, upvalue_idx, false), var};
     }
-    return -1;
+    return {-1, nullptr};
 }
 
-// FIXME: type check
 inline constexpr TypeSet
 Parser::named_variable(const Token& name, bool can_assign) noexcept {
     OpCode get_op{};
     OpCode set_op{};
     auto is_const = true;
-    auto idx = resolve_local(*current_compiler, name);
+    const TypeSet* type_set = nullptr;
+    i32 idx = resolve_local(*current_compiler, name);
     if (idx != -1) {
         get_op = OpCode::GET_LOCAL;
         set_op = OpCode::SET_LOCAL;
-        is_const = current_compiler->locals[idx].is_const;
-    } else if ((idx = resolve_upvalue(*current_compiler, name)) != -1) {
+        const auto& local = current_compiler->locals[idx];
+        is_const = local.is_const;
+        type_set = &local.type_set;
+    } else if (auto [uidx, var] = resolve_upvalue(*current_compiler, name);
+               uidx != -1) {
+        idx = uidx;
         get_op = OpCode::GET_UPVALUE;
         set_op = OpCode::SET_UPVALUE;
-        is_const = current_compiler->upvalues[idx].is_const;
-    } else if ((idx = resolve_global(name)) != -1) {
+        is_const = var->is_const;
+        type_set = &var->type_set;
+    } else if (idx = resolve_global(name); idx != -1) {
         get_op = OpCode::GET_GLOBAL;
         set_op = OpCode::SET_GLOBAL;
-        is_const = parent_vm.global_signatures[idx].is_const;
+        const auto& global = parent_vm.global_signatures[idx];
+        is_const = global.is_const;
+        type_set = &global.type_set;
         if (current_compiler->scope_depth == 0) {
             if (!parent_vm.global_signatures[idx].is_defined) {
                 error(FMT_STRING(
@@ -618,12 +618,15 @@ Parser::named_variable(const Token& name, bool can_assign) noexcept {
     if (can_assign && match(EQUAL)) {
         if (is_const) { error(FMT_STRING("Immutable assignment target.")); }
         auto rhs = expression();
+        if (!type_check_assign(*type_set, rhs.type_set)) {
+            error(FMT_STRING("Incompatible types in assignment."));
+        }
         rhs.destroy(parent_vm);
         emit_var_length_instruction(set_op, idx);
     } else {
         emit_var_length_instruction(get_op, idx);
     }
-    return TypeSet{};
+    return type_set->copy(parent_vm);
 }
 
 inline constexpr TypeSet Parser::variable(bool can_assign) noexcept {
@@ -651,19 +654,22 @@ inline constexpr TypeSet Parser::unary(bool /*can_assign*/) noexcept {
     return result;
 }
 
-// FIXME: type check
 inline constexpr TypeSet Parser::block_no_scope() noexcept {
-    bool has_final_expression = false;
+    std::optional<ParseResult> final_expr_opt = std::nullopt;
     while (!check(RIGHT_BRACE) && !check(END_OF_FILE)) {
         auto expr_opt = statement_or_expression();
         if (expr_opt.has_value()) {
             switch (current.type) {
-                case RIGHT_BRACE: has_final_expression = true; break;
-                case SEMICOLON:
+                case RIGHT_BRACE: {
+                    final_expr_opt = std::move(expr_opt);
+                    break;
+                }
+                case SEMICOLON: {
                     advance();
                     emit_instruction(OpCode::POP);
                     break;
-                default:
+                }
+                default: {
                     if (expr_opt.value().is_block_expr()) {
                         emit_instruction(OpCode::POP);
                         break;
@@ -671,13 +677,19 @@ inline constexpr TypeSet Parser::block_no_scope() noexcept {
                     error(FMT_STRING(
                         "Expect ';' or '}}' after expression inside block."
                     ));
+                }
             }
+            // cppcheck-suppress[accessMoved]
             expr_opt->destroy(parent_vm);
         }
     }
     consume(RIGHT_BRACE, "Expect '}' after block.");
-    if (!has_final_expression) { emit_instruction(OpCode::NIL); }
-    return TypeSet{};
+    if (!final_expr_opt.has_value()) {
+        emit_instruction(OpCode::NIL);
+        // cppcheck-suppress[returnDanglingLifetime]
+        return TypeSet{parent_vm, TypeInfo(TypeInfo::Type::NIL)};
+    }
+    return std::move(final_expr_opt.value().type_set);
 }
 
 inline constexpr TypeSet Parser::block(bool /*can_assign*/) noexcept {
@@ -742,7 +754,8 @@ inline TypeSet Parser::fn_expr(bool /*can_assign*/) noexcept {
     consume(LEFT_BRACE, "Expect '{' before function body.");
     TypeInfo ti_result(params_ret.type_info.copy(parent_vm));
     function_body(FunctionType::FUNCTION, "", std::move(params_ret));
-    // params_ret.destroy(parent_vm);
+    // cppcheck-suppress[accessMoved]
+    params_ret.destroy(parent_vm);
     return {parent_vm, std::move(ti_result)};
 }
 
@@ -837,7 +850,8 @@ inline size_t Parser::declare_global_variable(
         const auto& global = parent_vm.global_signatures[idx];
         if (sig == global) {
             if (!global.is_defined) {
-                // definition of a (forward) declared but not yet defined var
+                // definition of a (forward) declared but not yet defined
+                // var
             } else if (!parent_vm.options.allow_global_redefinition) {
                 error_at(name, FMT_STRING("Redefinition of global variable."));
             }
@@ -945,12 +959,15 @@ inline constexpr ParametersAndReturn Parser::parameter_list_and_return_type(
         const auto name = previous;
         consume(TokenType::COLON, "Expect ':' after parameter name.");
         result.parameters.emplace_back(parent_vm, name, is_const);
-        result.type_info.parameter_types.emplace_back(parent_vm, type_set());
+        result.type_info.parameter_types.emplace_back(
+            parent_vm,
+            parse_type_set()
+        );
     } while (match(COMMA));
     consume(RIGHT_PAREN, "Expect ')' after parameters.");
     if (match(TokenType::MINUS)) {
         consume(TokenType::RIGHT_CHEVRON, "Expect '>' after '-'.");
-        result.type_info.return_type = type_set();
+        result.type_info.return_type = parse_type_set();
     } else {
         result.type_info.return_type = TypeSet{
             parent_vm,
@@ -981,7 +998,8 @@ inline void Parser::function_body(
         define_variable(-1);
     }
     auto block_result = block_no_scope();
-    if (!type_check_assign(block_result, params_ret.type_info.return_type)) {
+    if (!type_check_assign(params_ret.type_info.return_type, block_result)) {
+        // TODO: Handle block without final expression
         // TODO: More information
         error(FMT_STRING("Incompatible return type."));
     }
@@ -1033,11 +1051,11 @@ inline constexpr TypeInfo Parser::parse_type() noexcept {
             // FIXME: move to parse_function_type
             advance();
             consume(LEFT_CHEVRON, "Expect '<' after Fn.");
-            auto param_types = type_set_list(
+            auto param_types = parse_type_set_list(
                 "Expect second '<' before parameter type list"
             );
             consume(COMMA, "Expect ',' after parameters types.");
-            auto return_type = type_set();
+            auto return_type = parse_type_set();
             consume(RIGHT_CHEVRON, "Expect '>' after function return type.");
             return TypeInfo{
                 TypeInfoFunction{
@@ -1049,20 +1067,20 @@ inline constexpr TypeInfo Parser::parse_type() noexcept {
     }
 }
 
-inline constexpr TypeSet Parser::type_set() noexcept {
+inline constexpr TypeSet Parser::parse_type_set() noexcept {
     TypeSet result;
     do { result.add(parent_vm, parse_type()); } while (match(TokenType::OR));
     return result;
 }
 
-inline constexpr DynArray<TypeSet> Parser::type_set_list(
+inline constexpr TypeSetArray Parser::parse_type_set_list(
     std::string_view message
 ) noexcept {
     consume(TokenType::LEFT_CHEVRON, message);
-    DynArray<TypeSet> result;
+    TypeSetArray result;
     do {
         if (check(RIGHT_CHEVRON)) { break; }
-        result.push_back(parent_vm, type_set());
+        result.push_back(parent_vm, parse_type_set());
     } while (match(TokenType::COMMA));
     consume(TokenType::RIGHT_CHEVRON, "Expect '>' after type list.");
     return result;
@@ -1074,7 +1092,7 @@ inline constexpr void Parser::var_declaration() noexcept {
     auto [name, is_const] = var_opt.value();
     std::optional<TypeSet> decl_type;
     std::optional<TypeSet> expr_type;
-    if (match(TokenType::COLON)) { decl_type = type_set(); }
+    if (match(TokenType::COLON)) { decl_type = parse_type_set(); }
     if (match(TokenType::EQUAL)) {
         auto expr_res = expression();
         expr_type = std::move(expr_res.type_set);
@@ -1091,9 +1109,9 @@ inline constexpr void Parser::var_declaration() noexcept {
         }
     }
     if (decl_type.has_value() && expr_type.has_value()) {
-        if (!type_check_assign(expr_type.value(), decl_type.value())) {
+        if (!type_check_assign(decl_type.value(), expr_type.value())) {
             // TODO: More information
-            error(FMT_STRING("Incompatible type."));
+            error(FMT_STRING("Incompatible type in variable declaration."));
         }
     }
     if (!had_error) [[likely]] {
@@ -1119,6 +1137,7 @@ inline constexpr void Parser::var_declaration() noexcept {
     if (expr_type.has_value()) { expr_type->destroy(parent_vm); }
 }
 
+// TODO: typecheck
 inline constexpr void Parser::while_statement() noexcept {
     Loop loop{};
     begin_loop(loop);
@@ -1153,6 +1172,7 @@ inline constexpr void Parser::emit_pop_innermost_loop(bool skip_top_expression
     }
 }
 
+// TODO: typecheck
 inline constexpr void Parser::break_statement() noexcept {
     if (current_compiler->innermost_loop == nullptr) {
         error(FMT_STRING("Can't use 'break' outside of a loop."));
@@ -1183,6 +1203,7 @@ inline constexpr void Parser::continue_statement() noexcept {
     emit_loop(current_compiler->innermost_loop->start);
 }
 
+// TODO: typecheck
 inline constexpr void Parser::return_statement() noexcept {
     if (current_compiler->function_type == FunctionType::SCRIPT) {
         error(FMT_STRING("Can't return from top-level code."));

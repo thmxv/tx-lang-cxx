@@ -235,7 +235,6 @@ using NativeFn = NativeResult (*)(VM& tvm, NativeInOut inout);
 
 struct ObjNative : Obj {
     NativeFn function{nullptr};
-    // TODO: arity
 
     constexpr explicit ObjNative(NativeFn fun) noexcept
             : Obj{ObjType::NATIVE}
