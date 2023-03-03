@@ -26,6 +26,8 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Allow return as last statement of block that does not return null
+- Force ';' after block if block value is not used (Expect ';' after expression)
 - Fix crash when passing a directory insted of a file to tx-cli
 - Replace gsl Expect macro to something less likely to collide
 - Maybe add option to error_token to mark the end of the token or the start in

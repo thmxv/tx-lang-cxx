@@ -1,6 +1,6 @@
 #!/usr/bin/env tx
 
-fn f() {
+fn f() -> Fn<<>, Nil> {
   loop {
     if false { break; };
     var i = "i";

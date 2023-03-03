@@ -1,9 +1,9 @@
-fn returnArg(arg: Any) {
+fn returnArg(arg: Any) -> Any {
   return arg;
 }
 
 fn returnFunCallWithArg(fnc: Fn<<Str>, Nil>, arg: Str) {
-  return returnArg(fnc)(arg);
+  return (returnArg(fnc) as Fn<<Str>, Nil>)(arg);
 }
 
 fn printArg(arg: Str) {

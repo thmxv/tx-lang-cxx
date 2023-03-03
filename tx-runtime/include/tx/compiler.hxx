@@ -26,6 +26,7 @@ enum class Precedence {
     COMPARISON,  // < > <= >=
     TERM,        // + -
     FACTOR,      // * /
+    AS,          // as
     UNARY,       // ! -
     CALL,        // . () []
     PRIMARY,
@@ -369,6 +370,7 @@ class Parser {
     [[nodiscard]] constexpr TypeSet call(TypeSet, bool) noexcept;
     [[nodiscard]] constexpr TypeSet and_(TypeSet, bool) noexcept;
     [[nodiscard]] constexpr TypeSet or_(TypeSet, bool) noexcept;
+    [[nodiscard]] constexpr TypeSet as(TypeSet, bool) noexcept;
 
     // Friends
     friend constexpr void mark_compiler_roots(VM& tvm) noexcept;
@@ -416,7 +418,7 @@ class ParseRules {
         [STRING_LITERAL]  = {&p::literal,    nullptr,    P::NONE},
         [STRING_INTERP]   = {nullptr,        nullptr,    P::NONE},
         [AND]             = {nullptr,        &p::and_,   P::AND},
-        [AS]              = {nullptr,        nullptr,    P::NONE},
+        [AS]              = {nullptr,        &p::as,     P::AS},
         [ASYNC]           = {nullptr,        nullptr,    P::NONE},
         [AWAIT]           = {nullptr,        nullptr,    P::NONE},
         [BREAK]           = {nullptr,        nullptr,    P::NONE},

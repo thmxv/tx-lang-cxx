@@ -1,1 +1,1 @@
-"str"(); # Runtime error: Can only call functions.
+"str"(); # Syntax error at ')': Incompatible types in function call.

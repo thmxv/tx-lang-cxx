@@ -7,8 +7,8 @@ var f: Nil or Fn<<>, Nil> = nil;
     std_println(a);
   }
   f = f_;
-}
+};
 
-f();
+(f as Fn<<>, Nil>)();
 # expect: a
 # expect: a

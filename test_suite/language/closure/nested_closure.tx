@@ -19,7 +19,7 @@ fn f1() {
 }
 f1();
 
-f();
+(f as Fn<<>, Nil>)();
 # expect: a
 # expect: b
 # expect: c

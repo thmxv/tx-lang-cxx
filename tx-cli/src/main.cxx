@@ -181,6 +181,7 @@ parse_arguments(int argc, const char** argv) {
     const auto file_size = static_cast<std::size_t>(std::ftell(file));
     std::rewind(file);
     std::string result;
+    // NOTE: Handle allocation failure without excpetions
     result.resize(static_cast<std::size_t>(file_size));
     const auto bytes_read = std::fread(
         result.data(),

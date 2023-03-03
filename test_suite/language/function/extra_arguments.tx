@@ -3,4 +3,5 @@ fn f(a: Int, b: Int) {
   std_println(b);
 }
 
-f(1, 2, 3, 4); # Runtime error: Expected 2 arguments but got 4.
+# [7] Syntax error at ')': Incompatible types in function call.
+f(1, 2, 3, 4); 

@@ -22,5 +22,5 @@ var closure: Nil or Fn<<>, Str> = nil;
     }
   }
 
-  std_println(closure()); # expect: a
-}
+  std_println((closure as Fn<<>, Str>)()); # expect: a
+};

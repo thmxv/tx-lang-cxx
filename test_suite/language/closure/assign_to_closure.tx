@@ -16,12 +16,12 @@ var g: Nil or Fn<<>, Nil> = nil;
     std_println(local);
   }
   g = g_;
-}
+}; # NOTE: ';' to prevent following paren to be interpreted as call of block
 
-f();
+(f as Fn<<>, Nil>)();
 # expect: local
 # expect: after f
 
-g();
+(g as Fn<<>, Nil>)();
 # expect: after f
 # expect: after g

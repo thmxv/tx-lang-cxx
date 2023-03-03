@@ -1,3 +1,4 @@
 fn f(a: Int, b: Any) {}
 
-f(1); # Runtime error: Expected 2 arguments but got 1.
+# [4] Syntax error at ')': Incompatible types in function call.
+f(1);

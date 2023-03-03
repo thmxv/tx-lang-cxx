@@ -731,7 +731,7 @@ inline constexpr TypeSet Parser::if_expr(bool /*can_assign*/) noexcept {
     then_result.destroy(parent_vm);
     else_result.destroy(parent_vm);
     patch_jump(else_jump);
-    return TypeSet{};
+    return {};
 }
 
 // FIXME: type check
@@ -745,7 +745,7 @@ inline constexpr TypeSet Parser::loop_expr(bool /*can_assign*/) noexcept {
     emit_instruction(OpCode::POP);
     emit_loop(loop.start);
     end_loop();
-    return TypeSet{};
+    return {};
 }
 
 inline TypeSet Parser::fn_expr(bool /*can_assign*/) noexcept {
@@ -769,7 +769,7 @@ Parser::and_(TypeSet lhs, bool /*can_assign*/) noexcept {
     lhs.destroy(parent_vm);
     rhs.destroy(parent_vm);
     patch_jump(end_jump);
-    return TypeSet{};
+    return {};
 }
 
 // FIXME: type check
@@ -783,7 +783,14 @@ Parser::or_(TypeSet lhs, bool /*can_assign*/) noexcept {
     lhs.destroy(parent_vm);
     rhs.destroy(parent_vm);
     patch_jump(end_jump);
-    return TypeSet{};
+    return {};
+}
+
+[[nodiscard]] inline constexpr TypeSet
+Parser::as(TypeSet lhs, bool /*can_assign*/) noexcept {
+    // FIXME: Emit opcode that will test and possibly emit a runtime error
+    lhs.destroy(parent_vm);
+    return parse_type_set();
 }
 
 inline constexpr const ParseRule& Parser::get_rule(TokenType token_type

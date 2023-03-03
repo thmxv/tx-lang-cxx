@@ -1,1 +1,1 @@
-nil(); # Runtime error: Can only call functions.
+nil(); # Syntax error at ')': Incompatible types in function call.

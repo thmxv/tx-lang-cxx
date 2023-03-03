@@ -1,1 +1,1 @@
-true(); # Runtime error: Can only call functions.
+true(); # Syntax error at ')': Incompatible types in function call.
