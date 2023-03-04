@@ -138,6 +138,11 @@ TypeSet::move_all_from(VM& tvm, TypeSet&& other) noexcept {
     return std::ranges::find(types, val) != types.end();
 }
 
+[[nodiscard]] inline constexpr bool TypeSet::is_nil() const noexcept {
+    if (types.size() != 1) { return false; }
+    return types[0] == TypeInfo{TypeInfo::Type::NIL};
+}
+
 inline constexpr bool
 operator==(const TypeSet& lhs, const TypeSet& rhs) noexcept {
     if (lhs.types.size() != rhs.types.size()) { return false; }

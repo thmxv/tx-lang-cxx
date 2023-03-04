@@ -33,10 +33,8 @@ enum class Precedence {
 };
 
 struct ParseResult {
-    TokenType token_type;  // NOTE: Used to check if expr is block expr
+    bool is_block_expr;
     TypeSet type_set{};
-
-    [[nodiscard]] constexpr bool is_block_expr() const noexcept;
 
     constexpr void destroy(VM& tvm) noexcept { type_set.destroy(tvm); }
 };
@@ -312,8 +310,10 @@ class Parser {
         TokenType token_type
     ) noexcept;
 
-    [[nodiscard]] constexpr ParseResult
-    parse_precedence(Precedence, bool do_advance = true) noexcept;
+    [[nodiscard]] constexpr TypeSet parse_prefix_only() noexcept;
+    [[nodiscard]] constexpr TypeSet parse_precedence(Precedence) noexcept;
+    [[nodiscard]] constexpr TypeSet parse_precedence_no_advance(Precedence
+    ) noexcept;
 
     [[nodiscard]] constexpr std::optional<std::tuple<Token, bool>>
     parse_variable(std::string_view error_message) noexcept;
@@ -321,7 +321,10 @@ class Parser {
     [[nodiscard]] constexpr TypeSetArray argument_list();
 
     [[nodiscard]] constexpr TypeSet block_no_scope() noexcept;
-    [[nodiscard]] constexpr ParseResult expression(
+
+    [[nodiscard]] constexpr TypeSet expression() noexcept;
+
+    [[nodiscard]] constexpr ParseResult expression_maybe_statement(
         bool do_advance = true
     ) noexcept;
 

@@ -49,7 +49,7 @@ inline constexpr void Global::destroy(VM& tvm) noexcept {
     type_set.destroy(tvm);
 }
 
-inline constexpr bool ParseResult::is_block_expr() const noexcept {
+inline constexpr bool is_block_expr(TokenType token_type) noexcept {
     switch (token_type) {
         case LEFT_BRACE:
         case IF:
@@ -435,9 +435,8 @@ Parser::binary(TypeSet lhs, bool /*can_assign*/) noexcept {
     auto token = previous;
     auto rule = get_rule(token.type);
     auto rhs = parse_precedence(
-                   static_cast<Precedence>(to_underlying(rule.precedence) + 1)
-    )
-                   .type_set;
+        static_cast<Precedence>(to_underlying(rule.precedence) + 1)
+    );
     auto result = type_check_binary(parent_vm, token.type, lhs, rhs);
     if (result.is_empty()) {
         error_at(token, "Incompatible types in binary operation");
@@ -466,7 +465,8 @@ Parser::binary(TypeSet lhs, bool /*can_assign*/) noexcept {
     TypeSetArray result{};
     do {
         if (check(RIGHT_PAREN)) { break; }
-        result.emplace_back(parent_vm, std::move(expression().type_set));
+        result.emplace_back(parent_vm, expression());
+        // TODO: remplace magic with constant
         if (result.size() == 256) {
             error(FMT_STRING("Can't have more than 255 arguments."));
         }
@@ -493,7 +493,7 @@ Parser::call(TypeSet lhs, bool /*can_assign*/) noexcept {
 inline constexpr TypeSet Parser::grouping(bool /*can_assign*/) noexcept {
     auto result = expression();
     consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
-    return std::move(result.type_set);
+    return result;
 }
 
 inline constexpr TypeSet Parser::literal(bool /*can_assign*/) noexcept {
@@ -618,7 +618,7 @@ Parser::named_variable(const Token& name, bool can_assign) noexcept {
     if (can_assign && match(EQUAL)) {
         if (is_const) { error(FMT_STRING("Immutable assignment target.")); }
         auto rhs = expression();
-        if (!type_check_assign(*type_set, rhs.type_set)) {
+        if (!type_check_assign(*type_set, rhs)) {
             error(FMT_STRING("Incompatible types in assignment."));
         }
         rhs.destroy(parent_vm);
@@ -646,10 +646,11 @@ inline constexpr TypeSet Parser::unary(bool /*can_assign*/) noexcept {
             break;
         case TokenType::MINUS:
             emit_instruction(OpCode::NEGATE);
-            result = std::move(rhs.type_set);
+            result = std::move(rhs);
             break;
         default: unreachable();
     }
+    // cppcheck-suppress[accessMoved]
     rhs.destroy(parent_vm);
     return result;
 }
@@ -659,9 +660,10 @@ inline constexpr TypeSet Parser::block_no_scope() noexcept {
     while (!check(RIGHT_BRACE) && !check(END_OF_FILE)) {
         auto expr_opt = statement_or_expression();
         if (expr_opt.has_value()) {
+            auto& expr = expr_opt.value();
             switch (current.type) {
                 case RIGHT_BRACE: {
-                    final_expr_opt = std::move(expr_opt);
+                    final_expr_opt = std::move(expr);
                     break;
                 }
                 case SEMICOLON: {
@@ -670,7 +672,7 @@ inline constexpr TypeSet Parser::block_no_scope() noexcept {
                     break;
                 }
                 default: {
-                    if (expr_opt.value().is_block_expr()) {
+                    if (expr.is_block_expr && expr.type_set.is_nil()) {
                         emit_instruction(OpCode::POP);
                         break;
                     }
@@ -680,7 +682,7 @@ inline constexpr TypeSet Parser::block_no_scope() noexcept {
                 }
             }
             // cppcheck-suppress[accessMoved]
-            expr_opt->destroy(parent_vm);
+            expr.destroy(parent_vm);
         }
     }
     consume(RIGHT_BRACE, "Expect '}' after block.");
@@ -731,7 +733,8 @@ inline constexpr TypeSet Parser::if_expr(bool /*can_assign*/) noexcept {
     then_result.destroy(parent_vm);
     else_result.destroy(parent_vm);
     patch_jump(else_jump);
-    return {};
+    // cppcheck-suppress[returnDanglingLifetime]
+    return {parent_vm, {TypeInfo{TypeInfo::Type::NIL}}};
 }
 
 // FIXME: type check
@@ -745,7 +748,8 @@ inline constexpr TypeSet Parser::loop_expr(bool /*can_assign*/) noexcept {
     emit_instruction(OpCode::POP);
     emit_loop(loop.start);
     end_loop();
-    return {};
+    // cppcheck-suppress[returnDanglingLifetime]
+    return {parent_vm, {TypeInfo{TypeInfo::Type::NIL}}};
 }
 
 inline TypeSet Parser::fn_expr(bool /*can_assign*/) noexcept {
@@ -798,27 +802,54 @@ inline constexpr const ParseRule& Parser::get_rule(TokenType token_type
     return ParseRules::get_rule(token_type);
 }
 
-inline constexpr ParseResult
-Parser::parse_precedence(Precedence precedence, bool do_advance) noexcept {
+inline constexpr ParseResult Parser::expression_maybe_statement(bool do_advance
+) noexcept {
     if (do_advance) { advance(); }
     auto token_type = previous.type;
+    if (is_block_expr(token_type)) {
+        // TODO: message about using () to force parse the block and what
+        // follows as one bigger expression
+        return {.is_block_expr = true, .type_set = parse_prefix_only()};
+    }
+    return {
+        .is_block_expr = false,
+        .type_set = parse_precedence_no_advance(Precedence::ASSIGNMENT)};
+}
+
+inline constexpr TypeSet Parser::parse_prefix_only() noexcept {
     const ParsePrefixFn prefix_rule = get_rule(previous.type).prefix;
     if (prefix_rule == nullptr) {
         error(FMT_STRING("Expect expression."));
-        return ParseResult{.token_type = ERROR, .type_set = {}};
+        return {};
+    }
+    return std::invoke(prefix_rule, *this, true);
+}
+
+inline constexpr TypeSet Parser::parse_precedence(Precedence precedence
+) noexcept {
+    advance();
+    return parse_precedence_no_advance(precedence);
+}
+
+inline constexpr TypeSet Parser::parse_precedence_no_advance(
+    Precedence precedence
+) noexcept {
+    const ParsePrefixFn prefix_rule = get_rule(previous.type).prefix;
+    if (prefix_rule == nullptr) {
+        error(FMT_STRING("Expect expression."));
+        return {};
     }
     const bool can_assign = precedence <= Precedence::ASSIGNMENT;
     auto result = std::invoke(prefix_rule, *this, can_assign);
     while (precedence <= get_rule(current.type).precedence) {
         advance();
-        token_type = previous.type;
         const ParseInfixFn infix_rule = get_rule(previous.type).infix;
         result = std::invoke(infix_rule, *this, std::move(result), can_assign);
     }
     if (can_assign && match(EQUAL)) {
         error(FMT_STRING("Invalid assignment target."));
     }
-    return ParseResult{.token_type = token_type, .type_set = std::move(result)};
+    return result;
 }
 
 inline i32 Parser::resolve_global(const Token& name) noexcept {
@@ -947,8 +978,8 @@ inline constexpr void Parser::define_variable(i32 global_idx) noexcept {
     }
 }
 
-inline constexpr ParseResult Parser::expression(bool do_advance) noexcept {
-    return parse_precedence(Precedence::ASSIGNMENT, do_advance);
+inline constexpr TypeSet Parser::expression() noexcept {
+    return parse_precedence(Precedence::ASSIGNMENT);
 }
 
 inline constexpr ParametersAndReturn Parser::parameter_list_and_return_type(
@@ -1102,9 +1133,7 @@ inline constexpr void Parser::var_declaration() noexcept {
     std::optional<TypeSet> expr_type;
     if (match(TokenType::COLON)) { decl_type = parse_type_set(); }
     if (match(TokenType::EQUAL)) {
-        auto expr_res = expression();
-        expr_type = std::move(expr_res.type_set);
-        expr_res.destroy(parent_vm);
+        expr_type = expression();
     } else {
         if (!decl_type.has_value()) {
             error(FMT_STRING("Expect ':' or '=' after variable name."));
@@ -1261,7 +1290,7 @@ inline constexpr std::optional<ParseResult> Parser::statement_or_expression(
         if (!check(LEFT_PAREN)) {
             error(FMT_STRING("Expect function name or '(' after 'fn'."));
         }
-        return expression(false);
+        return expression_maybe_statement(false);
     }
     if (match(VAR) || match(LET)) {
         var_declaration();
@@ -1283,13 +1312,14 @@ inline constexpr std::optional<ParseResult> Parser::statement_or_expression(
         continue_statement();
         return std::nullopt;
     }
-    return expression();
+    return expression_maybe_statement();
 }
 
 inline constexpr void Parser::statement() noexcept {
     auto expr_opt = statement_or_expression();
     if (expr_opt.has_value()) {
-        if (expr_opt.value().is_block_expr()) {
+        const auto& expr = expr_opt.value();
+        if (expr.is_block_expr && expr.type_set.is_nil()) {
             (void)match(SEMICOLON);
         } else {
             consume(TokenType::SEMICOLON, "Expect ';' after expression.");

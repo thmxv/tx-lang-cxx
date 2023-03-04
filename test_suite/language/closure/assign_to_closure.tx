@@ -16,7 +16,7 @@ var g: Nil or Fn<<>, Nil> = nil;
     std_println(local);
   }
   g = g_;
-}; # NOTE: ';' to prevent following paren to be interpreted as call of block
+}
 
 (f as Fn<<>, Nil>)();
 # expect: local

@@ -40,6 +40,8 @@ struct TypeSet {
         return types.is_empty();
     }
 
+    [[nodiscard]] constexpr bool is_nil() const noexcept;
+
     friend constexpr bool
     operator==(const TypeSet& lhs, const TypeSet& rhs) noexcept;
 };

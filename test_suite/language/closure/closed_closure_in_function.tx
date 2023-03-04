@@ -6,6 +6,6 @@ var f: Nil or Fn<<>, Nil> = nil;
     std_println(local);
   }
   f = f_;
-};
+}
 
 (f as Fn<<>, Nil>)(); # expect: local
