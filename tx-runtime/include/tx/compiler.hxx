@@ -134,19 +134,10 @@ struct Parameter {
 
     Token name;
     bool is_const;
-    // TypeSet types;
 
-    constexpr explicit Parameter(
-        const Token& name_,
-        bool is_const_
-        // TypeSet&& types_
-    ) noexcept
+    constexpr explicit Parameter(const Token& name_, bool is_const_) noexcept
             : name(name_)
-            , is_const(is_const_)
-    // , types(std::move(types_))
-    {}
-
-    // constexpr void destroy(VM& tvm) noexcept { types.destroy(tvm); }
+            , is_const(is_const_) {}
 };
 
 using ParameterList = DynArray<Parameter>;
@@ -156,9 +147,7 @@ struct ParametersAndReturn {
     TypeInfoFunction type_info;
 
     constexpr void destroy(VM& tvm) noexcept {
-        // for (auto& param : parameters) { param.destroy(tvm); }
         parameters.destroy(tvm);
-        // return_types.destroy(tvm);
         type_info.destroy(tvm);
     }
 };
@@ -226,6 +215,7 @@ class Parser {
     template <u32 N>
     inline constexpr void
     emit_instruction(OpCode opc, size_t operand) noexcept {
+        // NOLINTNEXTLINE(*-decay)
         assert(opc == OpCode::END || N == get_byte_count_following_opcode(opc));
         current_chunk()
             .write_instruction<N>(parent_vm, previous.line, opc, operand);
@@ -237,7 +227,7 @@ class Parser {
     }
 
     inline constexpr void emit_instruction(OpCode opc) noexcept {
-        assert(0 == get_byte_count_following_opcode(opc));
+        assert(0 == get_byte_count_following_opcode(opc));  // NOLINT(*-decay)
         emit_instruction<0>(opc, 0);
     }
 
@@ -268,7 +258,7 @@ class Parser {
     constexpr void end_loop() noexcept;
 
     // FIXME: Make static or move to anonymous namespace
-    [[nodiscard]] constexpr i32
+    [[nodiscard]] static constexpr i32
     // cppcheck-suppress functionStatic
     resolve_local(Compiler& compiler, const Token& name) noexcept;
 
@@ -463,6 +453,7 @@ class ParseRules {
 
   public:
     static constexpr const ParseRule& get_rule(TokenType token_type) noexcept {
+        // NOLINTNEXTLINE(*-array-index)
         return rules[to_underlying(token_type)];
     }
 };

@@ -60,8 +60,9 @@ inline constexpr bool is_block_expr(TokenType token_type) noexcept {
 }
 
 [[nodiscard]] inline ObjFunction*
+// NOLINTNEXTLINE(*-easily-swappable-parameters)
 Parser::compile(std::string_view file_path, std::string_view source) noexcept {
-    assert(scanner == nullptr);
+    assert(scanner == nullptr);  // NOLINT(*-decay)
     Scanner lex(parent_vm, source);
     scanner = &lex;
     module_file_path = file_path;
@@ -106,8 +107,8 @@ inline void Parser::error_at_impl_begin(const Token& token) noexcept {
 
 // FIXME: Optionally underline other token and span more than 1 line
 inline void Parser::error_at_impl_end(const Token& token) noexcept {
-    Expects(
-        // cppcheck-suppress mismatchingContainerExpression
+    assert(  // NOLINT(*-decay)
+             // cppcheck-suppress mismatchingContainerExpression
         scanner->source.cbegin() <= token.lexeme.cbegin()
         // cppcheck-suppress mismatchingContainerExpression
         // cppcheck-suppress knownConditionTrueFalse ; FIXME: False positive?
@@ -225,15 +226,15 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
 // TODO: pass long and short opcode instead of adding 1
 inline constexpr void
 Parser::emit_var_length_instruction(OpCode opc, size_t idx) noexcept {
-    assert(idx < size_cast(1U << 24U));
-    if (idx < size_cast(1U << 8U)) {
-        assert(1 == get_byte_count_following_opcode(opc));
+    assert(idx < size_cast(1U << 24U));  // NOLINT(*-decay)
+    if (idx < size_cast(1U << 8U)) {     // NOLINT(*-magic-numbers)
+        assert(1 == get_byte_count_following_opcode(opc));  // NOLINT(*-decay)
         emit_instruction<1>(opc, idx);
         return;
     }
-    if (idx < size_cast(1U << 24U)) {
+    if (idx < size_cast(1U << 24U)) {  // NOLINT(*-magic-numbers)
         opc = OpCode(to_underlying(opc) + 1);
-        assert(3 == get_byte_count_following_opcode(opc));
+        assert(3 == get_byte_count_following_opcode(opc));  // NOLINT(*-decay)
         emit_instruction<3>(opc, idx);
         return;
     }
@@ -253,18 +254,18 @@ Parser::emit_closure(Compiler& compiler, ObjFunction& function) noexcept {
         add_constant(Value{&function})
     );
     for (const auto& upvalue : compiler.upvalues) {
-        assert(upvalue.index >= 0);
-        assert(upvalue.index < size_cast(1U << 24U));
-        const u8 length = [](usize idx) {
-            u8 result = 0;
+        assert(upvalue.index >= 0);                    // NOLINT(*-decay)
+        assert(upvalue.index < size_cast(1U << 24U));  // NOLINT(*-decay)
+        const usize length = [](usize idx) {
+            usize result = 0;
             while (idx != 0) {
-                idx >>= 8U;
+                idx >>= 8U;  // NOLINT(*-magic-numbers)
                 ++result;
             }
-            return result == 0 ? u8{1} : result;
+            return result == 0 ? 1 : result;
         }(static_cast<usize>(upvalue.index));
         const u8 flags = static_cast<u8>(
-            static_cast<u32>(upvalue.is_local << 7U) | (length & 0b01111111U)
+            static_cast<usize>(upvalue.is_local) << 7U | (length & 0b01111111U)
         );
         emit_bytes(flags);
         if (length == 1) {
@@ -536,7 +537,7 @@ Parser::resolve_local(Compiler& compiler, const Token& name) noexcept {
     for (auto i = compiler.locals.size() - 1; i >= 0; --i) {
         const Local& local = compiler.locals[i];
         if (identifiers_equal(name, local.name)) {
-            assert(local.depth != -1);
+            assert(local.depth != -1);  // NOLINT(*-decay)
             // if (local.depth == -1) {
             //     error(FMT_STRING(
             //         "Can't read local variable in its own initializer."
@@ -566,6 +567,7 @@ Parser::add_upvalue(Compiler& compiler, size_t index, bool is_local) noexcept {
 }
 
 inline constexpr std::tuple<i32, const Local*>
+// NOLINTNEXTLINE(*-no-recursion)
 Parser::resolve_upvalue(Compiler& compiler, const Token& name) noexcept {
     if (compiler.enclosing == nullptr) { return {-1, nullptr}; }
     if (auto local_idx = resolve_local(*compiler.enclosing, name);
@@ -658,6 +660,7 @@ inline constexpr TypeSet Parser::unary(bool /*can_assign*/) noexcept {
     return result;
 }
 
+// NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeSet Parser::block_no_scope() noexcept {
     std::optional<ParseResult> final_expr_opt = std::nullopt;
     while (!check(RIGHT_BRACE) && !check(END_OF_FILE)) {
@@ -697,6 +700,7 @@ inline constexpr TypeSet Parser::block_no_scope() noexcept {
     return std::move(final_expr_opt.value().type_set);
 }
 
+// NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeSet Parser::block(bool /*can_assign*/) noexcept {
     begin_scope();
     auto result = block_no_scope();
@@ -705,6 +709,7 @@ inline constexpr TypeSet Parser::block(bool /*can_assign*/) noexcept {
 }
 
 // FIXME: type check
+// NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeSet Parser::if_expr(bool /*can_assign*/) noexcept {
     auto cond_type = expression();
     auto then_jump = emit_jump(OpCode::JUMP_IF_FALSE);
@@ -879,7 +884,7 @@ inline size_t Parser::declare_global_variable(
     bool is_const,
     TypeSet&& type_set
 ) noexcept {
-    assert(current_compiler->scope_depth == 0);
+    assert(current_compiler->scope_depth == 0);  // NOLINT(*-decay)
     Global sig{.is_const = is_const, .type_set = std::move(type_set)};
     auto identifier = Value{make_string(
         parent_vm,
@@ -924,7 +929,7 @@ inline constexpr void Parser::declare_local_variable(
     bool is_const,
     TypeSet&& type_set
 ) noexcept {
-    assert(current_compiler->scope_depth > 0);
+    assert(current_compiler->scope_depth > 0);  // NOLINT(*-decay)
     // TODO: use ranges
     for (auto i = current_compiler->locals.size() - 1; i >= 0; --i) {
         const auto& local = current_compiler->locals[i];
@@ -968,7 +973,7 @@ inline constexpr std::optional<std::tuple<Token, bool>> Parser::parse_variable(
 
 inline constexpr void Parser::mark_initialized(i32 global_idx) noexcept {
     if (current_compiler->scope_depth == 0) {
-        assert(global_idx >= 0);
+        assert(global_idx >= 0);  // NOLINT(*-decay)
         parent_vm.global_signatures[global_idx].is_defined = true;
         return;
     }
@@ -978,7 +983,7 @@ inline constexpr void Parser::mark_initialized(i32 global_idx) noexcept {
 inline constexpr void Parser::define_variable(i32 global_idx) noexcept {
     mark_initialized(global_idx);
     if (current_compiler->scope_depth == 0) {
-        assert(global_idx >= 0);
+        assert(global_idx >= 0);  // NOLINT(*-decay)
         emit_var_length_instruction(OpCode::DEFINE_GLOBAL, global_idx);
     }
 }
@@ -1022,6 +1027,7 @@ inline constexpr ParametersAndReturn Parser::parameter_list_and_return_type(
     return result;
 }
 
+// NOLINTNEXTLINE(*-no-recursion)
 inline void Parser::function_body(
     FunctionType type,
     std::string_view name,
@@ -1031,7 +1037,7 @@ inline void Parser::function_body(
     begin_compiler(compiler, type, name);
     begin_scope();
     current_compiler->function->arity = params_ret.parameters.size();
-    assert(
+    assert(  // NOLINT(*-decay)
         params_ret.parameters.size()
         == params_ret.type_info.parameter_types.size()
     );
@@ -1057,6 +1063,7 @@ inline void Parser::function_body(
     params_ret.destroy(parent_vm);
 }
 
+// NOLINTNEXTLINE(*-no-recursion)
 inline void Parser::fn_declaration() noexcept {
     auto var_opt = parse_variable("Expect function name.");
     if (!var_opt.has_value()) { return; }
@@ -1084,6 +1091,7 @@ inline void Parser::fn_declaration() noexcept {
     }
 }
 
+// NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeInfo Parser::parse_type() noexcept {
     switch (current.type) {
         case ANY_TYPE: advance(); return TypeInfo{TypeInfo::Type::ANY};
@@ -1113,12 +1121,14 @@ inline constexpr TypeInfo Parser::parse_type() noexcept {
     }
 }
 
+// NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeSet Parser::parse_type_set() noexcept {
     TypeSet result;
     do { result.add(parent_vm, parse_type()); } while (match(TokenType::OR));
     return result;
 }
 
+// NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeSetArray Parser::parse_type_set_list(
     std::string_view message
 ) noexcept {
@@ -1167,7 +1177,7 @@ inline constexpr void Parser::var_declaration() noexcept {
                 std::move(decl_type.value())
             );
         } else {
-            assert(expr_type.has_value());
+            assert(expr_type.has_value());  // NOLINT(*-decay)
             global_idx = declare_variable(
                 name,
                 is_const,
@@ -1182,6 +1192,7 @@ inline constexpr void Parser::var_declaration() noexcept {
 }
 
 // TODO: typecheck
+// NOLINTNEXTLINE(*-no-recursion)
 inline constexpr void Parser::while_statement() noexcept {
     Loop loop{};
     begin_loop(loop);
@@ -1285,6 +1296,7 @@ inline constexpr void Parser::synchronize() noexcept {
     }
 }
 
+// NOLINTNEXTLINE(*-no-recursion)
 inline constexpr std::optional<ParseResult> Parser::statement_or_expression(
 ) noexcept {
     // NOTE: Do not allow useless ';' (for now)
