@@ -662,14 +662,14 @@ inline constexpr TypeSet Parser::unary(bool /*can_assign*/) noexcept {
 
 // NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeSet Parser::block_no_scope() noexcept {
-    std::optional<ParseResult> final_expr_opt = std::nullopt;
+    // TODO: fix double move
+    std::optional<TypeSet> final_expr_opt = std::nullopt;
     while (!check(RIGHT_BRACE) && !check(END_OF_FILE)) {
-        auto expr_opt = statement_or_expression();
-        if (expr_opt.has_value()) {
-            auto& expr = expr_opt.value();
+        auto parsed = statement_or_expression();
+        if (parsed.kind != ParseResult::Kind::STATEMENT) {
             switch (current.type) {
                 case RIGHT_BRACE: {
-                    final_expr_opt = std::move(expr);
+                    final_expr_opt = std::move(parsed.type_set);
                     break;
                 }
                 case SEMICOLON: {
@@ -678,7 +678,8 @@ inline constexpr TypeSet Parser::block_no_scope() noexcept {
                     break;
                 }
                 default: {
-                    if (expr.is_block_expr && expr.type_set.is_nil()) {
+                    if (parsed.kind == ParseResult::Kind::EXPRESSION_WITH_BLOCK
+                        && parsed.type_set.is_nil()) {
                         emit_instruction(OpCode::POP);
                         break;
                     }
@@ -687,9 +688,9 @@ inline constexpr TypeSet Parser::block_no_scope() noexcept {
                     ));
                 }
             }
-            // cppcheck-suppress[accessMoved]
-            expr.destroy(parent_vm);
         }
+        // cppcheck-suppress[accessMoved]
+        parsed.destroy(parent_vm);
     }
     consume(RIGHT_BRACE, "Expect '}' after block.");
     if (!final_expr_opt.has_value()) {
@@ -697,7 +698,7 @@ inline constexpr TypeSet Parser::block_no_scope() noexcept {
         // cppcheck-suppress[returnDanglingLifetime]
         return {parent_vm, {TypeInfo(TypeInfo::Type::NIL)}};
     }
-    return std::move(final_expr_opt.value().type_set);
+    return std::move(final_expr_opt.value());
 }
 
 // NOLINTNEXTLINE(*-no-recursion)
@@ -810,27 +811,30 @@ inline constexpr const ParseRule& Parser::get_rule(TokenType token_type
     return ParseRules::get_rule(token_type);
 }
 
-inline constexpr ParseResult Parser::expression_maybe_statement(bool do_advance
-) noexcept {
-    if (do_advance) { advance(); }
-    auto token_type = previous.type;
-    if (is_block_expr(token_type)) {
-        // TODO: message about using () to force parse the block and what
-        // follows as one bigger expression
-        return {.is_block_expr = true, .type_set = parse_prefix_only()};
+inline constexpr void Parser::help_cut_short() noexcept {
+    if (previous_statement_was_cut_short) {
+        fmt::print(
+            FMT_STRING("Help: parentheses are required to parse this as an "
+                       "expression.\n")
+        );
+        previous_statement_was_cut_short = false;
     }
-    return {
-        .is_block_expr = false,
-        .type_set = parse_precedence_no_advance(Precedence::ASSIGNMENT)};
 }
 
 inline constexpr TypeSet Parser::parse_prefix_only() noexcept {
     const ParsePrefixFn prefix_rule = get_rule(previous.type).prefix;
     if (prefix_rule == nullptr) {
         error(FMT_STRING("Expect expression."));
+        help_cut_short();
         return {};
     }
-    return std::invoke(prefix_rule, *this, true);
+    // return std::invoke(prefix_rule, *this, true);
+    auto type_set = std::invoke(prefix_rule, *this, true);
+    previous_statement_was_cut_short = current.type == TokenType::EQUAL
+                                       || Precedence::ASSIGNMENT
+                                              <= get_rule(current.type)
+                                                     .precedence;
+    return type_set;
 }
 
 inline constexpr TypeSet Parser::parse_precedence(Precedence precedence
@@ -845,10 +849,12 @@ inline constexpr TypeSet Parser::parse_precedence_no_advance(
     const ParsePrefixFn prefix_rule = get_rule(previous.type).prefix;
     if (prefix_rule == nullptr) {
         error(FMT_STRING("Expect expression."));
+        help_cut_short();
         return {};
     }
     const bool can_assign = precedence <= Precedence::ASSIGNMENT;
     auto result = std::invoke(prefix_rule, *this, can_assign);
+    previous_statement_was_cut_short = false;
     while (precedence <= get_rule(current.type).precedence) {
         advance();
         const ParseInfixFn infix_rule = get_rule(previous.type).infix;
@@ -1296,56 +1302,70 @@ inline constexpr void Parser::synchronize() noexcept {
     }
 }
 
+inline constexpr ParseResult Parser::expression_maybe_statement() noexcept {
+    if (is_block_expr(previous.type)) {
+        return {
+            .kind = ParseResult::Kind::EXPRESSION_WITH_BLOCK,
+            .type_set = parse_prefix_only()};
+    }
+    return {
+        .kind = ParseResult::Kind::EXPRESSION_WITHOUT_BLOCK,
+        .type_set = parse_precedence_no_advance(Precedence::ASSIGNMENT)};
+}
+
 // NOLINTNEXTLINE(*-no-recursion)
-inline constexpr std::optional<ParseResult> Parser::statement_or_expression(
-) noexcept {
+inline constexpr ParseResult Parser::statement_or_expression() noexcept {
     // NOTE: Do not allow useless ';' (for now)
-    // if (match(SEMICOLON)) { return true; }
+    // if (match(SEMICOLON)) { return; }
     if (match(FN)) {
         if (check(IDENTIFIER)) {
             fn_declaration();
-            return std::nullopt;
+            return {.kind = ParseResult::Kind::STATEMENT};
         }
         if (!check(LEFT_PAREN)) {
             error(FMT_STRING("Expect function name or '(' after 'fn'."));
         }
-        return expression_maybe_statement(false);
+        return expression_maybe_statement();
     }
     if (match(VAR) || match(LET)) {
         var_declaration();
-        return std::nullopt;
+        return {.kind = ParseResult::Kind::STATEMENT};
     }
     if (match(RETURN)) {
         return_statement();
-        return std::nullopt;
+        return {.kind = ParseResult::Kind::STATEMENT};
     }
     if (match(WHILE)) {
         while_statement();
-        return std::nullopt;
+        return {.kind = ParseResult::Kind::STATEMENT};
     }
     if (match(BREAK)) {
         break_statement();
-        return std::nullopt;
+        return {.kind = ParseResult::Kind::STATEMENT};
     }
     if (match(CONTINUE)) {
         continue_statement();
-        return std::nullopt;
+        return {.kind = ParseResult::Kind::STATEMENT};
     }
+    advance();
     return expression_maybe_statement();
 }
 
 inline constexpr void Parser::statement() noexcept {
-    auto expr_opt = statement_or_expression();
-    if (expr_opt.has_value()) {
-        const auto& expr = expr_opt.value();
-        if (expr.is_block_expr && expr.type_set.is_nil()) {
+    auto parsed = statement_or_expression();
+    if (parsed.kind != ParseResult::Kind::STATEMENT) {
+        emit_instruction(OpCode::POP);
+        if (parsed.kind == ParseResult::Kind::EXPRESSION_WITH_BLOCK
+            && parsed.type_set.is_nil()) {
             (void)match(SEMICOLON);
         } else {
-            consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+            if (!match(TokenType::SEMICOLON)) {
+                error_at_current(FMT_STRING("Expect ';' after expression."));
+                help_cut_short();
+            }
         }
-        emit_instruction(OpCode::POP);
-        expr_opt->destroy(parent_vm);
     }
+    parsed.destroy(parent_vm);
     if (panic_mode) { synchronize(); }
 }
 

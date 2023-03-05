@@ -33,7 +33,13 @@ enum class Precedence {
 };
 
 struct ParseResult {
-    bool is_block_expr;
+    enum struct Kind {
+        STATEMENT,
+        EXPRESSION_WITHOUT_BLOCK,
+        EXPRESSION_WITH_BLOCK,
+    };
+
+    Kind kind;
     TypeSet type_set{};
 
     constexpr void destroy(VM& tvm) noexcept { type_set.destroy(tvm); }
@@ -159,6 +165,7 @@ class Parser {
     Token previous{};
     bool had_error{false};
     bool panic_mode{false};
+    bool previous_statement_was_cut_short{false};
     Compiler* current_compiler{nullptr};
     std::string_view module_file_path;
 
@@ -300,6 +307,7 @@ class Parser {
         TokenType token_type
     ) noexcept;
 
+    constexpr void help_cut_short() noexcept;
     [[nodiscard]] constexpr TypeSet parse_prefix_only() noexcept;
     [[nodiscard]] constexpr TypeSet parse_precedence(Precedence) noexcept;
     [[nodiscard]] constexpr TypeSet parse_precedence_no_advance(Precedence
@@ -314,9 +322,7 @@ class Parser {
 
     [[nodiscard]] constexpr TypeSet expression() noexcept;
 
-    [[nodiscard]] constexpr ParseResult expression_maybe_statement(
-        bool do_advance = true
-    ) noexcept;
+    [[nodiscard]] constexpr ParseResult expression_maybe_statement() noexcept;
 
     constexpr ParametersAndReturn parameter_list_and_return_type() noexcept;
 
@@ -343,8 +349,7 @@ class Parser {
     constexpr void expression_statement() noexcept;
     constexpr void synchronize() noexcept;
 
-    [[nodiscard]] constexpr std::optional<ParseResult> statement_or_expression(
-    ) noexcept;
+    [[nodiscard]] constexpr ParseResult statement_or_expression() noexcept;
     constexpr void statement() noexcept;
 
   public:
