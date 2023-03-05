@@ -34,7 +34,7 @@ inline const char* get_opcode_name(OpCode instruction) {
     return gsl::at(opcode_name_table, to_underlying(instruction));
 }
 
-inline const char* get_token_name(TokenType tok) {
+inline const char* get_token_name(Token::Type tok) {
     return gsl::at(token_name_table, to_underlying(tok));
 }
 
@@ -211,7 +211,7 @@ inline void print_tokens(VM& tvm, std::string_view source) noexcept {
     for (;;) {
         const Token token = scanner.scan_token();
         print_token(token);
-        if (token.type == TokenType::END_OF_FILE) { break; }
+        if (token.type == Token::Type::END_OF_FILE) { break; }
     }
 }
 

@@ -134,7 +134,7 @@ type_check_assign(const TypeInfo& lhs, const TypeInfo& rhs) noexcept;
 
 [[nodiscard]] constexpr TypeSet type_check_binary(
     VM& tvm,
-    TokenType token_type,
+    Token::Type token_type,
     const TypeSet& lhs,
     const TypeSet& rhs
 ) noexcept;

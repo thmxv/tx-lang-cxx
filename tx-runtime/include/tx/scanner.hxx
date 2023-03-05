@@ -15,17 +15,17 @@ namespace tx {
 // INDENTIFIER          "d"
 // STRING_LITERAL       " e"
 
-// clang-format-off
-enum TokenType {
-    // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-    #define TX_TOKEN(name) name,
-    #include "tx/tokens.inc"
-    #undef TX_TOKEN
-};
-// clang-format-on
-
 struct Token {
-    TokenType type{};
+    // clang-format off
+    enum Type {
+        // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+        #define TX_TOKEN(name) name,
+        #include "tx/tokens.inc"
+        #undef TX_TOKEN
+    };
+    // clang-format on
+
+    Type type{};
     std::string_view lexeme{};
     size_t line{};
     Value value{val_none};
@@ -60,20 +60,19 @@ class Scanner {
     [[nodiscard]] constexpr char peek() const noexcept;
     [[nodiscard]] constexpr char peek_next(size_t offset = 1) const noexcept;
     [[nodiscard]] constexpr bool match(char expected) noexcept;
-    [[nodiscard]] constexpr Token make_token(TokenType type) const noexcept;
+    [[nodiscard]] constexpr Token make_token(Token::Type type) const noexcept;
 
-    [[nodiscard]] Token error_token(std::string_view message
-    ) const noexcept;
+    [[nodiscard]] Token error_token(std::string_view message) const noexcept;
 
     constexpr void skip_whitespace() noexcept;
 
-    [[nodiscard]] constexpr TokenType check_keyword(
+    [[nodiscard]] constexpr Token::Type check_keyword(
         size_t offset,
         std::string_view rest,
-        TokenType type
+        Token::Type type
     ) const noexcept;
 
-    [[nodiscard]] constexpr TokenType identifier_type() const noexcept;
+    [[nodiscard]] constexpr Token::Type identifier_type() const noexcept;
     [[nodiscard]] constexpr Token identifier() noexcept;
     [[nodiscard]] constexpr Token number() noexcept;
     [[nodiscard]] Token hex_number() noexcept;

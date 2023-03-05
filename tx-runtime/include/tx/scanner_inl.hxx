@@ -62,7 +62,7 @@ inline constexpr char Scanner::advance() noexcept {
     return true;
 }
 
-[[nodiscard]] inline constexpr Token Scanner::make_token(TokenType type
+[[nodiscard]] inline constexpr Token Scanner::make_token(Token::Type type
 ) const noexcept {
     return Token{
         .type = type,
@@ -74,7 +74,7 @@ inline constexpr char Scanner::advance() noexcept {
 
 [[nodiscard]] inline Token Scanner::error_token(std::string_view message
 ) const noexcept {
-    using enum TokenType;
+    using enum Token::Type;
     auto result = make_token(ERROR);
     result.value = Value(make_string(parent_vm, false, message));
     return result;
@@ -103,20 +103,20 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     }
 }
 
-[[nodiscard]] inline constexpr TokenType Scanner::check_keyword(
+[[nodiscard]] inline constexpr Token::Type Scanner::check_keyword(
     size_t offset,
     std::string_view rest,
-    TokenType type
+    Token::Type type
 ) const noexcept {
     const auto* const sub_start = std::next(start, offset);
     if (rest == std::string_view{sub_start, current}) { return type; }
-    return TokenType::IDENTIFIER;
+    return Token::Type::IDENTIFIER;
 }
 
-[[nodiscard]] inline constexpr TokenType Scanner::identifier_type(
+[[nodiscard]] inline constexpr Token::Type Scanner::identifier_type(
 ) const noexcept {
     switch (*start) {
-        using enum TokenType;
+        using enum Token::Type;
         case 'a':
             if (std::distance(start, current) > 1) {
                 switch (*std::next(start)) {
@@ -206,7 +206,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
         case 'N': return check_keyword(1, "il", NIL_TYPE);
         case 'S': return check_keyword(1, "tr", STR_TYPE);
     }
-    return TokenType::IDENTIFIER;
+    return Token::Type::IDENTIFIER;
 }
 
 [[nodiscard]] inline constexpr Token Scanner::identifier() noexcept {
@@ -215,12 +215,12 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
 }
 
 [[nodiscard]] inline constexpr Token Scanner::number() noexcept {
-    TokenType type = TokenType::INTEGER_LITERAL;
+    Token::Type type = Token::Type::INTEGER_LITERAL;
     while (is_digit(peek()) || peek() == '_') { advance(); }
     if (peek() == '.' && (is_digit(peek_next()) || peek_next() == '_')) {
         advance();
         while (is_digit(peek()) || peek() == '_') { advance(); }
-        type = TokenType::FLOAT_LITERAL;
+        type = Token::Type::FLOAT_LITERAL;
     }
     if (match('e') || match('E')) {
         if (!match('+')) { (void)match('-'); }
@@ -228,7 +228,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
             return error_token("Unterminated scientific notation.");
         }
         while (is_digit(peek()) || peek() == '_') { advance(); }
-        type = TokenType::FLOAT_LITERAL;
+        type = Token::Type::FLOAT_LITERAL;
     }
     if (std::distance(start, current)
         > static_cast<std::ptrdiff_t>(MAX_CHARS_IN_NUMERIC_LITERAL)) {
@@ -239,7 +239,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
         return chr != '_';
     });
     switch (type) {
-        using enum TokenType;
+        using enum Token::Type;
         case INTEGER_LITERAL: {
             int_t value = 0;
             [[maybe_unused]] auto fcr = std::from_chars(
@@ -300,7 +300,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     if (fcr.ec == std::errc::result_out_of_range) {
         return error_token("Hexadecimal integer literal out of range.");
     }
-    auto token = make_token(TokenType::INTEGER_LITERAL);
+    auto token = make_token(Token::Type::INTEGER_LITERAL);
     token.value = Value(value);
     return token;
 }
@@ -317,7 +317,7 @@ inline constexpr void Scanner::skip_whitespace() noexcept {
     advance();
     advance();
     advance();
-    auto token = make_token(TokenType::STRING_LITERAL);
+    auto token = make_token(Token::Type::STRING_LITERAL);
     const auto& lex = token.lexeme;
     const std::size_t begin = lex[3] == '\n' ? 4 : 3;
     const std::size_t end = lex[lex.length() - 4] == '\n' ? 4 : 3;
@@ -391,7 +391,7 @@ Scanner::utf8_escape(size_t digits, DynArray<char>& dst) noexcept {
                 }
                 str_interp_braces.push_back(1);
                 advance();
-                auto token = make_token(TokenType::STRING_INTERP);
+                auto token = make_token(Token::Type::STRING_INTERP);
                 token.value = Value(make_string(
                     parent_vm,
                     true,
@@ -500,7 +500,7 @@ Scanner::utf8_escape(size_t digits, DynArray<char>& dst) noexcept {
         return error_token("Unterminated string.");
     }
     advance();
-    auto token = make_token(TokenType::STRING_LITERAL);
+    auto token = make_token(Token::Type::STRING_LITERAL);
     token.value = Value(make_string(
         parent_vm,
         true,
@@ -511,9 +511,9 @@ Scanner::utf8_escape(size_t digits, DynArray<char>& dst) noexcept {
 }
 
 [[nodiscard]] inline constexpr Token Scanner::scan_token() noexcept {
+    using enum Token::Type;
     skip_whitespace();
     start = current;
-    using enum TokenType;
     if (is_at_end()) { return make_token(END_OF_FILE); }
     const char chr = advance();
     switch (chr) {

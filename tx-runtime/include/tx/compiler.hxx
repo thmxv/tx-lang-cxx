@@ -203,10 +203,10 @@ class Parser {
     }
 
     constexpr void advance() noexcept;
-    constexpr void consume(TokenType type, std::string_view message) noexcept;
+    constexpr void consume(Token::Type type, std::string_view message) noexcept;
 
-    [[nodiscard]] constexpr bool check(TokenType type) const noexcept;
-    [[nodiscard]] constexpr bool match(TokenType type) noexcept;
+    [[nodiscard]] constexpr bool check(Token::Type type) const noexcept;
+    [[nodiscard]] constexpr bool match(Token::Type type) noexcept;
 
     [[nodiscard]] constexpr Chunk& current_chunk() const noexcept;
 
@@ -304,7 +304,7 @@ class Parser {
     constexpr void define_variable(i32 global_idx) noexcept;
 
     [[nodiscard]] static constexpr const ParseRule& get_rule(
-        TokenType token_type
+        Token::Type token_type
     ) noexcept;
 
     constexpr void help_cut_short() noexcept;
@@ -380,7 +380,7 @@ class Parser {
 #endif
 
 class ParseRules {
-    using enum TokenType;
+    using enum Token::Type;
     using P = Precedence;
     using p = Parser;
 
@@ -457,7 +457,8 @@ class ParseRules {
     // clang-format on
 
   public:
-    static constexpr const ParseRule& get_rule(TokenType token_type) noexcept {
+    static constexpr const ParseRule& get_rule(Token::Type token_type
+    ) noexcept {
         // NOLINTNEXTLINE(*-array-index)
         return rules[to_underlying(token_type)];
     }

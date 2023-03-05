@@ -50,8 +50,9 @@ inline constexpr void Global::destroy(VM& tvm) noexcept {
     type_set.destroy(tvm);
 }
 
-inline constexpr bool is_block_expr(TokenType token_type) noexcept {
+inline constexpr bool is_block_expr(Token::Type token_type) noexcept {
     switch (token_type) {
+        using enum Token::Type;
         case LEFT_BRACE:
         case IF:
         case LOOP: return true;
@@ -69,7 +70,7 @@ Parser::compile(std::string_view file_path, std::string_view source) noexcept {
     Compiler comp{};
     begin_compiler(comp, FunctionType::SCRIPT, std::nullopt);
     advance();
-    while (!match(TokenType::END_OF_FILE)) { statement(); }
+    while (!match(Token::Type::END_OF_FILE)) { statement(); }
     emit_instruction(OpCode::NIL);
     auto& fun = end_compiler();
     comp.destroy(parent_vm);
@@ -96,9 +97,9 @@ inline void Parser::error_at_impl_begin(const Token& token) noexcept {
     panic_mode = true;
     had_error = true;
     fmt::print(stderr, FMT_STRING("Syntax error"));
-    if (token.type == TokenType::END_OF_FILE) {
+    if (token.type == Token::Type::END_OF_FILE) {
         fmt::print(stderr, FMT_STRING(" at end: "));
-    } else if (token.type == TokenType::ERROR) {
+    } else if (token.type == Token::Type::ERROR) {
         fmt::print(stderr, FMT_STRING(": "));
     } else {
         fmt::print(stderr, FMT_STRING(" at '{:s}': "), token.lexeme);
@@ -116,8 +117,8 @@ inline void Parser::error_at_impl_end(const Token& token) noexcept {
     );
     fmt::print(stderr, FMT_STRING("\n"));
     size_t line_number = token.line;
-    bool is_at_end = (token.type == TokenType::END_OF_FILE)
-                     || (token.type == TokenType::ERROR
+    bool is_at_end = (token.type == Token::Type::END_OF_FILE)
+                     || (token.type == Token::Type::ERROR
                          // cppcheck-suppress mismatchingContainerExpression
                          && token.lexeme.cend() == scanner->source.cend());
     if (is_at_end) { line_number -= 1; }
@@ -141,7 +142,7 @@ inline void Parser::error_at_impl_end(const Token& token) noexcept {
         mark_start = false;
     }
     if (col < 0) { col = 0; }
-    if (token.type == TokenType::END_OF_FILE) { col -= 1; }
+    if (token.type == Token::Type::END_OF_FILE) { col -= 1; }
 
     fmt::print(
         stderr,
@@ -179,7 +180,7 @@ inline constexpr void Parser::advance() noexcept {
         if constexpr (HAS_DEBUG_FEATURES) {
             if (parent_vm.options.print_tokens) { print_token(current); }
         }
-        if (current.type != TokenType::ERROR) { break; }
+        if (current.type != Token::Type::ERROR) { break; }
         error_at_current(
             FMT_STRING("{:s}"),
             current.value.as_object().as<ObjString>()
@@ -188,16 +189,16 @@ inline constexpr void Parser::advance() noexcept {
 }
 
 inline constexpr void
-Parser::consume(TokenType type, std::string_view message) noexcept {
+Parser::consume(Token::Type type, std::string_view message) noexcept {
     if (!match(type)) { error_at_current(FMT_STRING("{:s}"), message); }
 }
 
-[[nodiscard]] inline constexpr bool Parser::check(TokenType type
+[[nodiscard]] inline constexpr bool Parser::check(Token::Type type
 ) const noexcept {
     return current.type == type;
 }
 
-[[nodiscard]] inline constexpr bool Parser::match(TokenType type) noexcept {
+[[nodiscard]] inline constexpr bool Parser::match(Token::Type type) noexcept {
     if (check(type)) {
         advance();
         return true;
@@ -444,7 +445,7 @@ Parser::binary(TypeSet lhs, bool /*can_assign*/) noexcept {
         error_at(token, "Incompatible types in binary operation");
     } else {
         switch (token.type) {
-            using enum TokenType;
+            using enum Token::Type;
             case BANG_EQUAL: emit_instruction(OpCode::NOT_EQUAL); break;
             case EQUAL_EQUAL: emit_instruction(OpCode::EQUAL); break;
             case LEFT_CHEVRON: emit_instruction(OpCode::LESS); break;
@@ -464,6 +465,7 @@ Parser::binary(TypeSet lhs, bool /*can_assign*/) noexcept {
 }
 
 [[nodiscard]] inline constexpr TypeSetArray Parser::argument_list() {
+    using enum Token::Type;
     TypeSetArray result{};
     do {
         if (check(RIGHT_PAREN)) { break; }
@@ -496,12 +498,13 @@ Parser::call(TypeSet lhs, bool /*can_assign*/) noexcept {
 
 inline constexpr TypeSet Parser::grouping(bool /*can_assign*/) noexcept {
     auto result = expression();
-    consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+    consume(Token::Type::RIGHT_PAREN, "Expect ')' after expression.");
     return result;
 }
 
 inline constexpr TypeSet Parser::literal(bool /*can_assign*/) noexcept {
     switch (previous.type) {
+        using enum Token::Type;
         case NIL:
             emit_instruction(OpCode::NIL);
             // FIXME: Why the cppcheck error? False positive?
@@ -620,7 +623,7 @@ Parser::named_variable(const Token& name, bool can_assign) noexcept {
         error(FMT_STRING("Cannot find value with this name in current scope."));
         return TypeSet{};
     }
-    if (can_assign && match(EQUAL)) {
+    if (can_assign && match(Token::Type::EQUAL)) {
         if (is_const) { error(FMT_STRING("Immutable assignment target.")); }
         auto rhs = expression();
         if (!type_check_assign(*type_set, rhs)) {
@@ -644,12 +647,12 @@ inline constexpr TypeSet Parser::unary(bool /*can_assign*/) noexcept {
     auto rhs = parse_precedence(Precedence::UNARY);
     TypeSet result{};
     switch (token_type) {
-        case TokenType::BANG:
+        case Token::Type::BANG:
             result.add(parent_vm, TypeInfo(TypeInfo::Type::BOOL));
             // result = type_check_not(rhs);
             emit_instruction(OpCode::NOT);
             break;
-        case TokenType::MINUS:
+        case Token::Type::MINUS:
             emit_instruction(OpCode::NEGATE);
             result = std::move(rhs);
             break;
@@ -662,6 +665,7 @@ inline constexpr TypeSet Parser::unary(bool /*can_assign*/) noexcept {
 
 // NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeSet Parser::block_no_scope() noexcept {
+    using enum Token::Type;
     // TODO: fix double move
     std::optional<TypeSet> final_expr_opt = std::nullopt;
     while (!check(RIGHT_BRACE) && !check(END_OF_FILE)) {
@@ -712,6 +716,7 @@ inline constexpr TypeSet Parser::block(bool /*can_assign*/) noexcept {
 // FIXME: type check
 // NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeSet Parser::if_expr(bool /*can_assign*/) noexcept {
+    using enum Token::Type;
     auto cond_type = expression();
     auto then_jump = emit_jump(OpCode::JUMP_IF_FALSE);
     emit_instruction(OpCode::POP);
@@ -750,7 +755,7 @@ inline constexpr TypeSet Parser::if_expr(bool /*can_assign*/) noexcept {
 inline constexpr TypeSet Parser::loop_expr(bool /*can_assign*/) noexcept {
     Loop loop{};
     begin_loop(loop, true);
-    consume(LEFT_BRACE, "Expect '{' after 'loop'.");
+    consume(Token::Type::LEFT_BRACE, "Expect '{' after 'loop'.");
     auto result = block();
     // TODO: make sure no final expression as it is meaningless
     result.destroy(parent_vm);
@@ -762,6 +767,7 @@ inline constexpr TypeSet Parser::loop_expr(bool /*can_assign*/) noexcept {
 }
 
 inline TypeSet Parser::fn_expr(bool /*can_assign*/) noexcept {
+    using enum Token::Type;
     consume(LEFT_PAREN, "Expect '(' after 'fn'.");
     auto params_ret = parameter_list_and_return_type();
     consume(LEFT_BRACE, "Expect '{' before function body.");
@@ -806,7 +812,7 @@ Parser::as(TypeSet lhs, bool /*can_assign*/) noexcept {
     return parse_type_set();
 }
 
-inline constexpr const ParseRule& Parser::get_rule(TokenType token_type
+inline constexpr const ParseRule& Parser::get_rule(Token::Type token_type
 ) noexcept {
     return ParseRules::get_rule(token_type);
 }
@@ -830,7 +836,7 @@ inline constexpr TypeSet Parser::parse_prefix_only() noexcept {
     }
     // return std::invoke(prefix_rule, *this, true);
     auto type_set = std::invoke(prefix_rule, *this, true);
-    previous_statement_was_cut_short = current.type == TokenType::EQUAL
+    previous_statement_was_cut_short = current.type == Token::Type::EQUAL
                                        || Precedence::ASSIGNMENT
                                               <= get_rule(current.type)
                                                      .precedence;
@@ -860,7 +866,7 @@ inline constexpr TypeSet Parser::parse_precedence_no_advance(
         const ParseInfixFn infix_rule = get_rule(previous.type).infix;
         result = std::invoke(infix_rule, *this, std::move(result), can_assign);
     }
-    if (can_assign && match(EQUAL)) {
+    if (can_assign && match(Token::Type::EQUAL)) {
         error(FMT_STRING("Invalid assignment target."));
     }
     return result;
@@ -969,8 +975,8 @@ inline constexpr i32 Parser::declare_variable(
 inline constexpr std::optional<std::tuple<Token, bool>> Parser::parse_variable(
     std::string_view error_message
 ) noexcept {
-    auto is_const = previous.type != VAR;
-    if (!match(TokenType::IDENTIFIER)) {
+    auto is_const = previous.type != Token::Type::VAR;
+    if (!match(Token::Type::IDENTIFIER)) {
         error_at_current(FMT_STRING("{:s}"), error_message);
         return std::nullopt;
     }
@@ -1000,6 +1006,7 @@ inline constexpr TypeSet Parser::expression() noexcept {
 
 inline constexpr ParametersAndReturn Parser::parameter_list_and_return_type(
 ) noexcept {
+    using enum Token::Type;
     ParametersAndReturn result;
     do {
         if (check(RIGHT_PAREN)) { break; }
@@ -1012,9 +1019,9 @@ inline constexpr ParametersAndReturn Parser::parameter_list_and_return_type(
         // TODO: need in, out or inout (in by default)
         // what about out for immutable types -> error?
         auto is_const = previous.type != OUT;
-        consume(TokenType::IDENTIFIER, "Expect parameter name.");
+        consume(IDENTIFIER, "Expect parameter name.");
         const auto name = previous;
-        consume(TokenType::COLON, "Expect ':' after parameter name.");
+        consume(COLON, "Expect ':' after parameter name.");
         result.parameters.emplace_back(parent_vm, name, is_const);
         result.type_info.parameter_types.emplace_back(
             parent_vm,
@@ -1022,8 +1029,8 @@ inline constexpr ParametersAndReturn Parser::parameter_list_and_return_type(
         );
     } while (match(COMMA));
     consume(RIGHT_PAREN, "Expect ')' after parameters.");
-    if (match(TokenType::MINUS)) {
-        consume(TokenType::RIGHT_CHEVRON, "Expect '>' after '-'.");
+    if (match(MINUS)) {
+        consume(RIGHT_CHEVRON, "Expect '>' after '-'.");
         result.type_info.return_type = parse_type_set();
     } else {
         result.type_info.return_type = {
@@ -1071,6 +1078,7 @@ inline void Parser::function_body(
 
 // NOLINTNEXTLINE(*-no-recursion)
 inline void Parser::fn_declaration() noexcept {
+    using enum Token::Type;
     auto var_opt = parse_variable("Expect function name.");
     if (!var_opt.has_value()) { return; }
     auto [name, is_const] = var_opt.value();
@@ -1100,6 +1108,7 @@ inline void Parser::fn_declaration() noexcept {
 // NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeInfo Parser::parse_type() noexcept {
     switch (current.type) {
+        using enum Token::Type;
         case ANY_TYPE: advance(); return TypeInfo{TypeInfo::Type::ANY};
         case NIL_TYPE: advance(); return TypeInfo{TypeInfo::Type::NIL};
         case BOOL_TYPE: advance(); return TypeInfo{TypeInfo::Type::BOOL};
@@ -1130,7 +1139,7 @@ inline constexpr TypeInfo Parser::parse_type() noexcept {
 // NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeSet Parser::parse_type_set() noexcept {
     TypeSet result;
-    do { result.add(parent_vm, parse_type()); } while (match(TokenType::OR));
+    do { result.add(parent_vm, parse_type()); } while (match(Token::Type::OR));
     return result;
 }
 
@@ -1138,24 +1147,26 @@ inline constexpr TypeSet Parser::parse_type_set() noexcept {
 inline constexpr TypeSetArray Parser::parse_type_set_list(
     std::string_view message
 ) noexcept {
-    consume(TokenType::LEFT_CHEVRON, message);
+    using enum Token::Type;
+    consume(LEFT_CHEVRON, message);
     TypeSetArray result;
     do {
         if (check(RIGHT_CHEVRON)) { break; }
         result.push_back(parent_vm, parse_type_set());
-    } while (match(TokenType::COMMA));
-    consume(TokenType::RIGHT_CHEVRON, "Expect '>' after type list.");
+    } while (match(COMMA));
+    consume(RIGHT_CHEVRON, "Expect '>' after type list.");
     return result;
 }
 
 inline constexpr void Parser::var_declaration() noexcept {
+    using enum Token::Type;
     auto var_opt = parse_variable("Expect variable name.");
     if (!var_opt.has_value()) { return; }
     auto [name, is_const] = var_opt.value();
     std::optional<TypeSet> decl_type;
     std::optional<TypeSet> expr_type;
-    if (match(TokenType::COLON)) { decl_type = parse_type_set(); }
-    if (match(TokenType::EQUAL)) {
+    if (match(COLON)) { decl_type = parse_type_set(); }
+    if (match(EQUAL)) {
         expr_type = expression();
     } else {
         if (!decl_type.has_value()) {
@@ -1192,7 +1203,7 @@ inline constexpr void Parser::var_declaration() noexcept {
         }
         if (expr_type.has_value()) { define_variable(global_idx); }
     }
-    consume(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
+    consume(SEMICOLON, "Expect ';' after variable declaration.");
     if (decl_type.has_value()) { decl_type->destroy(parent_vm); }
     if (expr_type.has_value()) { expr_type->destroy(parent_vm); }
 }
@@ -1200,6 +1211,7 @@ inline constexpr void Parser::var_declaration() noexcept {
 // TODO: typecheck
 // NOLINTNEXTLINE(*-no-recursion)
 inline constexpr void Parser::while_statement() noexcept {
+    using enum Token::Type;
     Loop loop{};
     begin_loop(loop);
     auto cond_type = expression();
@@ -1235,6 +1247,7 @@ inline constexpr void Parser::emit_pop_innermost_loop(bool skip_top_expression
 
 // TODO: typecheck
 inline constexpr void Parser::break_statement() noexcept {
+    using enum Token::Type;
     if (current_compiler->innermost_loop == nullptr) {
         error(FMT_STRING("Can't use 'break' outside of a loop."));
     }
@@ -1256,6 +1269,7 @@ inline constexpr void Parser::break_statement() noexcept {
 }
 
 inline constexpr void Parser::continue_statement() noexcept {
+    using enum Token::Type;
     if (current_compiler->innermost_loop == nullptr) {
         error(FMT_STRING("Can't use 'continue' outside of a loop."));
     }
@@ -1266,6 +1280,7 @@ inline constexpr void Parser::continue_statement() noexcept {
 
 // TODO: typecheck
 inline constexpr void Parser::return_statement() noexcept {
+    using enum Token::Type;
     if (current_compiler->function_type == FunctionType::SCRIPT) {
         error(FMT_STRING("Can't return from top-level code."));
     }
@@ -1280,11 +1295,11 @@ inline constexpr void Parser::return_statement() noexcept {
 }
 
 inline constexpr void Parser::synchronize() noexcept {
+    using enum Token::Type;
     panic_mode = false;
-    while (current.type != TokenType::END_OF_FILE) {
-        if (previous.type == TokenType::SEMICOLON) { return; }
+    while (current.type != END_OF_FILE) {
+        if (previous.type == SEMICOLON) { return; }
         switch (current.type) {
-            using enum TokenType;
             case STRUCT:
             case FN:
             case LET:
@@ -1315,6 +1330,7 @@ inline constexpr ParseResult Parser::expression_maybe_statement() noexcept {
 
 // NOLINTNEXTLINE(*-no-recursion)
 inline constexpr ParseResult Parser::statement_or_expression() noexcept {
+    using enum Token::Type;
     // NOTE: Do not allow useless ';' (for now)
     // if (match(SEMICOLON)) { return; }
     if (match(FN)) {
@@ -1352,6 +1368,7 @@ inline constexpr ParseResult Parser::statement_or_expression() noexcept {
 }
 
 inline constexpr void Parser::statement() noexcept {
+    using enum Token::Type;
     auto parsed = statement_or_expression();
     if (parsed.kind != ParseResult::Kind::STATEMENT) {
         emit_instruction(OpCode::POP);
@@ -1359,7 +1376,7 @@ inline constexpr void Parser::statement() noexcept {
             && parsed.type_set.is_nil()) {
             (void)match(SEMICOLON);
         } else {
-            if (!match(TokenType::SEMICOLON)) {
+            if (!match(SEMICOLON)) {
                 error_at_current(FMT_STRING("Expect ';' after expression."));
                 help_cut_short();
             }

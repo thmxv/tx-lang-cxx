@@ -748,9 +748,9 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
     push(result);
 }
 
+// clang-format off
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
-// clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
