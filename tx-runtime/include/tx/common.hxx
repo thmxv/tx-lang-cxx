@@ -32,13 +32,17 @@ inline constexpr std::string_view GIT_SHA = cmake::git_sha;
 
 inline constexpr bool HAS_DEBUG_FEATURES = cmake::has_debug_features;
 
-// FIXME: Better and more consistent naming
-inline constexpr size_t FRAMES_START = 64;
-inline constexpr size_t FRAMES_MAX = 1U << 10U;
-inline constexpr size_t STACK_START = FRAMES_START * 256;
-inline constexpr size_t LOCALS_MAX = 1U << 24U;
+// NOTE: Configurable, make cmake options
+// FIXME: Better naming
+inline constexpr size_t START_FRAMES = 64;
+inline constexpr size_t MAX_FRAMES = 1U << 10U;
+inline constexpr size_t START_STACK = START_FRAMES * 256;
+inline constexpr size_t START_GC = size_t{1024} * 1024;
+
+// NOTE: Not configurable, do not edit values
+inline constexpr size_t MAX_LOCALS = 1U << 24U;
 inline constexpr size_t MAX_UPVALUES = 1U << 24U;
-inline constexpr size_t GC_START = size_t{1024} * 1024;
+inline constexpr size_t MAX_FN_PARAMETERS = 255;
 
 // Usefull short type aliases
 using i8 = std::int8_t;
@@ -54,15 +58,18 @@ using usize = std::size_t;
 using f32 = float;
 using f64 = double;
 
-// NOTE: Configurable size type used in collections
-// TODO: Test with signed/unsiged 32/64 integer and benchmark
-using size_t = i32;
-// using size_t = usize;
-
+// NOTE: Use 64 bits int/float by default, like Lua. Even on 32bit platforms.
+// Optionally allow building a minimal 32 bit version of Tx (TODO)
 using int_t = i64;
 using float_t = f64;
-// TODO: allow building a minimal 32 bit version of Tx
 // using int_t = i32;
 // using float_t = f32;
+
+// NOTE: Configurable size type used in collections
+// TODO: Test with signed/unsiged 32/64 integer and benchmark perf and mem
+using size_t = isize;
+// using size_t = i32;
+// using size_t = usize;
+// using size_t = u32;
 
 }  // namespace tx

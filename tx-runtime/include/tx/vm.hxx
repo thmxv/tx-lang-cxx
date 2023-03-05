@@ -85,7 +85,7 @@ class VM {
     ValueSet strings;
     ObjUpvalue* open_upvalues{nullptr};
     size_t bytes_allocated{0};
-    size_t next_gc{GC_START};
+    size_t next_gc{START_GC};
     gsl::owner<Obj*> objects = nullptr;
     GrayStack gray_stack;
 
@@ -172,7 +172,7 @@ class VM {
         TypeSet&& type_set
     ) noexcept;
 
-    void constexpr ensure_stack_space(i32 needed) noexcept;
+    void constexpr ensure_stack_space(size_t needed) noexcept;
 
     [[nodiscard]] constexpr bool
     call(ObjClosure& closure, size_t arg_c) noexcept;

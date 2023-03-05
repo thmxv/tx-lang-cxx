@@ -24,7 +24,8 @@ template <
     T EMPTY_VALUE,
     T TOMBSTONE_VALUE,
     typename Hash = Hash<Key>,
-    typename KeyEqual = std::equal_to<Key> >
+    typename KeyEqual = std::equal_to<Key>,
+    typename SizeT = size_t> // TODO: use SizeT where it should
 class HashMap {
     static_assert(EMPTY_VALUE != TOMBSTONE_VALUE);
 
@@ -156,8 +157,8 @@ class HashMap {
 
   private:
     static constexpr float MAX_LOAD_FACTOR = 0.75;
-    i32 count = 0;  // count includes tombstones
-    i32 capacity = 0;
+    SizeT count = 0;  // count includes tombstones
+    SizeT capacity = 0;
     gsl::owner<Entry*> data_ptr = nullptr;
 
   public:
@@ -205,7 +206,7 @@ class HashMap {
         if (count + 1 > static_cast<i32>(
                 static_cast<float>(capacity) * max_load_factor()
             )) {
-            rehash(tvm, grow_capacity(capacity));
+            rehash(tvm, gsl::narrow_cast<i32>(grow_capacity(capacity)));
         }
         Entry& entry = find_entry(key);
         bool is_new_key = is_entry_empty(entry);

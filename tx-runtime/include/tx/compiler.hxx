@@ -251,7 +251,7 @@ class Parser {
     [[nodiscard]] constexpr size_t emit_jump(OpCode instruction) noexcept;
 
     constexpr void emit_loop(size_t loop_start) noexcept;
-    constexpr void patch_jump(i32 offset) noexcept;
+    constexpr void patch_jump(size_t offset) noexcept;
 
     void begin_compiler(
         Compiler& compiler,

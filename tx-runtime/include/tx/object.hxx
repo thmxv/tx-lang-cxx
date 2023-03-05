@@ -147,16 +147,15 @@ struct ObjString : Obj {
 make_string(VM& tvm, bool copy, std::string_view strv) noexcept;
 
 struct ObjFunction : Obj {
-    // FIXME: use size_t for all size related members
-    i32 arity{0};
+    size_t arity{0};
     size_t upvalue_count{0};
-    i32 max_slots{0};
+    size_t max_slots{0};
     Chunk chunk;
     ObjString* name{nullptr};
     std::string_view module_file_path;
 
     constexpr explicit ObjFunction(
-        i32 reserved_slots,
+        size_t reserved_slots,
         std::string_view module
     ) noexcept
             : Obj{ObjType::FUNCTION}

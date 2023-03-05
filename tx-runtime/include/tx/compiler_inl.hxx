@@ -11,6 +11,7 @@
 #include "tx/utils.hxx"
 #include "tx/vm.hxx"
 #include <fmt/format.h>
+#include <gsl/util>
 
 #include <limits>
 #include <optional>
@@ -36,7 +37,7 @@ inline constexpr std::array opcode_stack_effect_table = {
 inline constexpr i32 get_opcode_stack_effect(OpCode opc, size_t operand) {
     using enum OpCode;
     if (opc == CALL || opc == END_SCOPE || opc == END_SCOPE_LONG) {
-        return -operand;
+        return -gsl::narrow_cast<i32>(operand);
     }
     return gsl::at(opcode_stack_effect_table, to_underlying(opc));
 }
@@ -211,12 +212,12 @@ Parser::consume(TokenType type, std::string_view message) noexcept {
 ) noexcept {
     // if (had_error) { return -1; }
     const auto* existing = current_compiler->constant_indices.get(value);
-    if (existing != nullptr) { return static_cast<size_t>(existing->as_int()); }
+    if (existing != nullptr) { return size_cast(existing->as_int()); }
     // TODO: error if too much constants
     parent_vm.push(value);
     auto idx = current_chunk().add_constant(parent_vm, value);
     current_compiler->constant_indices
-        .set(parent_vm, value, Value{static_cast<int_t>(idx)});
+        .set(parent_vm, value, Value{gsl::narrow_cast<int_t>(idx)});
     parent_vm.pop();
     return idx;
 }
@@ -308,7 +309,7 @@ inline constexpr void Parser::emit_loop(size_t loop_start) noexcept {
     emit_instruction<2>(OpCode::LOOP, offset);
 }
 
-inline constexpr void Parser::patch_jump(i32 offset) noexcept {
+inline constexpr void Parser::patch_jump(size_t offset) noexcept {
     auto jump_distance = current_chunk().code.size() - offset - 2;
     if (jump_distance > std::numeric_limits<u16>::max()) {
         error(FMT_STRING("Too much code to jump over."));
@@ -466,9 +467,11 @@ Parser::binary(TypeSet lhs, bool /*can_assign*/) noexcept {
     do {
         if (check(RIGHT_PAREN)) { break; }
         result.emplace_back(parent_vm, expression());
-        // TODO: remplace magic with constant
-        if (result.size() == 256) {
-            error(FMT_STRING("Can't have more than 255 arguments."));
+        if (result.size() == MAX_FN_PARAMETERS + 1) {
+            error(
+                FMT_STRING("Can't have more than {} arguments."),
+                MAX_FN_PARAMETERS
+            );
         }
     } while (match(COMMA));
     consume(RIGHT_PAREN, "Expect ')' after arguments.");
@@ -530,7 +533,7 @@ inline constexpr TypeSet Parser::literal(bool /*can_assign*/) noexcept {
 inline constexpr i32
 Parser::resolve_local(Compiler& compiler, const Token& name) noexcept {
     // TODO: use ranges, enumerate+reverse
-    for (i32 i = compiler.locals.size() - 1; i >= 0; --i) {
+    for (auto i = compiler.locals.size() - 1; i >= 0; --i) {
         const Local& local = compiler.locals[i];
         if (identifiers_equal(name, local.name)) {
             assert(local.depth != -1);
@@ -539,7 +542,7 @@ Parser::resolve_local(Compiler& compiler, const Token& name) noexcept {
             //         "Can't read local variable in its own initializer."
             //     ));
             // }
-            return i;
+            return gsl::narrow_cast<i32>(i);
         }
     }
     return -1;
@@ -859,7 +862,7 @@ inline i32 Parser::resolve_global(const Token& name) noexcept {
         name.lexeme
     )};
     auto* index = parent_vm.global_indices.get(identifier);
-    if (index != nullptr) { return static_cast<size_t>(index->as_int()); }
+    if (index != nullptr) { return gsl::narrow_cast<i32>(index->as_int()); }
     return -1;
 }
 
@@ -908,7 +911,7 @@ inline constexpr void Parser::add_local(
     bool is_const,
     TypeSet&& type_set
 ) noexcept {
-    if (current_compiler->locals.size() == LOCALS_MAX) {
+    if (current_compiler->locals.size() == MAX_LOCALS) {
         error(FMT_STRING("Too many local variables in function."));
         return;
     }
@@ -947,7 +950,9 @@ inline constexpr i32 Parser::declare_variable(
         declare_local_variable(name, is_const, std::move(type_set));
         return -1;
     }
-    return declare_global_variable(name, is_const, std::move(type_set));
+    return gsl::narrow_cast<i32>(
+        declare_global_variable(name, is_const, std::move(type_set))
+    );
 }
 
 inline constexpr std::optional<std::tuple<Token, bool>> Parser::parse_variable(
@@ -987,8 +992,10 @@ inline constexpr ParametersAndReturn Parser::parameter_list_and_return_type(
     ParametersAndReturn result;
     do {
         if (check(RIGHT_PAREN)) { break; }
-        if (result.parameters.size() == 255) {
-            error_at_current(FMT_STRING("Can't have more than 255 parameters.")
+        if (result.parameters.size() == MAX_FN_PARAMETERS) {
+            error_at_current(
+                FMT_STRING("Can't have more than {} parameters."),
+                MAX_FN_PARAMETERS
             );
         }
         // TODO: need in, out or inout (in by default)

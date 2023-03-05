@@ -5,9 +5,9 @@
 
 #include <fmt/format.h>
 
-#include <cassert>
 #include <gsl/util>
-#include <initializer_list>
+
+#include <cassert>
 #include <source_location>
 #include <type_traits>
 
@@ -16,7 +16,7 @@ namespace tx {
 template <typename T>
     requires std::is_integral_v<T>
 [[nodiscard]] inline constexpr size_t size_cast(T val) noexcept {
-    return static_cast<size_t>(val);
+    return gsl::narrow_cast<size_t>(val);
 }
 
 template <typename Enum>
@@ -75,7 +75,7 @@ template <typename Enum>
 }
 
 [[nodiscard]] inline constexpr i32 power_of_2_ceil(i32 val) noexcept {
-    return gsl::narrow_cast<i32>(static_cast<std::make_unsigned_t<i32>>(val));
+    return gsl::narrow_cast<i32>(power_of_2_ceil(gsl::narrow_cast<u32>(val)));
 }
 
 [[nodiscard]] inline constexpr size_t count_digit(size_t number) noexcept {

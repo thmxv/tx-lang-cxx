@@ -373,7 +373,7 @@ Scanner::utf8_escape(size_t digits, DynArray<char>& dst) noexcept {
     }
     dst.resize(
         parent_vm,
-        static_cast<size_t>(std::distance(dst.begin(), tmp_next))
+        size_cast(std::distance(dst.begin(), tmp_next))
     );
     return false;
 }

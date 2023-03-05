@@ -189,10 +189,10 @@ disassemble_instruction(const Chunk& chunk, const ByteCode* ptr) noexcept {
 }
 
 inline void print_token(const Token& token) noexcept {
-    static int line = -1;
+    static i32 line = -1;
     if (token.line != line) {
         fmt::print(FMT_STRING("{:4d} "), token.line);
-        line = token.line;
+        line = gsl::narrow_cast<i32>(token.line);
     } else {
         fmt::print(FMT_STRING("   | "));
     }

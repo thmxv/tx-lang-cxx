@@ -59,7 +59,7 @@ struct NoLocaleFacet : F {
         tmp_next
     );
     if (enc_res != std::codecvt_base::result::ok) { result.clear(); }
-    result.resize(static_cast<size_t>(std::distance(result.begin(), tmp_next)));
+    result.resize(size_cast(std::distance(result.begin(), tmp_next)));
     return result;
 }
 

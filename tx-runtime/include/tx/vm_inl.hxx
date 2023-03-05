@@ -23,6 +23,7 @@
 #include <ranges>
 #include <thread>
 #include <tuple>
+#include <gsl/util>
 #include <type_traits>
 
 namespace tx {
@@ -193,8 +194,8 @@ inline VM::VM(VMOptions opts, const Allocator& alloc) noexcept
         : options(opts)
         , allocator(alloc) {
     if constexpr (!IS_DEBUG_BUILD) {
-        frames.reserve(*this, FRAMES_START);
-        stack.reserve(*this, STACK_START);
+        frames.reserve(*this, START_FRAMES);
+        stack.reserve(*this, START_STACK);
     }
 
     // FIXME: detect signature automatically at compile time
@@ -413,7 +414,7 @@ VM::add_global(Value name, Global&& signature, Value val) noexcept {
     auto new_index = global_values.size();
     global_values.push_back(*this, val);
     global_signatures.push_back(*this, std::move(signature));
-    global_indices.set(*this, name, Value{static_cast<int_t>(new_index)});
+    global_indices.set(*this, name, Value{gsl::narrow_cast<int_t>(new_index)});
     return new_index;
 }
 
@@ -451,13 +452,14 @@ inline void VM::define_native(
     pop();
 }
 
-inline constexpr void VM::ensure_stack_space(i32 needed) noexcept {
+inline constexpr void VM::ensure_stack_space(size_t needed) noexcept {
     if (stack.capacity() >= needed) { return; }
     auto* old = stack.begin();
     if constexpr (IS_DEBUG_BUILD) {
         stack.reserve(*this, needed);
     } else {
-        stack.reserve(*this, power_of_2_ceil(needed));
+        // TODO: power_of_2_ceil for 64bit ints
+        stack.reserve(*this, power_of_2_ceil(gsl::narrow_cast<i32>(needed)));
     }
     if (old != stack.cbegin()) {
         for (auto& frame : frames) {
@@ -487,7 +489,7 @@ VM::call(ObjClosure& closure, size_t arg_c) noexcept {
         );
         return false;
     }
-    if (frames.size() == FRAMES_MAX) [[unlikely]] {
+    if (frames.size() == MAX_FRAMES) [[unlikely]] {
         runtime_error("Stack overflow.");
         return false;
     }
@@ -616,10 +618,10 @@ inline void CallFrame::print_instruction() const noexcept {
 
 // FIXME: Make sure this does not bloat the binary in realease mode
 inline void VM::assert_stack_effect(const ByteCode* iptr) const noexcept {
-    static auto previous_size = 0;
+    static size_t previous_size = 0;
     static auto previous_opc = OpCode::END;
     static size_t previous_operand = 0;
-    const auto current_size = stack.size();
+    const size_t current_size = stack.size();
     const auto delta = current_size - previous_size;
 
     switch (previous_opc) {
@@ -749,7 +751,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
 
 // TX_VM_CONSTEXPR
 [[gnu::flatten]] inline InterpretResult VM::run() noexcept {
-    // clang-format off
+// clang-format off
     #ifdef TX_ENABLE_COMPUTED_GOTO
         __extension__
         static void* dispatch_table[] = {
@@ -1016,7 +1018,7 @@ inline void VM::do_end_scope(CallFrame*& frame) noexcept {
     }
     unreachable();
     return InterpretResult::RUNTIME_ERROR;
-// clang-format off
+    // clang-format off
     #undef TX_VM_DISPATCH
     #undef TX_VM_CASE
     #undef TX_VM_BREAK
