@@ -11,7 +11,7 @@ struct fmt::formatter<tx::Value> : formatter<string_view> {
     template <typename FormatContext>
     constexpr auto format(const tx::Value value, FormatContext& ctx) noexcept {
         switch (value.type) {
-            using enum tx::Value::ValueType;
+            using enum tx::Value::Type;
             case NONE: return fmt::format_to(ctx.out(), "<none>");
             case NIL: return fmt::format_to(ctx.out(), "nil");
             case BOOL: return fmt::format_to(ctx.out(), "{}", value.as_bool());
@@ -59,14 +59,12 @@ struct fmt::formatter<tx::Obj> : formatter<string_view> {
                 const auto& function = obj.as<tx::ObjFunction>();
                 return format_function(function, ctx);
             }
-            case NATIVE:
-                return fmt::format_to(ctx.out(), "<native fn>");
+            case NATIVE: return fmt::format_to(ctx.out(), "<native fn>");
             case STRING: {
                 const auto& str = obj.as<tx::ObjString>();
                 return fmt::format_to(ctx.out(), "{:s}", std::string_view(str));
             }
-            case UPVALUE:
-                return fmt::format_to(ctx.out(), "<upvalue>");
+            case UPVALUE: return fmt::format_to(ctx.out(), "<upvalue>");
         }
         tx::unreachable();
     }

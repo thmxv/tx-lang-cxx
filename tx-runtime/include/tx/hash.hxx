@@ -77,7 +77,7 @@ template <>
 struct Hash<Value> {
     constexpr u32 operator()(Value const& val) const noexcept {
         switch (val.type) {
-            using enum Value::ValueType;
+            using enum Value::Type;
             case NONE: unreachable();
             case NIL: return HASH_NIL;
             case BOOL: return val.as_bool() ? HASH_TRUE : HASH_FALSE;

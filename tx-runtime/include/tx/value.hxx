@@ -18,7 +18,7 @@ inline constexpr ValNil val_nil;
 struct Value {
     static constexpr bool IS_TRIVIALLY_RELOCATABLE = true;
 
-    enum class ValueType {
+    enum class Type {
         NONE,
         NIL,
         BOOL,
@@ -27,9 +27,8 @@ struct Value {
         CHAR,
         OBJECT,
     };
-    using enum ValueType;
 
-    ValueType type;
+    Type type;
     union {
         bool boolean;
         int_t integer;
@@ -40,27 +39,30 @@ struct Value {
 
     constexpr Value() noexcept = delete;
 
-    constexpr explicit Value(const ValNone& /*tag*/) noexcept : type(NONE) {}
-    constexpr explicit Value(const ValNil& /*tag*/) noexcept : type(NIL) {}
+    constexpr explicit Value(const ValNone& /*tag*/) noexcept
+            : type(Type::NONE) {}
+    constexpr explicit Value(const ValNil& /*tag*/) noexcept
+
+            : type(Type::NIL) {}
 
     constexpr explicit Value(bool val) noexcept
-            : type(BOOL)
+            : type(Type::BOOL)
             , as{.boolean = val} {}
 
     constexpr explicit Value(int_t val) noexcept
-            : type(INT)
+            : type(Type::INT)
             , as{.integer = val} {}
 
     constexpr explicit Value(float_t val) noexcept
-            : type(FLOAT)
+            : type(Type::FLOAT)
             , as{.scalar = val} {}
 
     constexpr explicit Value(char32_t val) noexcept
-            : type(CHAR)
+            : type(Type::CHAR)
             , as{.chr = val} {}
 
     constexpr explicit Value(Obj* val) noexcept
-            : type(OBJECT)
+            : type(Type::OBJECT)
             , as{.obj = val} {}
 
     [[nodiscard]] constexpr bool as_bool() const noexcept {
@@ -83,7 +85,7 @@ struct Value {
 
     [[nodiscard]] constexpr float_t as_float_force() const noexcept {
         assert(is_int() || is_float());
-        return type == INT ? static_cast<float_t>(as_int()) : as_float();
+        return type == Type::INT ? static_cast<float_t>(as_int()) : as_float();
     }
 
     [[nodiscard]] constexpr char32_t as_char() const noexcept {
@@ -99,31 +101,35 @@ struct Value {
     }
 
     [[nodiscard]] constexpr bool is_none() const noexcept {
-        return type == NONE;
+        return type == Type::NONE;
     }
 
-    [[nodiscard]] constexpr bool is_nil() const noexcept { return type == NIL; }
+    [[nodiscard]] constexpr bool is_nil() const noexcept {
+        return type == Type::NIL;
+    }
 
     [[nodiscard]] constexpr bool is_bool() const noexcept {
-        return type == BOOL;
+        return type == Type::BOOL;
     }
 
-    [[nodiscard]] constexpr bool is_int() const noexcept { return type == INT; }
+    [[nodiscard]] constexpr bool is_int() const noexcept {
+        return type == Type::INT;
+    }
 
     [[nodiscard]] constexpr bool is_float() const noexcept {
-        return type == FLOAT;
+        return type == Type::FLOAT;
     }
 
     [[nodiscard]] constexpr bool is_number() const noexcept {
-        return type == FLOAT || type == INT;
+        return type == Type::FLOAT || type == Type::INT;
     }
 
     [[nodiscard]] constexpr bool is_char() const noexcept {
-        return type == CHAR;
+        return type == Type::CHAR;
     }
 
     [[nodiscard]] constexpr bool is_object() const noexcept {
-        return type == OBJECT;
+        return type == Type::OBJECT;
     }
 
     [[nodiscard]] constexpr bool is_falsey() const noexcept {
@@ -137,7 +143,7 @@ struct Value {
     operator==(const Value& lhs, const Value& rhs) noexcept {
         if (lhs.type != rhs.type) { return false; }
         switch (lhs.type) {
-            using enum ValueType;
+            using enum Value::Type;
             case NONE:
             case NIL: return true;
             case BOOL: return lhs.as_bool() == rhs.as_bool();

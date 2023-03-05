@@ -12,7 +12,7 @@ namespace tx {
 operator<=>(const Value& lhs, const Value& rhs) noexcept {
     if (lhs.type != rhs.type) { return std::partial_ordering::unordered; }
     switch (lhs.type) {
-        using enum Value::ValueType;
+        using enum Value::Type;
         case NONE:
         case NIL: return std::strong_ordering::equal;
         case BOOL: return std::strong_order(lhs.as_bool(), rhs.as_bool());
@@ -23,6 +23,5 @@ operator<=>(const Value& lhs, const Value& rhs) noexcept {
     }
     unreachable();
 }
-
 
 }  // namespace tx
