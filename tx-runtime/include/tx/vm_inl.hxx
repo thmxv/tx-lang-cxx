@@ -458,8 +458,7 @@ inline constexpr void VM::ensure_stack_space(size_t needed) noexcept {
     if constexpr (IS_DEBUG_BUILD) {
         stack.reserve(*this, needed);
     } else {
-        // TODO: power_of_2_ceil for 64bit ints
-        stack.reserve(*this, power_of_2_ceil(gsl::narrow_cast<i32>(needed)));
+        stack.reserve(*this, power_of_2_ceil(needed));
     }
     if (old != stack.cbegin()) {
         for (auto& frame : frames) {

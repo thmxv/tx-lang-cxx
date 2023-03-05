@@ -12,9 +12,6 @@ namespace tx {
 class VM;
 struct Obj;
 
-inline constexpr size_t MIN_CAPACIY = 8;
-inline constexpr size_t CAPACITY_SCALE_FACTOR = 2;
-
 template <typename T>
 [[nodiscard]] T* allocate(VM& tvm, size_t count) noexcept {
     return reallocate_no_reloc<T>(tvm, nullptr, 0, count);

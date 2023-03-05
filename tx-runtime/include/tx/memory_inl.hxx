@@ -16,12 +16,13 @@ namespace tx {
 // TODO: A lot depends on making allocation constexpr
 // It should be C++23 compatible but std libs might trail behind
 
+inline constexpr size_t MIN_CAPACIY = 8;
+inline constexpr size_t CAPACITY_SCALE_FACTOR = 2;
 inline constexpr size_t GC_HEAP_GROW_FACTOR = 2;
 
 [[nodiscard]] inline constexpr size_t grow_capacity(size_t capacity) noexcept {
-    return (capacity < MIN_CAPACIY)  //
-               ? MIN_CAPACIY
-               : (capacity * CAPACITY_SCALE_FACTOR);
+    return (capacity < MIN_CAPACIY) ? MIN_CAPACIY
+                                    : (capacity * CAPACITY_SCALE_FACTOR);
 }
 
 // pmr::polymorphic_allocator does not provide a reallocate() function :(

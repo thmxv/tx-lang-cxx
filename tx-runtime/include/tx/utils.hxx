@@ -8,6 +8,7 @@
 #include <gsl/util>
 
 #include <cassert>
+#include <concepts>
 #include <source_location>
 #include <type_traits>
 
@@ -62,6 +63,18 @@ template <typename Enum>
     return fract_part == 0.0 && !std::isinf(int_part);
 }
 
+// From
+// http://www.graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
+template <std::unsigned_integral T>
+[[nodiscard]] inline constexpr bool is_power_of_2(T val) noexcept {
+    return (val & (val - 1)) == 0;
+}
+
+template <std::signed_integral T>
+[[nodiscard]] inline constexpr bool is_power_of_2(T val) noexcept {
+    return is_power_of_2(gsl::narrow_cast<std::make_unsigned_t<T>>(val));
+}
+
 // From:
 // http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
 [[nodiscard]] inline constexpr u32 power_of_2_ceil(u32 val) noexcept {
@@ -74,8 +87,22 @@ template <typename Enum>
     return ++val;
 }
 
-[[nodiscard]] inline constexpr i32 power_of_2_ceil(i32 val) noexcept {
-    return gsl::narrow_cast<i32>(power_of_2_ceil(gsl::narrow_cast<u32>(val)));
+[[nodiscard]] inline constexpr u64 power_of_2_ceil(u64 val) noexcept {
+    val--;
+    val |= val >> 1U;
+    val |= val >> 2U;
+    val |= val >> 4U;
+    val |= val >> 8U;   // NOLINT(*-magic-numbers)
+    val |= val >> 16U;  // NOLINT(*-magic-numbers)
+    val |= val >> 32U;  // NOLINT(*-magic-numbers)
+    return ++val;
+}
+
+template <std::signed_integral T>
+[[nodiscard]] inline constexpr T power_of_2_ceil(T val) noexcept {
+    return gsl::narrow_cast<T>(
+        power_of_2_ceil(gsl::narrow_cast<std::make_unsigned_t<T>>(val))
+    );
 }
 
 [[nodiscard]] inline constexpr size_t count_digit(size_t number) noexcept {

@@ -2,16 +2,16 @@
 
 #include "tx/hash.hxx"
 #include "tx/memory.hxx"
+#include "tx/utils.hxx"
+
+#include <gsl/util>
 
 #include <cassert>
 #include <cstddef>
-#include <deque>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <span>
-#include "tx/utils.hxx"
-#include <bits/iterator_concepts.h>
 #include <type_traits>
 #include <utility>
 
@@ -25,7 +25,7 @@ template <
     T TOMBSTONE_VALUE,
     typename Hash = Hash<Key>,
     typename KeyEqual = std::equal_to<Key>,
-    typename SizeT = size_t> // TODO: use SizeT where it should
+    typename SizeT = size_t>
 class HashMap {
     static_assert(EMPTY_VALUE != TOMBSTONE_VALUE);
 
@@ -203,10 +203,10 @@ class HashMap {
     template <typename... Args>
     constexpr bool set(VM& tvm, Key key, Args&&... args) noexcept {
         assert(!KeyEqual()(key, EMPTY_KEY) && "Key cannot be the empty key.");
-        if (count + 1 > static_cast<i32>(
+        if (count + 1 > static_cast<SizeT>(
                 static_cast<float>(capacity) * max_load_factor()
             )) {
-            rehash(tvm, gsl::narrow_cast<i32>(grow_capacity(capacity)));
+            rehash_impl(tvm, grow_capacity(capacity));
         }
         Entry& entry = find_entry(key);
         bool is_new_key = is_entry_empty(entry);
@@ -234,30 +234,8 @@ class HashMap {
         }
     }
 
-    constexpr void rehash(VM& tvm, i32 new_cap) noexcept {
-        new_cap = power_of_2_ceil(new_cap);
-        auto* old_ptr = data_ptr;
-        auto old_capacity = capacity;
-        data_ptr = allocate<Entry>(tvm, new_cap);
-        std::uninitialized_fill_n(
-            data_ptr,
-            new_cap,
-            Entry(EMPTY_KEY, EMPTY_VALUE)
-        );
-        capacity = new_cap;
-        count = 0;
-        for (i32 i = 0; i < old_capacity; ++i) {
-            Entry* src = std::next(old_ptr, i);
-            if (is_entry_empty(*src)) { continue; }
-            Entry* dest = &find_entry(src->first);
-            std::destroy_at(dest);
-            std::construct_at(dest, std::move(*src));
-            ++count;
-        }
-        if (old_ptr != nullptr) {
-            std::destroy_n(old_ptr, old_capacity);
-            free_array<Entry>(tvm, old_ptr, old_capacity);
-        }
+    constexpr void rehash(VM& tvm, SizeT new_cap) noexcept {
+        rehash_impl(tvm, power_of_2_ceil(new_cap));
     }
 
     template <typename F>
@@ -319,10 +297,14 @@ class HashMap {
     [[nodiscard]] constexpr Entry&
     find_in_bucket_impl(u32 hash, F func) noexcept {
         assert(capacity > 0);
-        u32 index = hash % static_cast<u32>(capacity);
+        assert(is_power_of_2(capacity));
+        usize index = hash & gsl::narrow_cast<usize>(capacity - 1);
         Entry* tombstone = nullptr;
         while (true) {
-            Entry& entry = *std::next(data_ptr, static_cast<gsl::index>(index));
+            Entry& entry = *std::next(
+                data_ptr,
+                gsl::narrow_cast<gsl::index>(index)
+            );
             if (is_entry_empty(entry)) {
                 if (!is_entry_tombstone(entry)) {
                     // found the end of the bucket
@@ -334,7 +316,33 @@ class HashMap {
                 // found the entry
                 return entry;
             }
-            index = (index + 1) % static_cast<u32>(capacity);
+            index = (index + 1) & gsl::narrow_cast<usize>(capacity - 1);
+        }
+    }
+
+    constexpr void rehash_impl(VM& tvm, SizeT new_cap) noexcept {
+        assert(is_power_of_2(new_cap));
+        auto* old_ptr = data_ptr;
+        auto old_capacity = capacity;
+        data_ptr = allocate<Entry>(tvm, new_cap);
+        std::uninitialized_fill_n(
+            data_ptr,
+            new_cap,
+            Entry(EMPTY_KEY, EMPTY_VALUE)
+        );
+        capacity = new_cap;
+        count = 0;
+        for (i32 i = 0; i < old_capacity; ++i) {
+            Entry* src = std::next(old_ptr, i);
+            if (is_entry_empty(*src)) { continue; }
+            Entry* dest = &find_entry(src->first);
+            std::destroy_at(dest);
+            std::construct_at(dest, std::move(*src));
+            ++count;
+        }
+        if (old_ptr != nullptr) {
+            std::destroy_n(old_ptr, old_capacity);
+            free_array<Entry>(tvm, old_ptr, old_capacity);
         }
     }
 };

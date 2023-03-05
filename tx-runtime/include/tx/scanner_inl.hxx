@@ -35,7 +35,7 @@ namespace tx {
 
 inline constexpr char Scanner::advance() noexcept {
     // 'if' Not needed for null terminated strings
-    if (is_at_end()) { return '\0'; }
+    if (is_at_end()) [[unlikely]] { return '\0'; }
     auto result = *current;
     current = std::next(current);
     return result;
@@ -43,19 +43,21 @@ inline constexpr char Scanner::advance() noexcept {
 
 [[nodiscard]] inline constexpr char Scanner::peek() const noexcept {
     // 'if' Not needed for null terminated strings
-    if (is_at_end()) { return '\0'; }
+    if (is_at_end()) [[unlikely]] { return '\0'; }
     return *current;
 }
 
 [[nodiscard]] inline constexpr char Scanner::peek_next(size_t offset
 ) const noexcept {
-    if (std::distance(current, source.end()) <= offset) { return '\0'; }
+    if (std::distance(current, source.end()) <= offset) [[unlikely]] {
+        return '\0';
+    }
     return *std::next(current, offset);
 }
 
 [[nodiscard]] inline constexpr bool Scanner::match(char expected) noexcept {
-    if (is_at_end()) { return false; }
-    if (*current != expected) { return false; }
+    if (is_at_end()) [[unlikely]] { return false; }
+    if (*current != expected) [[unlikely]] { return false; }
     current = std::next(current);
     return true;
 }
@@ -371,10 +373,7 @@ Scanner::utf8_escape(size_t digits, DynArray<char>& dst) noexcept {
         dst.resize(parent_vm, dst.size() - 4);
         return true;
     }
-    dst.resize(
-        parent_vm,
-        size_cast(std::distance(dst.begin(), tmp_next))
-    );
+    dst.resize(parent_vm, size_cast(std::distance(dst.begin(), tmp_next)));
     return false;
 }
 
