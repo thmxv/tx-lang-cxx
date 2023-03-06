@@ -1259,10 +1259,7 @@ inline constexpr void Parser::break_statement() noexcept {
             emit_instruction(OpCode::NIL);
             loop.type_set.add(parent_vm, TypeInfo{TypeInfo::Type::NIL});
         } else {
-            auto type_set = expression();
-            loop.type_set.move_all_from(parent_vm, std::move(type_set));
-            // cppcheck-suppress[accessMoved]
-            type_set.destroy(parent_vm);
+            loop.type_set.move_all_from(parent_vm, expression());
             consume(
                 SEMICOLON,
                 "Expect ';' after expression in 'break' statement."

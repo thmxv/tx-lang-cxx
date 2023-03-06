@@ -123,14 +123,16 @@ inline constexpr TypeSet TypeSet::copy(VM& tvm) const noexcept {
 }
 
 inline constexpr void TypeSet::add(VM& tvm, TypeInfo&& val) noexcept {
-    if (std::ranges::find(types, val) != types.end()) { return; }
-    types.push_back(tvm, std::move(val));
+    if (std::ranges::find(types, val) == types.end()) {
+        types.push_back(tvm, std::move(val));
+    }
 }
 
 inline constexpr void
 TypeSet::move_all_from(VM& tvm, TypeSet&& other) noexcept {
     types.reserve(tvm, types.size() + other.types.size());
     for (auto&& val : other.types) { add(tvm, std::move(val)); }
+    other.destroy(tvm);
 }
 
 [[nodiscard]] inline constexpr bool TypeSet::contains(const TypeInfo& val
@@ -258,8 +260,6 @@ type_check_comparison(const TypeInfo& lhs, const TypeInfo& rhs) noexcept {
         auto type_set = type_check_arithmetic(tvm, current_lhs, rhs);
         if (type_set.is_empty()) { return {}; }
         result.move_all_from(tvm, std::move(type_set));
-        // cppcheck-suppress[accessMoved]
-        type_set.destroy(tvm);
     }
     return result;
 }
@@ -307,8 +307,6 @@ type_check_arithmetic(const TypeInfo& lhs, const TypeInfo& rhs) noexcept {
             return {};
         }
         result.move_all_from(tvm, std::move(type_set));
-        // cppcheck-suppress[accessMoved]
-        type_set.destroy(tvm);
     }
     return result;
 }
