@@ -1,0 +1,3 @@
+loop {
+  break 0
+}  # Syntax error at '}': Expect ';' after expression in 'break' statement.
