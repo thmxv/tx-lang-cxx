@@ -130,7 +130,7 @@ inline constexpr void TypeSet::add(VM& tvm, TypeInfo&& val) noexcept {
 inline constexpr void
 TypeSet::move_all_from(VM& tvm, TypeSet&& other) noexcept {
     types.reserve(tvm, types.size() + other.types.size());
-    for (auto&& val : other.types) { types.push_back_unsafe(std::move(val)); }
+    for (auto&& val : other.types) { add(tvm, std::move(val)); }
 }
 
 [[nodiscard]] inline constexpr bool TypeSet::contains(const TypeInfo& val

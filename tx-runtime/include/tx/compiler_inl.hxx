@@ -429,6 +429,8 @@ inline constexpr void Parser::patch_jumps_in_innermost_loop() noexcept {
 
 inline constexpr void Parser::end_loop() noexcept {
     patch_jumps_in_innermost_loop();
+    // TODO: move to better place?
+    current_compiler->innermost_loop->type_set.destroy(parent_vm);
     current_compiler->innermost_loop = current_compiler->innermost_loop
                                            ->enclosing;
 }
@@ -756,14 +758,14 @@ inline constexpr TypeSet Parser::loop_expr(bool /*can_assign*/) noexcept {
     Loop loop{};
     begin_loop(loop, true);
     consume(Token::Type::LEFT_BRACE, "Expect '{' after 'loop'.");
-    auto result = block();
+    auto block_result = block();
     // TODO: make sure no final expression as it is meaningless
-    result.destroy(parent_vm);
+    block_result.destroy(parent_vm);
+    auto loop_result = std::move(current_compiler->innermost_loop->type_set);
     emit_instruction(OpCode::POP);
     emit_loop(loop.start);
     end_loop();
-    // cppcheck-suppress[returnDanglingLifetime]
-    return {parent_vm, {TypeInfo{TypeInfo::Type::NIL}}};
+    return loop_result;
 }
 
 inline TypeSet Parser::fn_expr(bool /*can_assign*/) noexcept {
@@ -1251,19 +1253,25 @@ inline constexpr void Parser::break_statement() noexcept {
     if (current_compiler->innermost_loop == nullptr) {
         error(FMT_STRING("Can't use 'break' outside of a loop."));
     }
-    const bool is_loop_expr = current_compiler->innermost_loop->is_loop_expr;
-    if (is_loop_expr) {
+    auto& loop = *current_compiler->innermost_loop;
+    if (loop.is_loop_expr) {
         if (match(SEMICOLON)) {
             emit_instruction(OpCode::NIL);
+            loop.type_set.add(parent_vm, TypeInfo{TypeInfo::Type::NIL});
         } else {
-            auto expr_type = expression();
-            consume(SEMICOLON, "Expect ; after break return expression.");
-            expr_type.destroy(parent_vm);
+            auto type_set = expression();
+            loop.type_set.move_all_from(parent_vm, std::move(type_set));
+            // cppcheck-suppress[accessMoved]
+            type_set.destroy(parent_vm);
+            consume(
+                SEMICOLON,
+                "Expect ';' after expression in 'break' statement."
+            );
         }
     } else {
-        consume(SEMICOLON, "Expect ; after 'break'.");
+        consume(SEMICOLON, "Expect ';' after 'break'.");
     }
-    emit_pop_innermost_loop(is_loop_expr);
+    emit_pop_innermost_loop(loop.is_loop_expr);
     // emit jump with placeholder opcode that will need patching later
     (void)emit_jump(OpCode::END);
 }

@@ -93,6 +93,7 @@ struct Loop {
     size_t scope_depth;
     bool is_loop_expr;
     Loop* enclosing;
+    TypeSet type_set;
 };
 
 struct Upvalue {
