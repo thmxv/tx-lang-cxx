@@ -1,2 +1,3 @@
 var a = "a";
-{a} = "value"; # Syntax error at '=': Invalid assignment target.
+{a} = "value"; # Syntax error at '=': Expect ';' after expression.
+# Help: parentheses are required to parse this as an expression.

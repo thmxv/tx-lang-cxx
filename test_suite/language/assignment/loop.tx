@@ -1,3 +1,4 @@
 var a = "a";
-# [3] Syntax error at '=': Invalid assignment target.
+# [3] Syntax error at '=': Expect ';' after expression.
 loop { break a; } = "value"; 
+# Help: parentheses are required to parse this as an expression.

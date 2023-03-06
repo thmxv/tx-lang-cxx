@@ -42,6 +42,7 @@ if not isfile(CLI_APP_WITH_EXT):
 
 # Regex's for source files
 OUTPUT_EXPECT = re.compile(r"# expect: ?(.*)")
+HELP_EXPECT = re.compile(r"# ?(Help: .*)")
 ERROR_EXPECT = re.compile(r"# (Syntax error.+)")
 ERROR_LINE_EXPECT = re.compile(r"# \[(\d+)\] (Syntax error.+)")
 RUNTIME_ERROR_EXPECT = re.compile(r"# (Runtime error:.+)")
@@ -102,6 +103,11 @@ class Test:
         with open(self.path, "r") as file:
             for line in file:
                 match = OUTPUT_EXPECT.search(line)
+                if match:
+                    self.output.append((match.group(1), line_num))
+                    expectations += 1
+
+                match = HELP_EXPECT.search(line)
                 if match:
                     self.output.append((match.group(1), line_num))
                     expectations += 1
@@ -291,9 +297,6 @@ class Test:
 
         index = 0
         for line in out_lines:
-            if sys.version_info < (3, 0):
-                line = line.encode("utf-8")
-
             if index >= len(self.output):
                 self.fail('Got output "{0}" when none was expected.', line)
             elif self.output[index][0] != line:
@@ -384,7 +387,7 @@ def run_script(path):
         term.print_line(term.red("FAIL") + ": " + path)
         print("")
         for failure in test.failures:
-            print("            " + term.pink(failure))
+            print("    " + term.pink(failure))
         print("")
 
 
