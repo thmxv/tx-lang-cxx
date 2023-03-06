@@ -447,7 +447,14 @@ Parser::binary(TypeSet lhs, bool /*can_assign*/) noexcept {
     );
     auto result = type_check_binary(parent_vm, token.type, lhs, rhs);
     if (result.is_empty()) {
-        error_at(token, "Incompatible types in binary operation");
+        error_at(
+            token,
+            FMT_STRING("Incompatible types in binary operation. "
+                       "No implementation for '{} {} {}'."),
+            lhs,
+            token.lexeme,
+            rhs
+        );
     } else {
         switch (token.type) {
             using enum Token::Type;
@@ -491,7 +498,11 @@ Parser::call(TypeSet lhs, bool /*can_assign*/) noexcept {
     auto arg_types = argument_list();
     auto result = type_check_call(parent_vm, lhs, arg_types);
     if (result.is_empty()) {
-        error(FMT_STRING("Incompatible types in function call."));
+        error(
+            FMT_STRING("Incompatible types in function call. "
+                       "Cannot call '{}' with arguments '{}'."),
+            lhs, arg_types
+        );
     }
     emit_instruction<1>(OpCode::CALL, arg_types.size());
     lhs.destroy(parent_vm);
@@ -1076,7 +1087,11 @@ inline void Parser::function_body(
     if (!type_check_assign(params_ret.type_info.return_type, block_result)) {
         // TODO: Handle block without final expression
         // TODO: More information
-        error(FMT_STRING("Incompatible return type."));
+        error(
+            FMT_STRING("Incompatible return type. Expected '{}', found '{}'."),
+            params_ret.type_info.return_type,
+            block_result
+        );
     }
     block_result.destroy(parent_vm);
     // end_scope(); // NOTE: Not necessary
@@ -1192,7 +1207,12 @@ inline constexpr void Parser::var_declaration() noexcept {
     if (decl_type.has_value() && expr_type.has_value()) {
         if (!type_check_assign(decl_type.value(), expr_type.value())) {
             // TODO: More information
-            error(FMT_STRING("Incompatible type in variable declaration."));
+            error(
+                FMT_STRING("Incompatible type in variable declaration. "
+                           "Expected '{}', found '{}'."),
+                decl_type.value(),
+                expr_type.value()
+            );
         }
     }
     if (!had_error) [[likely]] {

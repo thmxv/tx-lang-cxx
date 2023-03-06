@@ -3,5 +3,5 @@ fn f(a: Int, b: Int) {
   std_println(b);
 }
 
-# [7] Syntax error at ')': Incompatible types in function call.
+# [7] Syntax error at ')': Incompatible types in function call. Cannot call 'Fn<<Int, Int>, Nil>' with arguments 'Int, Int, Int, Int'.
 f(1, 2, 3, 4); 

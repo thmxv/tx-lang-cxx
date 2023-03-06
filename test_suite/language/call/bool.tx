@@ -1,1 +1,1 @@
-true(); # Syntax error at ')': Incompatible types in function call.
+true(); # Syntax error at ')': Incompatible types in function call. Cannot call 'Bool' with arguments ''.

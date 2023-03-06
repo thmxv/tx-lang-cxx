@@ -1,1 +1,1 @@
-nil(); # Syntax error at ')': Incompatible types in function call.
+nil(); # Syntax error at ')': Incompatible types in function call. Cannot call 'Nil' with arguments ''.

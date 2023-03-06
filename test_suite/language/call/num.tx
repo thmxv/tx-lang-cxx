@@ -1,1 +1,1 @@
-123(); # Syntax error at ')': Incompatible types in function call.
+123(); # Syntax error at ')': Incompatible types in function call. Cannot call 'Int' with arguments ''.
