@@ -3,7 +3,6 @@
 #include "tx/dyn_array.hxx"
 #include "tx/scanner.hxx"
 #include "tx/utils.hxx"
-#include <bits/ranges_algo.h>
 
 namespace tx {
 
@@ -25,6 +24,7 @@ struct TypeSet {
     // NOTE: Using C array to work around the lack of support for move
     // semantics by std::initializer_list (std::array does not works)
     template <std::size_t N>
+    // NOLINTNEXTLINE(*-c-arrays)
     constexpr TypeSet(VM& tvm, TypeInfo (&&type_infos)[N]) noexcept;
 
     constexpr void destroy(VM& tvm) noexcept;

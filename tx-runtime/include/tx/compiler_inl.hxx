@@ -5,18 +5,21 @@
 #include "tx/chunk.hxx"
 #include "tx/common.hxx"
 #include "tx/debug.hxx"
+#include "tx/formatting.hxx"
 #include "tx/object.hxx"
 #include "tx/scanner.hxx"
 #include "tx/type.hxx"
 #include "tx/utils.hxx"
 #include "tx/vm.hxx"
+//
 #include <fmt/format.h>
+//
 #include <gsl/util>
-
+//
+#include <functional>
 #include <limits>
 #include <optional>
 #include <ranges>
-#include <functional>
 #include <tuple>
 
 namespace tx {
@@ -629,7 +632,12 @@ Parser::named_variable(const Token& name, bool can_assign) noexcept {
         if (is_const) { error(FMT_STRING("Immutable assignment target.")); }
         auto rhs = expression();
         if (!type_check_assign(*type_set, rhs)) {
-            error(FMT_STRING("Incompatible types in assignment."));
+            error(
+                FMT_STRING("Incompatible types in assignment. "
+                           "Expected '{}', found '{}'."),
+                *type_set,
+                rhs
+            );
         }
         rhs.destroy(parent_vm);
         emit_var_length_instruction(set_op, idx);
@@ -1252,6 +1260,7 @@ inline constexpr void Parser::break_statement() noexcept {
     using enum Token::Type;
     if (current_compiler->innermost_loop == nullptr) {
         error(FMT_STRING("Can't use 'break' outside of a loop."));
+        return;
     }
     auto& loop = *current_compiler->innermost_loop;
     if (loop.is_loop_expr) {
@@ -1277,6 +1286,7 @@ inline constexpr void Parser::continue_statement() noexcept {
     using enum Token::Type;
     if (current_compiler->innermost_loop == nullptr) {
         error(FMT_STRING("Can't use 'continue' outside of a loop."));
+        return;
     }
     consume(SEMICOLON, "Expect ; after 'continue'.");
     emit_pop_innermost_loop(false);
@@ -1288,6 +1298,7 @@ inline constexpr void Parser::return_statement() noexcept {
     using enum Token::Type;
     if (current_compiler->function_type == FunctionType::SCRIPT) {
         error(FMT_STRING("Can't return from top-level code."));
+        return;
     }
     if (match(SEMICOLON)) {
         emit_instruction(OpCode::NIL);

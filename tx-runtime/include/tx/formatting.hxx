@@ -1,15 +1,17 @@
 #pragma once
 
+#include "tx/object.hxx"
+#include "tx/type.hxx"
 #include "tx/unicode.hxx"
 #include "tx/value.hxx"
-#include "tx/object.hxx"
 
 #include <fmt/format.h>
 
 template <>
 struct fmt::formatter<tx::Value> : formatter<string_view> {
     template <typename FormatContext>
-    constexpr auto format(const tx::Value value, FormatContext& ctx) noexcept {
+    constexpr auto format(const tx::Value& value, FormatContext& ctx)
+        const noexcept {
         switch (value.type) {
             using enum tx::Value::Type;
             case NONE: return fmt::format_to(ctx.out(), "<none>");
@@ -37,8 +39,10 @@ struct fmt::formatter<tx::Value> : formatter<string_view> {
 template <>
 struct fmt::formatter<tx::Obj> : formatter<string_view> {
     template <typename FormatContext>
-    constexpr auto
-    format_function(const tx::ObjFunction& fun, FormatContext& ctx) {
+    constexpr auto format_function(
+        const tx::ObjFunction& fun,
+        FormatContext& ctx
+    ) const noexcept {
         if (fun.name == nullptr) {
             return fmt::format_to(ctx.out(), "<script>");
         }
@@ -48,7 +52,8 @@ struct fmt::formatter<tx::Obj> : formatter<string_view> {
     }
 
     template <typename FormatContext>
-    constexpr auto format(const tx::Obj& obj, FormatContext& ctx) {
+    constexpr auto format(const tx::Obj& obj, FormatContext& ctx)
+        const noexcept {
         switch (obj.type) {
             using enum tx::Obj::ObjType;
             case CLOSURE: {
@@ -67,5 +72,41 @@ struct fmt::formatter<tx::Obj> : formatter<string_view> {
             case UPVALUE: return fmt::format_to(ctx.out(), "<upvalue>");
         }
         tx::unreachable();
+    }
+};
+
+template <>
+struct fmt::formatter<tx::TypeInfo> : formatter<string_view> {
+    template <typename FormatContext>
+    constexpr auto format(const tx::TypeInfo& value, FormatContext& ctx)
+        const noexcept {
+        switch (value.type) {
+            using enum tx::TypeInfo::Type;
+            case NONE: return fmt::format_to(ctx.out(), "None");
+            case NIL: return fmt::format_to(ctx.out(), "Nil");
+            case BOOL: return fmt::format_to(ctx.out(), "Bool");
+            case INT: return fmt::format_to(ctx.out(), "Int");
+            case FLOAT: return fmt::format_to(ctx.out(), "Float");
+            case CHAR: return fmt::format_to(ctx.out(), "Char");
+            case ANY: return fmt::format_to(ctx.out(), "Any");
+            case FUNCTION: return fmt::format_to(ctx.out(), "Fn<TODO>");
+            case STRING: return fmt::format_to(ctx.out(), "Str");
+        }
+        tx::unreachable();
+    }
+};
+
+template <>
+struct fmt::formatter<tx::TypeSet> : formatter<string_view> {
+    template <typename FormatContext>
+    constexpr auto format(const tx::TypeSet& value, FormatContext& ctx)
+        const noexcept {
+        auto out = ctx.out();
+        std::string_view sep;
+        for (const auto& type_info : value.types) {
+            out = fmt::format_to(out, "{}{}", sep, type_info);
+            sep = " or ";
+        }
+        return out;
     }
 };

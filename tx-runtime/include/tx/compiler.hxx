@@ -265,9 +265,7 @@ class Parser {
     constexpr void begin_loop(Loop& loop, bool is_loop_expr = false) noexcept;
     constexpr void end_loop() noexcept;
 
-    // FIXME: Make static or move to anonymous namespace
     [[nodiscard]] static constexpr i32
-    // cppcheck-suppress functionStatic
     resolve_local(Compiler& compiler, const Token& name) noexcept;
 
     [[nodiscard]] constexpr size_t

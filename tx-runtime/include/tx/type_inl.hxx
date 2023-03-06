@@ -103,6 +103,7 @@ operator==(const TypeInfo& lhs, const TypeInfo& rhs) noexcept {
 }
 
 template <std::size_t N>
+// NOLINTNEXTLINE(*-c-arrays)
 constexpr TypeSet::TypeSet(VM& tvm, TypeInfo (&&type_infos)[N]) noexcept {
     types.reserve(tvm, types.size() + size_cast(N));
     std::for_each(

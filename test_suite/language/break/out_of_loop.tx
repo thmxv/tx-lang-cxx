@@ -1,0 +1,3 @@
+{
+    break;  # Syntax error at 'break': Can't use 'break' outside of a loop.
+}

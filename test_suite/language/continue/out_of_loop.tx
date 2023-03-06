@@ -1,0 +1,3 @@
+{
+    continue;  # Syntax error at 'continue': Can't use 'continue' outside of a loop.
+}
