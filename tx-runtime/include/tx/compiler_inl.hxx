@@ -358,6 +358,7 @@ inline void Parser::begin_compiler(
             }
         }
     }
+    current_compiler->type_info.destroy(parent_vm);
     current_compiler = current_compiler->enclosing;
     return fun;
 }
@@ -432,7 +433,6 @@ inline constexpr void Parser::patch_jumps_in_innermost_loop() noexcept {
 
 inline constexpr void Parser::end_loop() noexcept {
     patch_jumps_in_innermost_loop();
-    // TODO: move to better place?
     current_compiler->innermost_loop->type_set.destroy(parent_vm);
     current_compiler->innermost_loop = current_compiler->innermost_loop
                                            ->enclosing;
@@ -501,12 +501,12 @@ Parser::call(TypeSet lhs, bool /*can_assign*/) noexcept {
         error(
             FMT_STRING("Incompatible types in function call. "
                        "Cannot call '{}' with arguments '{}'."),
-            lhs, arg_types
+            lhs,
+            arg_types
         );
     }
     emit_instruction<1>(OpCode::CALL, arg_types.size());
     lhs.destroy(parent_vm);
-    // FIXME: Make DynArray::destroy() call destroy on elements when required
     for (auto& type_set : arg_types) { type_set.destroy(parent_vm); }
     arg_types.destroy(parent_vm);
     return result;
@@ -523,7 +523,6 @@ inline constexpr TypeSet Parser::literal(bool /*can_assign*/) noexcept {
         using enum Token::Type;
         case NIL:
             emit_instruction(OpCode::NIL);
-            // FIXME: Why the cppcheck error? False positive?
             // cppcheck-suppress returnDanglingLifetime
             return {parent_vm, {TypeInfo(TypeInfo::Type::NIL)}};
         case FALSE:
@@ -662,26 +661,27 @@ inline constexpr TypeSet Parser::variable(bool can_assign) noexcept {
     return named_variable(previous, can_assign);
 }
 
-// FIXME: type check
 inline constexpr TypeSet Parser::unary(bool /*can_assign*/) noexcept {
     auto token_type = previous.type;
     auto rhs = parse_precedence(Precedence::UNARY);
-    TypeSet result{};
     switch (token_type) {
         case Token::Type::BANG:
-            result.add(parent_vm, TypeInfo(TypeInfo::Type::BOOL));
-            // result = type_check_not(rhs);
             emit_instruction(OpCode::NOT);
-            break;
+            rhs.destroy(parent_vm);
+            // cppcheck-suppress[returnDanglingLifetime]
+            return {parent_vm, {TypeInfo(TypeInfo::Type::BOOL)}};
         case Token::Type::MINUS:
+            if (!type_check_negate(rhs)) {
+                error(
+                    FMT_STRING("Incompatible types in unary '-'. "
+                               "No implementation for '- {}'."),
+                    rhs
+                );
+            }
             emit_instruction(OpCode::NEGATE);
-            result = std::move(rhs);
-            break;
+            return rhs;
         default: unreachable();
     }
-    // cppcheck-suppress[accessMoved]
-    rhs.destroy(parent_vm);
-    return result;
 }
 
 // NOLINTNEXTLINE(*-no-recursion)
@@ -734,7 +734,6 @@ inline constexpr TypeSet Parser::block(bool /*can_assign*/) noexcept {
     return result;
 }
 
-// FIXME: type check
 // NOLINTNEXTLINE(*-no-recursion)
 inline constexpr TypeSet Parser::if_expr(bool /*can_assign*/) noexcept {
     using enum Token::Type;
@@ -764,21 +763,26 @@ inline constexpr TypeSet Parser::if_expr(bool /*can_assign*/) noexcept {
         else_result = TypeSet{};
         emit_instruction(OpCode::NIL);
     }
+    then_result.move_all_from(parent_vm, std::move(else_result));
     cond_type.destroy(parent_vm);
-    then_result.destroy(parent_vm);
+    // cppcheck-suppress[accessMoved]
     else_result.destroy(parent_vm);
     patch_jump(else_jump);
-    // cppcheck-suppress[returnDanglingLifetime]
-    return {parent_vm, {TypeInfo{TypeInfo::Type::NIL}}};
+    return then_result;
 }
 
-// FIXME: type check
 inline constexpr TypeSet Parser::loop_expr(bool /*can_assign*/) noexcept {
     Loop loop{};
     begin_loop(loop, true);
     consume(Token::Type::LEFT_BRACE, "Expect '{' after 'loop'.");
     auto block_result = block();
-    // TODO: make sure no final expression as it is meaningless
+    if (!block_result.is_nil()) {
+        error(
+            FMT_STRING("Incompatible type in block result."
+                       "Expected 'Nil', found '{}'."),
+            block_result
+        );
+    }
     block_result.destroy(parent_vm);
     auto loop_result = std::move(current_compiler->innermost_loop->type_set);
     emit_instruction(OpCode::POP);
@@ -800,7 +804,6 @@ inline TypeSet Parser::fn_expr(bool /*can_assign*/) noexcept {
     return {parent_vm, {std::move(ti_result)}};
 }
 
-// FIXME: type check
 inline constexpr TypeSet
 Parser::and_(TypeSet lhs, bool /*can_assign*/) noexcept {
     auto end_jump = emit_jump(OpCode::JUMP_IF_FALSE);
@@ -809,10 +812,10 @@ Parser::and_(TypeSet lhs, bool /*can_assign*/) noexcept {
     lhs.destroy(parent_vm);
     rhs.destroy(parent_vm);
     patch_jump(end_jump);
-    return {};
+    // cppcheck-suppress[returnDanglingLifetime]
+    return {parent_vm, {TypeInfo{TypeInfo::Type::BOOL}}};
 }
 
-// FIXME: type check
 inline constexpr TypeSet
 Parser::or_(TypeSet lhs, bool /*can_assign*/) noexcept {
     auto else_jump = emit_jump(OpCode::JUMP_IF_FALSE);
@@ -823,14 +826,24 @@ Parser::or_(TypeSet lhs, bool /*can_assign*/) noexcept {
     lhs.destroy(parent_vm);
     rhs.destroy(parent_vm);
     patch_jump(end_jump);
-    return {};
+    // cppcheck-suppress[returnDanglingLifetime]
+    return {parent_vm, {TypeInfo{TypeInfo::Type::BOOL}}};
 }
 
 [[nodiscard]] inline constexpr TypeSet
 Parser::as(TypeSet lhs, bool /*can_assign*/) noexcept {
     // FIXME: Emit opcode that will test and possibly emit a runtime error
+    auto type_set = parse_type_set();
+    if (!type_check_cast(lhs, type_set)) {
+        error(
+            FMT_STRING("Incompatible types in 'as' expression. "
+                       "Cannot cast '{}' to '{}'."),
+            lhs,
+            type_set
+        );
+    }
     lhs.destroy(parent_vm);
-    return parse_type_set();
+    return type_set;
 }
 
 inline constexpr const ParseRule& Parser::get_rule(Token::Type token_type
@@ -1069,27 +1082,29 @@ inline void Parser::function_body(
 ) noexcept {
     Compiler compiler;
     begin_compiler(compiler, type, name);
-    begin_scope();
     current_compiler->function->arity = params_ret.parameters.size();
+    current_compiler->type_info = std::move(params_ret.type_info);
+    begin_scope();
     assert(  // NOLINT(*-decay)
         params_ret.parameters.size()
-        == params_ret.type_info.parameter_types.size()
+        == current_compiler->type_info.parameter_types.size()
     );
     for (size_t i = 0; i < params_ret.parameters.size(); ++i) {
         declare_local_variable(
             params_ret.parameters[i].name,
             params_ret.parameters[i].is_const,
-            std::move(params_ret.type_info.parameter_types[i])
+            current_compiler->type_info.parameter_types[i].copy(parent_vm)
         );
         define_variable(-1);
     }
     auto block_result = block_no_scope();
-    if (!type_check_assign(params_ret.type_info.return_type, block_result)) {
-        // TODO: Handle block without final expression
-        // TODO: More information
+    if (!type_check_assign(
+            current_compiler->type_info.return_type,
+            block_result
+        )) {
         error(
             FMT_STRING("Incompatible return type. Expected '{}', found '{}'."),
-            params_ret.type_info.return_type,
+            current_compiler->type_info.return_type,
             block_result
         );
     }
@@ -1238,7 +1253,6 @@ inline constexpr void Parser::var_declaration() noexcept {
     if (expr_type.has_value()) { expr_type->destroy(parent_vm); }
 }
 
-// TODO: typecheck
 // NOLINTNEXTLINE(*-no-recursion)
 inline constexpr void Parser::while_statement() noexcept {
     using enum Token::Type;
@@ -1275,7 +1289,6 @@ inline constexpr void Parser::emit_pop_innermost_loop(bool skip_top_expression
     }
 }
 
-// TODO: typecheck
 inline constexpr void Parser::break_statement() noexcept {
     using enum Token::Type;
     if (current_compiler->innermost_loop == nullptr) {
@@ -1313,7 +1326,6 @@ inline constexpr void Parser::continue_statement() noexcept {
     emit_loop(current_compiler->innermost_loop->start);
 }
 
-// TODO: typecheck
 inline constexpr void Parser::return_statement() noexcept {
     using enum Token::Type;
     if (current_compiler->function_type == FunctionType::SCRIPT) {
@@ -1324,8 +1336,19 @@ inline constexpr void Parser::return_statement() noexcept {
         emit_instruction(OpCode::NIL);
     } else {
         auto expr_type = expression();
-        consume(SEMICOLON, "Expect ';' after return value.");
+        if (!type_check_assign(
+                current_compiler->type_info.return_type,
+                expr_type
+            )) {
+            error(
+                FMT_STRING("Incompatible type in 'return' statement. "
+                           "Expected '{}', found '{}'."),
+                current_compiler->type_info.return_type,
+                expr_type
+            );
+        }
         expr_type.destroy(parent_vm);
+        consume(SEMICOLON, "Expect ';' after return value.");
     }
     emit_instruction(OpCode::RETURN);
 }

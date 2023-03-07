@@ -1,9 +1,10 @@
-fn f() {
+fn f() -> Str {
   loop {
     if false { break; };
     var i = "i";
     return i;
   }
+  "bad"
 }
 
 std_println(f());

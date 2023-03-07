@@ -1,5 +1,6 @@
-fn f() {
+fn f() -> Str {
   if (true) { return "ok"; }
+  "bad"
 }
 
 std_println(f()); # expect: ok

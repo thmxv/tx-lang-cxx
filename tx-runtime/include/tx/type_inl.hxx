@@ -295,6 +295,12 @@ type_check_arithmetic(const TypeInfo& lhs, const TypeInfo& rhs) noexcept {
     return TypeInfo{TypeInfo::Type::NONE};
 }
 
+[[nodiscard]] constexpr bool type_check_negate(const TypeSet& rhs) noexcept {
+    return std::ranges::all_of(rhs.types, [](const auto& current) {
+        return current.is_number();
+    });
+}
+
 [[nodiscard]] constexpr TypeSet type_check_call(
     VM& tvm,
     const TypeSet& callee,
@@ -326,6 +332,18 @@ type_check_arithmetic(const TypeInfo& lhs, const TypeInfo& rhs) noexcept {
         if (!type_check_assign(param_types, arg_types)) { return {}; }
     }
     return fun.return_type.copy(tvm);
+}
+
+[[nodiscard]] constexpr bool
+type_check_cast(const TypeSet& src, const TypeSet& dst) noexcept {
+    if (src.contains(TypeInfo{TypeInfo::Type::ANY})) { return true; }
+    return std::ranges::find_if(
+               src.types,
+               [&](const auto& current_src) {
+                   return type_check_assign(dst, current_src);
+               }
+           )
+           != src.types.end();
 }
 
 }  // namespace tx

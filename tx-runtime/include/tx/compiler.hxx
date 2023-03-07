@@ -120,6 +120,7 @@ struct Compiler {
 
     Compiler* enclosing{nullptr};
     ObjFunction* function{nullptr};
+    TypeInfoFunction type_info{};  // TODO: move inside ObjFunction?
     FunctionType function_type;
     ValueMap constant_indices{};
     LocalArray locals;

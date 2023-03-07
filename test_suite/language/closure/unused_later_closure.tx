@@ -9,15 +9,17 @@ var closure: Nil or Fn<<>, Str> = nil;
   var a = "a";
   {
     var b = "b";
-    fn return_a() {
-      return a;
+    fn return_a() -> Str {
+      # return a;
+      a
     }
 
     closure = return_a;
 
     if (false) {
-      fn return_b() {
-        return b;
+      fn return_b() -> Str {
+        # return b;
+        b
       }
     }
   }

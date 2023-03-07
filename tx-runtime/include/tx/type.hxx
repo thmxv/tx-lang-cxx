@@ -158,8 +158,7 @@ type_check_arithmetic(VM& tvm, const TypeSet& lhs, const TypeSet& rhs) noexcept;
 [[nodiscard]] constexpr TypeInfo
 type_check_arithmetic(const TypeInfo& lhs, const TypeInfo& rhs) noexcept;
 
-[[nodiscard]] constexpr bool
-type_check_unary(const TypeInfo& src, const TypeInfo& dst) noexcept;
+[[nodiscard]] constexpr bool type_check_negate(const TypeSet& rhs) noexcept;
 
 [[nodiscard]] constexpr TypeSet type_check_call(
     VM& tvm,
@@ -172,5 +171,8 @@ type_check_unary(const TypeInfo& src, const TypeInfo& dst) noexcept;
     const TypeInfo& callee,
     const TypeSetArray& args_types
 ) noexcept;
+
+[[nodiscard]] constexpr bool
+type_check_cast(const TypeSet& src, const TypeSet& dst) noexcept;
 
 }  // namespace tx
