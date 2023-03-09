@@ -42,7 +42,7 @@ statements, like:
 
     ```
     # function declaration
-    fn main() -> Nil {
+    fn main() Nil {
         # variable declaration
         let x = 5;
 

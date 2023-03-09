@@ -147,7 +147,7 @@ Not implemented yet.
     };
 
     impl S {
-        fn get_name(self) -> Str { self.name }
+        fn get_name(self) Str { self.name }
     }
 
 
