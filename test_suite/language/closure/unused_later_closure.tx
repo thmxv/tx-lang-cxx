@@ -6,23 +6,11 @@
 
 var closure: Nil or Fn<<>, Str> = nil;
 {
-  var a = "a";
   {
-    var b = "b";
-    fn return_a() -> Str {
-      # return a;
-      a
-    }
-
-    closure = return_a;
-
-    if (false) {
-      fn return_b() -> Str {
-        # return b;
-        b
-      }
-    }
+    let a = "a";
+    let b = "b";
+    closure = fn() Str { a };
+    if false { fn return_b() Str { b } }
   }
-
   std_println((closure as Fn<<>, Str>)()); # expect: a
 }

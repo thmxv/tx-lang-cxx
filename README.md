@@ -26,6 +26,7 @@ Tx is still very much a work in progress.
 
 ## Backlog
 
+- Do not allow forward decl 2x the same var
 - Allow return as last statement of block that does not return nil
 - Replace gsl Expect macro to something less likely to collide
 - Maybe add option to error_token to mark the end of the token or the start in
@@ -44,7 +45,6 @@ Tx is still very much a work in progress.
 
 ### To consider
 
-- Make not operator postfix and ! instead of 'not'
 - Sync GC and allocator, meaning the GC is always triggered
   before the pool allocator falls-back to the upstream allocator.
 - Chapter 25 challenges
@@ -85,7 +85,7 @@ Tx is still very much a work in progress.
 
 ### v0.2.0
 
-- [ ] Type checking
+- [X] Type checking
 - [ ] Documentation
 
 ### v0.3.0

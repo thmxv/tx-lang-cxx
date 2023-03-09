@@ -1,6 +1,6 @@
 #!/usr/bin/env tx
 
-fn f() -> Nil or Fn<<>, Nil> {
+fn f() Nil or Fn<<>, Nil> {
   while true {
     var i = "i";
     fn g() { std_println(i); }

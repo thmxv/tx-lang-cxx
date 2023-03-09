@@ -1,32 +1,32 @@
-fn f0() -> Int { 0 }
+fn f0() Int { 0 }
 std_println(f0()); # expect: 0
 
-fn f1(a: Int) -> Int { a }
+fn f1(a: Int) Int { a }
 std_println(f1(1)); # expect: 1
 
-fn f2(a: Int, b: Int) -> Int { a + b }
+fn f2(a: Int, b: Int) Int { a + b }
 std_println(f2(1, 2)); # expect: 3
 
-fn f3(a: Int, b: Int, c: Int) -> Int { a + b + c }
+fn f3(a: Int, b: Int, c: Int) Int { a + b + c }
 std_println(f3(1, 2, 3)); # expect: 6
 
-fn f4(a: Int, b: Int, c: Int, d: Int) -> Int { a + b + c + d }
+fn f4(a: Int, b: Int, c: Int, d: Int) Int { a + b + c + d }
 std_println(f4(1, 2, 3, 4)); # expect: 10
 
-fn f5(a: Int, b: Int, c: Int, d: Int, e: Int) -> Int { a + b + c + d + e }
+fn f5(a: Int, b: Int, c: Int, d: Int, e: Int) Int { a + b + c + d + e }
 std_println(f5(1, 2, 3, 4, 5)); # expect: 15
 
-fn f6(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int) -> Int {
+fn f6(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int) Int {
   a + b + c + d + e + f
 }
 std_println(f6(1, 2, 3, 4, 5, 6)); # expect: 21
 
-fn f7(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int) -> Int {
+fn f7(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int) Int {
   a + b + c + d + e + f + g
 }
 std_println(f7(1, 2, 3, 4, 5, 6, 7)); # expect: 28
 
-fn f8(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int) -> Int {
+fn f8(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int) Int {
   a + b + c + d + e + f + g + h
 }
 std_println(f8(1, 2, 3, 4, 5, 6, 7, 8)); # expect: 36

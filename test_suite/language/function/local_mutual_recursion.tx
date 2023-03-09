@@ -1,11 +1,11 @@
 {
-  fn isEven(n: Int) -> Bool {
+  fn isEven(n: Int) Bool {
     if (n == 0) { return true; }
     # [5] Syntax error at 'isOdd': Cannot find value with this name in current scope.
     return isOdd(n - 1);
   }
 
-  fn isOdd(n: Int) -> Bool {
+  fn isOdd(n: Int) Bool {
     if (n == 0) { return false; }
     return isEven(n - 1);
   }

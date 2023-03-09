@@ -2,7 +2,7 @@
 
 let a = 1;
 let b = nil;
-fn foo(a: Int) -> Nil {}
+fn foo(a: Int) Nil {}
 
 # [8] Syntax error: Unexpected character.
 foo(a $ b);

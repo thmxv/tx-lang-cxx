@@ -1,4 +1,4 @@
-fn returnArg(arg: Any) -> Any {
+fn returnArg(arg: Any) Any {
   return arg;
 }
 

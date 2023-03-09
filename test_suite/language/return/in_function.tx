@@ -1,4 +1,4 @@
-fn f() -> Str {
+fn f() Str {
   return "ok";
   std_println("bad");
   "bad"

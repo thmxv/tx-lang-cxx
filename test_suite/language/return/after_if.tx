@@ -1,4 +1,4 @@
-fn f() -> Str {
+fn f() Str {
   if (true) { return "ok"; }
   "bad"
 }

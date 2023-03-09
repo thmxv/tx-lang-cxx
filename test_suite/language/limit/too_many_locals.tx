@@ -1,4 +1,4 @@
-fn f() -> Str {
+fn f() Str {
   # var v00=nil; First slot already taken.
 
   var v01=nil; var v02=nil; var v03=nil; var v04=nil; var v05=nil; var v06=nil; var v07=nil;

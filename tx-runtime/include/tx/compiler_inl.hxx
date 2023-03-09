@@ -1063,14 +1063,21 @@ inline constexpr ParametersAndReturn Parser::parameter_list_and_return_type(
         );
     } while (match(COMMA));
     consume(RIGHT_PAREN, "Expect ')' after parameters.");
-    if (match(MINUS)) {
-        consume(RIGHT_CHEVRON, "Expect '>' after '-'.");
-        result.type_info.return_type = parse_type_set();
-    } else {
+    if (check(LEFT_BRACE)) {
         result.type_info.return_type = {
             parent_vm,
             {TypeInfo{TypeInfo::Type::NIL}}};
+    } else {
+        result.type_info.return_type = parse_type_set();
     }
+    // if (match(MINUS)) {
+    //     consume(RIGHT_CHEVRON, "Expect '>' after '-'.");
+    //     result.type_info.return_type = parse_type_set();
+    // } else {
+    //     result.type_info.return_type = {
+    //         parent_vm,
+    //         {TypeInfo{TypeInfo::Type::NIL}}};
+    // }
     return result;
 }
 
@@ -1172,7 +1179,7 @@ inline constexpr TypeInfo Parser::parse_type() noexcept {
                                  std::move(return_type)}
             };
         }
-        default: error_at_current(FMT_STRING("Expect type name")); return {};
+        default: error_at_current(FMT_STRING("Expect type name.")); return {};
     }
 }
 

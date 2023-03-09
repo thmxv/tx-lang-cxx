@@ -1,4 +1,4 @@
-fn foo(param: Str) -> Fn<<>, Nil> {
+fn foo(param: Str) Fn<<>, Nil> {
   fn f() { std_println(param); }
   f
 }
