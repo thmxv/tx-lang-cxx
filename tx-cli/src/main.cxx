@@ -28,7 +28,7 @@ Options:
       -D trace-execution  Trace bytecode execution
       -D trace-gc         Trace garbage collection
   -c,--command TXT  Execute command passed as argument.
-  file TXT          Read script to ececute from file.
+  file TXT          Read script to execute from file.
   -                 Read script to execute from the standard input.
   --                Stop parsing the following arguments as options.
   arguments TXT...  Argument to pass to executed script/command.
