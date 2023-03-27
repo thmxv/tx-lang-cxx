@@ -10,7 +10,8 @@
 Tx aims to be oriented towards safety, speed, power and minimalism.
 
 Tx is inspired by Lua. The code and implementation is based on the 
-book "Crafting Interpreters" by Robert Nystrom. The syntax and feature set
+book [Crafting Interpreters](http://craftinginterpreters.com/) by 
+[Robert Nystrom](https://github.com/munificent). The syntax and feature set
 are inspired by languages such as Python, Rust, Wren and Swift among others.
 
 The code is written, as much as possible, in modern C++. Trying to be 
@@ -134,4 +135,21 @@ Tx is still very much a work in progress.
 
 - [ ] Refactor instruction set/Switch to register based VM
 - [ ] Better GC
+
+## License
+
+Licensed under either of:
+
+ * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or 
+   http://www.apache.org/licenses/LICENSE-2.0)
+ * MIT license ([LICENSE-MIT](LICENSE-MIT) or 
+   http://opensource.org/licenses/MIT)
+
+at your option.
+
+## Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted 
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall 
+be dual licensed as above, without any additional terms or conditions.
 
